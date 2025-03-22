@@ -30,5 +30,6 @@ int main(){
         std::cout << **p6 << std::endl;
         p6->operator++();
     }
+    auto p7 = original::makeOwnerPtr<int>(10);
     return 0;
 }
