@@ -446,3 +446,51 @@ TEST_F(VectorTest, MoveAndCopyTest) {
     EXPECT_EQ(this->originalVec, original::vector<int>{});
     EXPECT_EQ(vec, src);
 }
+
+// 自定义 move-only 类型
+struct MoveOnly {
+    int value;
+    explicit MoveOnly(const int v = 0) : value(v) {}
+    MoveOnly(const MoveOnly&) = delete;            // 禁止拷贝
+    MoveOnly& operator=(const MoveOnly&) = delete; // 禁止拷贝赋值
+    MoveOnly(MoveOnly&& other) noexcept : value(other.value) { other.value = 0; }
+    MoveOnly& operator=(MoveOnly&& other) noexcept {
+        if (this != &other) { value = other.value; other.value = 0; }
+        return *this;
+    }
+    bool operator==(const MoveOnly& other) const { return value == other.value; }
+    [[nodiscard]] int val() const noexcept { return value; }
+};
+
+TEST(VectorMoveOnlyTest, PushBackAndAccess) {
+    original::vector<MoveOnly> vec;
+    vec.pushEnd(MoveOnly(10));
+    vec.pushEnd(MoveOnly(20));
+
+    ASSERT_EQ(vec[0].value, 10);
+    ASSERT_EQ(vec[1].value, 20);
+}
+
+TEST(VectorMoveOnlyTest, MoveVector) {
+    original::vector<MoveOnly> vec1;
+    vec1.pushEnd(MoveOnly(5));
+    vec1.pushEnd(MoveOnly(15));
+
+    original::vector<MoveOnly> vec2 = std::move(vec1);
+
+    ASSERT_EQ(vec2[0].value, 5);
+    ASSERT_EQ(vec2[1].value, 15);
+    ASSERT_EQ(vec1.size(), 0);  // vec1被移动后size应为0 // NOLINT: Test move
+}
+
+TEST(VectorMoveOnlyTest, ResizeSimulation) {
+    // 测试pushEnd多次触发扩容
+    original::vector<MoveOnly> vec;
+    for (int i = 0; i < 10; ++i) {
+        vec.pushEnd(MoveOnly(i));
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        ASSERT_EQ(vec[i].value, i);
+    }
+}

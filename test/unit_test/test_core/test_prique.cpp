@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <queue>
 #include "prique.h"
+#include "tuple.h"
 
 #define lst {40, 20, 10, 30, 50, 70, 60, 100, 110, 50, 20, 90, 80, 80, 40}
 
@@ -170,7 +171,7 @@ TEST(PriqueTest, MoveConstructor) {
     const original::prique<int> p3 = std::move(p1);
 
     EXPECT_TRUE(comparePriques(p3, p2));
-    EXPECT_TRUE(p1.empty());  // p1 should be empty after move
+    EXPECT_TRUE(p1.empty());  // p1 should be empty after move // NOLINT: Test move
 }
 
 // Test copy assignment operator
@@ -179,8 +180,7 @@ TEST(PriqueTest, CopyAssignmentOperator) {
     p1.push(10);
     p1.push(20);
 
-    original::prique<int> p2;
-    p2 = p1;
+    original::prique<int> p2 = p1;
 
     auto p3 = initPriQue<int>({});
     p3.push(20);
@@ -199,9 +199,75 @@ TEST(PriqueTest, MoveAssignmentOperator) {
     p2.push(20);
     p2.push(10);
 
-    original::prique<int> p3;
-    p3 = std::move(p1);
+    const original::prique<int> p3 = std::move(p1);
 
     EXPECT_TRUE(comparePriques(p3, p2));
-    EXPECT_TRUE(p1.empty());  // p1 should be empty after move
+    EXPECT_TRUE(p1.empty());  // p1 should be empty after move  // NOLINT: Test move
 }
+
+// // 自定义 move-only 类型
+// struct MoveOnly {
+//     int value;
+//     explicit MoveOnly(const int v = 0) : value(v) {}
+//     MoveOnly(const MoveOnly&) = delete;            // 禁止拷贝
+//     MoveOnly& operator=(const MoveOnly&) = delete; // 禁止拷贝赋值
+//     MoveOnly(MoveOnly&& other) noexcept : value(other.value) { other.value = 0; }
+//     MoveOnly& operator=(MoveOnly&& other) noexcept {
+//         if (this != &other) { value = other.value; other.value = 0; }
+//         return *this;
+//     }
+//     bool operator==(const MoveOnly& other) const { return value == other.value; }
+//     [[nodiscard]] int val() const noexcept { return value; }
+// };
+//
+// template<typename TUPLE>
+// struct MoveOnlyTupleComparator {
+//     bool operator()(const TUPLE& lhs, const TUPLE& rhs) const {
+//         return lhs.template get<0>() < rhs.template get<0>();
+//     }
+// };
+//
+// using MoveOnlyTuple = original::tuple<int, MoveOnly, MoveOnly>;
+//
+// TEST(PriqueMoveOnlyTupleTest, PushAndPop) {
+//     // 使用自定义比较器的优先队列
+//     original::prique<MoveOnlyTuple, MoveOnlyTupleComparator, original::vector> pq;
+//
+//     // push move-only 元素
+//     pq.push(MoveOnlyTuple(10, MoveOnly(100), MoveOnly(200)));
+//     pq.push(MoveOnlyTuple(5, MoveOnly(50), MoveOnly(75)));
+//     pq.push(MoveOnlyTuple(20, MoveOnly(300), MoveOnly(400)));
+//
+//     // pop 元素，按第 0 个值比较
+//     auto top = pq.pop();
+//     EXPECT_EQ(top.get<0>(), 20);
+//     EXPECT_EQ(top.get<1>().val(), 300);
+//     EXPECT_EQ(top.get<2>().val(), 400);
+//
+//     top = pq.pop();
+//     EXPECT_EQ(top.get<0>(), 10);
+//     EXPECT_EQ(top.get<1>().val(), 100);
+//     EXPECT_EQ(top.get<2>().val(), 200);
+//
+//     top = pq.pop();
+//     EXPECT_EQ(top.get<0>(), 5);
+//     EXPECT_EQ(top.get<1>().val(), 50);
+//     EXPECT_EQ(top.get<2>().val(), 75);
+// }
+//
+// TEST(PriqueMoveOnlyTupleTest, TopPeek) {
+//     original::prique<MoveOnlyTuple, MoveOnlyTupleComparator, original::vector> pq;
+//
+//     pq.push(MoveOnlyTuple(3, MoveOnly(30), MoveOnly(60)));
+//     pq.push(MoveOnlyTuple(7, MoveOnly(70), MoveOnly(140)));
+//
+//     // top 不 pop
+//     auto top = pq.top();
+//     EXPECT_EQ(top.get<0>(), 7);
+//     EXPECT_EQ(top.get<1>().val(), 70);
+//     EXPECT_EQ(top.get<2>().val(), 140);
+//
+//     // 确认 pop 后仍然正确
+//     top = pq.pop();
+//     EXPECT_EQ(top.get<0>(), 7);
+// }

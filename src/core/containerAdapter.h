@@ -189,7 +189,7 @@ namespace original {
         std::stringstream ss;
         ss << this->className() << "(";
         bool first = true;
-        for (const auto e : this->serial_)
+        for (const auto& e : this->serial_)
         {
             if (!first) ss << ", ";
             ss << printable::formatString(e);

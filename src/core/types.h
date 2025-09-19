@@ -75,6 +75,12 @@ namespace original {
     template<typename TYPE>
     concept EnumType = std::is_enum_v<TYPE>;
 
+    template<typename... Ts>
+    concept AllCopyConstructible = (... && std::is_copy_constructible_v<Ts>);
+
+    template<typename... Ts>
+    concept AllCopyAssignable = (... && std::is_copy_assignable_v<Ts>);
+
     /**
      * @concept Comparable
      * @brief Requires type to support all comparison operators.

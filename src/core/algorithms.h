@@ -1080,7 +1080,7 @@ namespace original
     {
         auto it_1 = strongPtr(it1.clone());
         auto it_2 = strongPtr(it2.clone());
-        TYPE tmp = it_2->get();
+        TYPE tmp = std::move(it_2->get());
         it_2->set(it_1->get());
         it_1->set(tmp);
     }

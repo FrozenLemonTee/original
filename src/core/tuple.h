@@ -78,7 +78,7 @@ namespace original {
             explicit tupleImpl() = default;
             explicit tupleImpl(T&& cur);
             tupleImpl(tupleImpl&& other) noexcept;
-            tupleImpl(const tupleImpl& other);
+            tupleImpl(const tupleImpl& other) requires AllCopyConstructible<T>;
             tupleImpl& operator=(tupleImpl&& other) noexcept;
 
             template<u_integer I_DIFF>
@@ -108,7 +108,7 @@ namespace original {
             tupleImpl() = default;
             explicit tupleImpl(T&& cur, TS&& next_elems);
             tupleImpl(tupleImpl&& other) noexcept;
-            tupleImpl(const tupleImpl& other);
+            tupleImpl(const tupleImpl& other) requires AllCopyConstructible<T, TS>;
             tupleImpl& operator=(tupleImpl&& other) noexcept;
 
             template<u_integer I_DIFF>
@@ -136,9 +136,10 @@ namespace original {
 
         public:
             explicit tupleImpl(T&& cur, TS&&... next_elems);
-            explicit tupleImpl(const T& cur = T{}, const tupleImpl<I + 1, TS...>& nt = tupleImpl<I + 1, TS...>{});
+            explicit tupleImpl(const T& cur = T{}, const tupleImpl<I + 1, TS...>& nt = tupleImpl<I + 1, TS...>{})
+            requires AllCopyConstructible<T, TS...>;
             tupleImpl(tupleImpl&& other) noexcept;
-            tupleImpl(const tupleImpl& other);
+            tupleImpl(const tupleImpl& other) requires AllCopyConstructible<T, TS...>;
             tupleImpl& operator=(tupleImpl&& other) noexcept;
 
             template<u_integer I_DIFF>
@@ -191,8 +192,8 @@ namespace original {
     public:
         tuple() = default;
         explicit tuple(TYPES&&... e);
-        tuple(const tuple& other);
-        tuple& operator=(const tuple& other);
+        tuple(const tuple& other) requires AllCopyConstructible<TYPES...>;
+        tuple& operator=(const tuple& other) requires AllCopyAssignable<TYPES...>;
         tuple(tuple&& other) noexcept;
         tuple& operator=(tuple&& other) noexcept;
 
@@ -327,7 +328,7 @@ original::tuple<TYPES...>::tupleImpl<I, T>::tupleImpl(tupleImpl&& other) noexcep
 template<typename... TYPES>
 template<original::u_integer I, typename T>
 original::tuple<TYPES...>::tupleImpl<I, T>::tupleImpl(const tupleImpl& other)
-    : cur_elem(other.cur_elem) {}
+    requires AllCopyConstructible<T> : cur_elem(other.cur_elem) {}
 
 template<typename... TYPES>
 template<original::u_integer I, typename T>
@@ -401,7 +402,7 @@ original::tuple<TYPES...>::tupleImpl<I, T, TS>::tupleImpl(tupleImpl&& other) noe
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename TS>
 original::tuple<TYPES...>::tupleImpl<I, T, TS>::tupleImpl(const tupleImpl& other)
-    : cur_elem(other.cur_elem), next(other.next) {}
+    requires AllCopyConstructible<T, TS> : cur_elem(other.cur_elem), next(other.next) {}
 
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename TS>
@@ -481,7 +482,7 @@ original::tuple<TYPES...>::tupleImpl<I, T, TS...>::tupleImpl(T&& cur, TS&&... ne
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename... TS>
 original::tuple<TYPES...>::tupleImpl<I, T, TS...>::tupleImpl(const T& cur, const tupleImpl<I + 1, TS...>& nt)
-    : cur_elem(cur), next(nt) {}
+    requires AllCopyConstructible<T, TS...> : cur_elem(cur), next(nt) {}
 
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename... TS>
@@ -491,7 +492,7 @@ original::tuple<TYPES...>::tupleImpl<I, T, TS...>::tupleImpl(tupleImpl&& other) 
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename... TS>
 original::tuple<TYPES...>::tupleImpl<I, T, TS...>::tupleImpl(const tupleImpl& other)
-    : cur_elem(other.cur_elem), next(other.next) {}
+    requires AllCopyConstructible<T, TS...> : cur_elem(other.cur_elem), next(other.next) {}
 
 template<typename... TYPES>
 template<original::u_integer I, typename T, typename... TS>
@@ -595,10 +596,12 @@ original::tuple<TYPES...>::tuple(TYPES&&... e)
     : elems(std::forward<TYPES>(e)...) {}
 
 template<typename... TYPES>
-original::tuple<TYPES...>::tuple(const tuple& other) : elems(other.elems) {}
+original::tuple<TYPES...>::tuple(const tuple& other)
+    requires AllCopyConstructible<TYPES...> : elems(other.elems) {}
 
 template<typename... TYPES>
-original::tuple<TYPES...>& original::tuple<TYPES...>::operator=(const tuple& other) {
+original::tuple<TYPES...>& original::tuple<TYPES...>::operator=(const tuple& other)
+requires AllCopyAssignable<TYPES...> {
     if (this == &other) return *this;
     this->elems = other.elems;
     return *this;

@@ -109,6 +109,8 @@ namespace original
          */
         void push(const TYPE& e);
 
+        void push(TYPE&& e);
+
         /**
          * @brief Extracts highest priority element
          * @return The extracted element
@@ -215,12 +217,23 @@ namespace original
             template <typename, typename> typename SERIAL,
             template <typename> typename ALLOC>
     requires original::Compare<Callback<TYPE>, TYPE>
+    void original::prique<TYPE, Callback, SERIAL, ALLOC>::push(TYPE&& e)
+    {
+        this->serial_.pushEnd(std::move(e));
+        algorithms::heapAdjustUp(this->serial_.begin(), this->serial_.last(), this->compare_);
+    }
+
+    template<typename TYPE,
+            template <typename> typename Callback,
+            template <typename, typename> typename SERIAL,
+            template <typename> typename ALLOC>
+    requires original::Compare<Callback<TYPE>, TYPE>
     auto original::prique<TYPE, Callback, SERIAL, ALLOC>::pop() -> TYPE
     {
         if (this->empty()) throw noElementError();
 
         algorithms::swap(this->serial_.begin(), this->serial_.last());
-        TYPE res = this->serial_.popEnd();
+        TYPE res = std::move(this->serial_.popEnd());
         algorithms::heapAdjustDown(this->serial_.begin(), this->serial_.last(), this->serial_.begin(), this->compare_);
         return res;
     }
