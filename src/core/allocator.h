@@ -7,6 +7,7 @@
 #include "maths.h"
 #include "type_traits"
 #include "utility"
+#include <iostream>
 
 /**
 * @file allocator.h
@@ -151,12 +152,18 @@ namespace original {
     * @extends allocatorBase
     */
     template<typename TYPE>
-    class allocator : public allocatorBase<TYPE, allocator> {
+    class allocator final : public allocatorBase<TYPE, allocator> {
     public:
         using typename allocatorBase<TYPE, allocator>::propagate_on_container_copy_assignment;
         using typename allocatorBase<TYPE, allocator>::propagate_on_container_move_assignment;
         using typename allocatorBase<TYPE, allocator>::propagate_on_container_swap;
         using typename allocatorBase<TYPE, allocator>::propagate_on_container_merge;
+
+        allocator() {
+            std::cout << "[DEBUG] constructor of allocator called, type info: " << typeid(TYPE).name() << ", this: " << this << std::endl;
+        }
+
+        ~allocator() override = default;
 
         /**
         * @brief Allocates memory using global operator new

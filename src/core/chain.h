@@ -7,6 +7,8 @@
 #include "baseList.h"
 #include "iterationStream.h"
 
+#include <iostream>
+
 /**
  * @file chain.h
  * @brief Non-cyclic doubly linked list implementation
@@ -576,6 +578,8 @@ namespace original {
 
     template <typename TYPE, typename ALLOC>
     original::chain<TYPE, ALLOC>::chain(const chain& other) : chain(){
+    std::cout << "[DEBUG] " << "allocator_ (this): " << &this->allocator << std::endl;
+    std::cout << "[DEBUG] " << "allocator_ (other): " << &other.allocator << std::endl;
         this->operator=(other);
     }
 
@@ -615,6 +619,10 @@ namespace original {
 
     template <typename TYPE, typename ALLOC>
     original::chain<TYPE, ALLOC>& original::chain<TYPE, ALLOC>::operator=(const chain& other){
+        std::cout << "[DEBUG] copy ctor this=" << this
+              << " allocator=" << &this->allocator
+              << " from other=" << &other
+              << " allocator=" << &other.allocator << std::endl;
         if (this == &other) return *this;
         this->chainDestroy();
         this->size_ = other.size_;
@@ -638,6 +646,7 @@ namespace original {
             this->allocator = other.allocator;
             this->rebind_alloc = other.rebind_alloc;
         }
+        std::cout << "[DEBUG] chain copy ctor end this=" << this << std::endl;
         return *this;
     }
 
