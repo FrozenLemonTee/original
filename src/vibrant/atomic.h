@@ -295,7 +295,117 @@ namespace original {
         template<typename T>
         friend auto makeAtomic(T value);
     };
+#elif ORIGINAL_COMPILER_MSVC
+    enum class memOrder {
+        RELAXED,
+        ACQUIRE,
+        RELEASE,
+        ACQ_REL,
+        SEQ_CST,
+    };
 
+    template<typename TYPE>
+    constexpr bool isLockFreeType() noexcept;
+
+    template<typename TYPE, bool USE_LOCK>
+    class atomicImpl;
+
+    template<typename TYPE>
+    using atomic = atomicImpl<TYPE, !isLockFreeType<TYPE>()>;
+
+    template<typename TYPE>
+    class atomicImpl<TYPE, false>
+    {
+        alignas(TYPE) volatile TYPE data_;
+
+    public:
+        static constexpr auto RELAXED = memOrder::RELAXED;
+        static constexpr auto ACQUIRE = memOrder::ACQUIRE;
+        static constexpr auto RELEASE = memOrder::RELEASE;
+        static constexpr auto ACQ_REL = memOrder::ACQ_REL;
+        static constexpr auto SEQ_CST = memOrder::SEQ_CST;
+
+        atomicImpl(const atomicImpl&) = delete;
+        atomicImpl(atomicImpl&&) = delete;
+        atomicImpl& operator=(const atomicImpl&) = delete;
+        atomicImpl& operator=(atomicImpl&&) = delete;
+
+        static constexpr bool isLockFree() noexcept;
+
+        void store(TYPE value, memOrder order = SEQ_CST);
+
+        TYPE load(memOrder order = SEQ_CST) const noexcept;
+
+        TYPE operator*() const noexcept;
+
+        explicit operator TYPE() const noexcept;
+
+        void operator=(TYPE value) noexcept;
+
+        atomicImpl& operator+=(TYPE value) noexcept;
+
+        atomicImpl& operator-=(TYPE value) noexcept;
+
+        TYPE exchange(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        bool exchangeCmp(TYPE& expected, TYPE desired, memOrder order = SEQ_CST) noexcept;
+
+        ~atomicImpl() = default;
+
+        template<typename T>
+        friend auto makeAtomic();
+
+        template<typename T>
+        friend auto makeAtomic(T value);
+    };
+
+    template<typename TYPE>
+    class atomicImpl<TYPE, true>
+    {
+        mutable wMutex mutex_;
+        alternative<TYPE> data_;
+
+    public:
+        static constexpr auto RELAXED = memOrder::RELAXED;
+        static constexpr auto ACQUIRE = memOrder::ACQUIRE;
+        static constexpr auto RELEASE = memOrder::RELEASE;
+        static constexpr auto ACQ_REL = memOrder::ACQ_REL;
+        static constexpr auto SEQ_CST = memOrder::SEQ_CST;
+
+        atomicImpl(const atomicImpl&) = delete;
+        atomicImpl(atomicImpl&&) = delete;
+        atomicImpl& operator=(const atomicImpl&) = delete;
+        atomicImpl& operator=(atomicImpl&&) = delete;
+
+        static constexpr bool isLockFree() noexcept;
+
+        void store(TYPE value, memOrder order = SEQ_CST);
+
+        TYPE load(memOrder order = SEQ_CST) const noexcept;
+
+        TYPE operator*() const noexcept;
+
+        explicit operator TYPE() const noexcept;
+
+        void operator=(TYPE value) noexcept;
+
+        atomicImpl& operator+=(TYPE value) noexcept;
+
+        atomicImpl& operator-=(TYPE value) noexcept;
+
+        TYPE exchange(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        bool exchangeCmp(TYPE& expected, TYPE desired, memOrder order = SEQ_CST) noexcept;
+
+        ~atomicImpl() = default;
+
+        template<typename T>
+        friend auto makeAtomic();
+
+        template<typename T>
+        friend auto makeAtomic(T value);
+    };
+#endif
     // ==================== Factory Functions ====================
 
     /**
@@ -316,7 +426,6 @@ namespace original {
     auto makeAtomic(TYPE value);
 
 } // namespace original
-#endif
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 template <typename TYPE>
@@ -471,6 +580,14 @@ bool original::atomicImpl<TYPE, true>::exchangeCmp(TYPE& expected, const TYPE& d
     expected = *this->data_;
     return false;
 }
+#elif ORIGINAL_COMPILER_MSVC
+
+template<typename TYPE>
+constexpr bool original::isLockFreeType() noexcept {
+    return sizeof(TYPE) == 4 || sizeof(TYPE) == 8;
+}
+
+#endif
 
 template<typename TYPE>
 auto original::makeAtomic()
@@ -483,5 +600,4 @@ auto original::makeAtomic(TYPE value)
 {
     return atomic<TYPE>{std::move(value)};
 }
-#endif
 #endif
