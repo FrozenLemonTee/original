@@ -1,7 +1,12 @@
 #ifndef MUTEX_H
 #define MUTEX_H
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
+#elif ORIGINAL_COMPILER_MSVC
+#include "synchapi.h"
+#endif
+
 #include "error.h"
 #include "tuple.h"
 #include <iostream>
@@ -28,7 +33,7 @@ namespace original {
      *       Derived classes must implement all pure virtual methods.
      */
     class mutexBase {
-    protected:
+    public:
         /**
          * @brief Locks the mutex, blocking if necessary
          * @throws sysError if the lock operation fails
@@ -54,7 +59,6 @@ namespace original {
          */
         [[nodiscard]] virtual ul_integer id() const = 0;
 
-    public:
         /// Default constructor
         explicit mutexBase() = default;
 
@@ -142,6 +146,7 @@ namespace original {
         virtual ~lockGuard() = default;
     };
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pMutex
      * @brief POSIX thread mutex implementation
@@ -151,7 +156,7 @@ namespace original {
      * and cleanup.
      */
     class pMutex final : public mutexBase {
-        pthread_mutex_t mutex_; ///< Internal POSIX mutex handle
+        pthread_mutex_t mutex_{}; ///< Internal POSIX mutex handle
     public:
         /// Native handle type (pthread_mutex_t)
         using native_handle = pthread_mutex_t;
@@ -205,6 +210,31 @@ namespace original {
          */
         ~pMutex() override;
     };
+#elif ORIGINAL_COMPILER_MSVC
+    class wMutex final : public mutexBase {
+        CRITICAL_SECTION cs_;
+    public:
+        using native_handle = CRITICAL_SECTION;
+
+        explicit wMutex();
+
+        wMutex(wMutex&&) = delete;
+
+        wMutex& operator=(wMutex&&) = delete;
+
+        [[nodiscard]] ul_integer id() const override;
+
+        [[nodiscard]] void* nativeHandle() noexcept override;
+
+        void lock() override;
+
+        bool tryLock() override;
+
+        void unlock() override;
+
+        ~wMutex() override;
+    };
+#endif
 
     /**
      * @class uniqueLock
@@ -214,17 +244,17 @@ namespace original {
      * with various locking policies.
      */
     class uniqueLock final : public lockGuard {
-        pMutex& p_mutex_;   ///< Reference to managed mutex
+        mutexBase& mutex_;   ///< Reference to managed mutex
         bool is_locked;     ///< Current lock state
 
     public:
         /**
          * @brief Constructs a uniqueLock with specified policy
-         * @param p_mutex Mutex to manage
+         * @param mutex Mutex to manage
          * @param policy Locking policy (default: AUTO_LOCK)
          * @throws sysError if locking fails
          */
-        explicit uniqueLock(pMutex& p_mutex, lockPolicy policy = AUTO_LOCK);
+        explicit uniqueLock(mutexBase& mutex, lockPolicy policy = AUTO_LOCK);
 
         /// Deleted move constructor
         uniqueLock(uniqueLock&&) = delete;
@@ -352,6 +382,7 @@ namespace original {
     };
 }
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::pMutex::pMutex() : mutex_{} {
     if (const int code = pthread_mutex_init(&this->mutex_, nullptr);
         code != 0){
@@ -401,9 +432,45 @@ inline original::pMutex::~pMutex() {
         std::terminate();
     }
 }
+#elif ORIGINAL_COMPILER_MSVC
+inline original::wMutex::wMutex() : cs_{}
+{
+    InitializeCriticalSection(&this->cs_);
+}
 
-inline original::uniqueLock::uniqueLock(pMutex& p_mutex, lockPolicy policy)
-    : p_mutex_(p_mutex), is_locked(false) {
+inline original::ul_integer original::wMutex::id() const
+{
+    return reinterpret_cast<ul_integer>(&this->cs_);
+}
+
+inline void* original::wMutex::nativeHandle() noexcept
+{
+    return &this->cs_;
+}
+
+inline void original::wMutex::lock()
+{
+    EnterCriticalSection(&this->cs_);
+}
+
+inline bool original::wMutex::tryLock()
+{
+    return TryEnterCriticalSection(&this->cs_) != 0;
+}
+
+inline void original::wMutex::unlock()
+{
+    LeaveCriticalSection(&this->cs_);
+}
+
+inline original::wMutex::~wMutex()
+{
+    DeleteCriticalSection(&this->cs_);
+}
+#endif
+
+inline original::uniqueLock::uniqueLock(mutexBase& mutex, lockPolicy policy)
+    : mutex_(mutex), is_locked(false) {
     switch (policy) {
         case MANUAL_LOCK:
             break;
@@ -426,7 +493,7 @@ inline void original::uniqueLock::lock() {
     if (this->is_locked)
         throw sysError("Cannot lock uniqueLock: already locked");
 
-    this->p_mutex_.lock();
+    this->mutex_.lock();
     this->is_locked = true;
 }
 
@@ -434,13 +501,13 @@ inline bool original::uniqueLock::tryLock() {
     if (this->is_locked)
         throw sysError("Cannot try-lock uniqueLock: already locked");
 
-    this->is_locked = this->p_mutex_.tryLock();
+    this->is_locked = this->mutex_.tryLock();
     return this->is_locked;
 }
 
 inline void original::uniqueLock::unlock() {
     if (this->is_locked){
-        this->p_mutex_.unlock();
+        this->mutex_.unlock();
         this->is_locked = false;
     }
 }
