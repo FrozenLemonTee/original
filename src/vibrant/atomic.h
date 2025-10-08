@@ -310,7 +310,9 @@ namespace original {
     auto makeAtomic(TYPE value);
 
 } // namespace original
+#endif
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 template <typename TYPE>
 original::atomicImpl<TYPE, false>::atomicImpl() {
     std::memset(this->data_, byte{}, sizeof(TYPE));
