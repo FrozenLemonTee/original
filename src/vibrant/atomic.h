@@ -1,8 +1,14 @@
 #ifndef ORIGINAL_ATOMIC_H
 #define ORIGINAL_ATOMIC_H
 
-#include <type_traits>
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <cstring>
+#elif ORIGINAL_COMPILER_MSVC
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+
+#include <type_traits>
 #include "optional.h"
 #include "config.h"
 #include "mutex.h"

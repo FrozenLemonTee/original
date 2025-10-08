@@ -4,7 +4,9 @@
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
 #elif ORIGINAL_COMPILER_MSVC
-#include "synchapi.h"
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <synchapi.h>
 #endif
 
 #include "error.h"

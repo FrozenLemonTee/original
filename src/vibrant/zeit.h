@@ -4,7 +4,8 @@
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <ctime>
 #elif ORIGINAL_COMPILER_MSVC
-#include "minwindef.h"
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 #include <cmath>
