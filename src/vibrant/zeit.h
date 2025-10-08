@@ -1,5 +1,12 @@
 #ifndef ORIGINAL_ZEIT_H
 #define ORIGINAL_ZEIT_H
+
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#include <ctime>
+#elif ORIGINAL_COMPILER_MSVC
+#include "minwindef.h"
+#endif
+
 #include <cmath>
 #include "config.h"
 #include "comparable.h"
@@ -7,9 +14,6 @@
 #include "printable.h"
 #include "error.h"
 #include <iomanip>
-#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-#include <ctime>
-#endif
 
 /**
  * @file zeit.h
@@ -156,6 +160,8 @@ namespace original {
              *          into a unified duration value in nanoseconds.
              */
             explicit duration(const timespec& ts);
+#elif ORIGINAL_COMPILER_MSVC
+            explicit duration(DWORD milliseconds);
 #endif
 
             /// Default copy constructor
@@ -219,6 +225,10 @@ namespace original {
             explicit operator timespec() const;
 
             timespec toTimespec() const;
+#elif ORIGINAL_COMPILER_MSVC
+            explicit operator DWORD() const;
+
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -403,6 +413,8 @@ namespace original {
              * @note The conversion computes the total nanoseconds from ts.tv_sec and ts.tv_nsec.
              */
             explicit point(const timespec& ts);
+#elif ORIGINAL_COMPILER_MSVC
+            explicit point(DWORD milliseconds);
 #endif
 
             /**
@@ -447,6 +459,10 @@ namespace original {
             explicit operator timespec() const;
 
             timespec toTimespec() const;
+#elif ORIGINAL_COMPILER_MSVC
+            explicit operator DWORD() const;
+
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -1107,6 +1123,9 @@ inline original::time::duration::duration(const time_val_type val, const unit un
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::time::duration::duration(const timespec& ts)
     : nano_seconds_(ts.tv_sec * FACTOR_SECOND + ts.tv_nsec) {}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::duration::duration(const DWORD milliseconds)
+    : nano_seconds_(static_cast<time_val_type>(milliseconds) * FACTOR_MILLISECOND) {}
 #endif
 
 inline original::time::duration::duration(duration&& other) noexcept : duration() {
@@ -1190,6 +1209,16 @@ inline original::time::duration::operator timespec() const
 inline timespec original::time::duration::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::duration::operator DWORD() const
+{
+    return static_cast<DWORD>(this->value());
+}
+
+inline DWORD original::time::duration::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
@@ -1359,7 +1388,7 @@ original::time::point::now() {
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
-#else
+#elif ORIGINAL_COMPILER_MSVC
     // Other implements not complete
     return point();
 #endif
@@ -1374,6 +1403,9 @@ inline original::time::point::point(duration d)
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::time::point::point(const timespec& ts)
     : nano_since_epoch_(ts) {}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::point::point(const DWORD milliseconds)
+    : nano_since_epoch_(milliseconds) {}
 #endif
 
 inline original::time::time_val_type
@@ -1413,6 +1445,16 @@ inline original::time::point::operator timespec() const
 inline timespec original::time::point::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::point::operator DWORD() const
+{
+    return static_cast<DWORD>(this->nano_since_epoch_);
+}
+
+inline DWORD original::time::point::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
