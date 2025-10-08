@@ -1,10 +1,14 @@
 # CMakeLists.txt Main
 
 cmake_minimum_required(VERSION 3.31)
+if(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR MATCHES "Ninja Multi-Config")
+    set(CMAKE_GENERATOR_PLATFORM x64 CACHE STRING "Platform" FORCE)
+endif()
 project(original LANGUAGES CXX)
 set(ORIGINAL_VERSION 0.1.5)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (default Release)" FORCE)
 endif()
