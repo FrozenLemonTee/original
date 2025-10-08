@@ -1,5 +1,12 @@
 #ifndef CONDITION_H
 #define CONDITION_H
+
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#include <pthread.h>
+#elif ORIGINAL_COMPILER_MSVC
+#include "WinBase.h"
+#endif
+
 #include "mutex.h"
 #include "zeit.h"
 
@@ -118,6 +125,7 @@ namespace original
         conditionBase& operator=(const conditionBase&) = delete;
     };
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pCondition
      * @brief POSIX condition variable implementation
@@ -176,8 +184,29 @@ namespace original
          */
         ~pCondition() override;
     };
-}
 
+#elif ORIGINAL_COMPILER_MSVC
+    class wCondition final : public conditionBase
+    {
+        CONDITION_VARIABLE cond_;
+    public:
+        using conditionBase::wait;
+        using conditionBase::waitFor;
+
+        explicit wCondition();
+
+        void wait(mutexBase& mutex) override;
+
+        bool waitFor(mutexBase& mutex, time::duration d) override;
+
+        void notify() override;
+
+        void notifyAll() override;
+
+        ~wCondition() override;
+    };
+#endif
+}
 template<typename Pred>
 void original::conditionBase::wait(mutexBase& mutex, Pred predicate) noexcept(noexcept(predicate())) {
     while (!predicate()){
@@ -211,6 +240,7 @@ inline void original::conditionBase::notifySome(const u_integer n) {
     }
 }
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::pCondition::pCondition() : cond_{}
 {
     if (const int code = pthread_cond_init(&this->cond_, nullptr); code != 0)
@@ -269,5 +299,53 @@ inline original::pCondition::~pCondition()
                   << code << ")" << std::endl;
     }
 }
+#elif ORIGINAL_COMPILER_MSVC
+inline original::wCondition::wCondition() : cond_{}
+{
+    InitializeConditionVariable(&this->cond_);
+}
+
+inline void original::wCondition::wait(mutexBase& mutex)
+{
+    const auto w_mutex = dynamic_cast<wMutex*>(&mutex);
+    if (!w_mutex) {
+        throw valueError("Invalid mutex type for condition variable: must be wMutex");
+    }
+    if (const auto handle = static_cast<wMutex::native_handle*>(w_mutex->nativeHandle());
+        !SleepConditionVariableCS(&this->cond_, handle, INFINITE)) {
+        throw sysError("Failed to wait on condition variable (SleepConditionVariableCS returned error " +
+                      printable::formatString(GetLastError()));
+    }
+}
+
+inline bool original::wCondition::waitFor(mutexBase& mutex, const time::duration d)
+{
+    const auto w_mutex = dynamic_cast<wMutex*>(&mutex);
+    if (!w_mutex) {
+        throw valueError("Invalid mutex type for condition variable: must be wMutex");
+    }
+
+    const auto handle = static_cast<wMutex::native_handle*>(w_mutex->nativeHandle());
+    if (const auto timeout_ms = d.toDWMilliseconds(); !SleepConditionVariableCS(&this->cond_, handle, timeout_ms)) {
+        const DWORD error = GetLastError();
+        if (error == ERROR_TIMEOUT) {
+            return false;
+        }
+        throw sysError("Failed to timed wait on condition variable (SleepConditionVariableCS returned error " +
+                      printable::formatString(error));
+    }
+    return true;
+}
+
+inline void original::wCondition::notify()
+{
+    WakeConditionVariable(&this->cond_);
+}
+
+inline void original::wCondition::notifyAll()
+{
+    WakeAllConditionVariable(&this->cond_);
+}
+#endif
 
 #endif //CONDITION_H
