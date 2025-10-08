@@ -1,10 +1,12 @@
 cmake-build-debug/
 .idea/
-test.exe
-original.zip
-original.rar
 build/
 install/
 .vs/
+.vscode/
 out/
 original/
+
+test.exe
+original.zip
+original.rar
