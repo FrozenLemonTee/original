@@ -533,6 +533,9 @@ namespace original {
         using type = OTHER_TYPE;
     };
 
+    template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
+    using some_t = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
+
     // ==================== Compile-time Index Sequences ====================
 
     /**
