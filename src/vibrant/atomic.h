@@ -316,8 +316,13 @@ namespace original {
     template<typename TYPE>
     class atomicImpl<TYPE, false>
     {
+        using val_type = some<sizeof(TYPE) == 4, LONG, LONG64>;
+
         alignas(TYPE) volatile TYPE data_;
 
+        atomicImpl();
+
+        explicit atomicImpl(TYPE value, memOrder order = SEQ_CST);
     public:
         static constexpr auto RELAXED = memOrder::RELAXED;
         static constexpr auto ACQUIRE = memOrder::ACQUIRE;
@@ -585,6 +590,142 @@ bool original::atomicImpl<TYPE, true>::exchangeCmp(TYPE& expected, const TYPE& d
 template<typename TYPE>
 constexpr bool original::isLockFreeType() noexcept {
     return sizeof(TYPE) == 4 || sizeof(TYPE) == 8;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, false>::atomicImpl()
+{
+    std::memset(this->data_, byte{}, sizeof(TYPE));
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, false>::atomicImpl(TYPE value, const memOrder order)
+{
+    this->store(value, order);
+}
+
+template <typename TYPE>
+constexpr bool
+original::atomicImpl<TYPE, false>::isLockFree() noexcept
+{
+    return true;
+}
+
+template <typename TYPE>
+void original::atomicImpl<TYPE, false>::store(TYPE value, const memOrder order)
+{
+    switch (order) {
+    case memOrder::RELAXED:
+        this->data_ = value;
+        break;
+    case memOrder::RELEASE:
+        _WriteBarrier();
+        this->data_ = value;
+        break;
+    case memOrder::SEQ_CST:
+    default:
+        if constexpr (sizeof(TYPE) == 4) {
+            InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        } else {
+            InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        }
+        break;
+    }
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, false>::load(const memOrder order) const noexcept
+{
+    TYPE value;
+    switch (order) {
+    case memOrder::RELAXED:
+        value = this->data_;
+        break;
+    case memOrder::ACQUIRE:
+        value = this->data_;
+        _ReadBarrier();
+        break;
+    case memOrder::SEQ_CST:
+    default:
+        if constexpr (sizeof(TYPE) == 4) {
+            value = InterlockedCompareExchange(
+                reinterpret_cast<volatile val_type*>(&this->data_), 0, 0);
+        } else {
+            value = InterlockedCompareExchange64(
+                reinterpret_cast<volatile val_type*>(&this->data_), 0, 0);
+        }
+        break;
+    }
+    return value;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, false>::operator*() const noexcept
+{
+    return this->load();
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, false>::operator TYPE() const noexcept
+{
+    return this->load();
+}
+
+template <typename TYPE>
+void original::atomicImpl<TYPE, false>::operator=(TYPE value) noexcept
+{
+    this->store(std::move(value));
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, false>&
+original::atomicImpl<TYPE, false>::operator+=(TYPE value) noexcept
+{
+    if constexpr (sizeof(TYPE) == 4) {
+        InterlockedAdd(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+    } else {
+        InterlockedAdd64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+    }
+    return *this;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, false>&
+original::atomicImpl<TYPE, false>::operator-=(TYPE value) noexcept
+{
+    return *this += -value;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, false>::exchange(TYPE value, memOrder) noexcept
+{
+    if constexpr (sizeof(TYPE) == 4) {
+        return InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+    } else {
+        return InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+    }
+}
+
+template <typename TYPE>
+bool original::atomicImpl<TYPE, false>::exchangeCmp(TYPE& expected, TYPE desired, memOrder) noexcept
+{
+    if constexpr (sizeof(TYPE) == 4) {
+        val_type old = InterlockedCompareExchange(
+            reinterpret_cast<volatile LONG*>(&this->data_),
+            static_cast<val_type>(desired),
+            static_cast<val_type>(expected));
+        const bool success = old == static_cast<val_type>(expected);
+        if (!success) expected = static_cast<TYPE>(old);
+        return success;
+    } else {
+        val_type old = InterlockedCompareExchange64(
+            reinterpret_cast<volatile val_type*>(&this->data_),
+            static_cast<val_type>(desired),
+            static_cast<val_type>(expected));
+        const bool success = old == static_cast<val_type>(expected);
+        if (!success) expected = static_cast<TYPE>(old);
+        return success;
+    }
 }
 
 #endif
