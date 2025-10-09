@@ -516,6 +516,23 @@ namespace original {
         c.pop_back();
     };
 
+    template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
+    class some;
+
+    template<typename MATCH_TYPE, typename OTHER_TYPE>
+    class some<true, MATCH_TYPE, OTHER_TYPE>
+    {
+    public:
+        using type = MATCH_TYPE;
+    };
+
+    template<typename MATCH_TYPE, typename OTHER_TYPE>
+    class some<false, MATCH_TYPE, OTHER_TYPE>
+    {
+    public:
+        using type = OTHER_TYPE;
+    };
+
     // ==================== Compile-time Index Sequences ====================
 
     /**
