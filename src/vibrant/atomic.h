@@ -4,7 +4,6 @@
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <cstring>
 #elif ORIGINAL_COMPILER_MSVC
-#define WIN32_LEAN_AND_MEAN
 #endif
 
 
@@ -68,7 +67,7 @@ namespace original {
      */
     template<typename TYPE>
     class atomicImpl<TYPE, false> {
-        alignas(TYPE) byte data_[sizeof(TYPE)];  ///< Properly aligned storage
+        alignas(TYPE) byte data_[sizeof(TYPE)]{};  ///< Properly aligned storage
 
         /**
          * @brief Default constructor (zero-initializes storage)
@@ -132,7 +131,7 @@ namespace original {
          * @brief Assignment operator (atomically stores value)
          * @param value Value to store
          */
-        void operator=(TYPE value) noexcept;
+        atomicImpl& operator=(TYPE value) noexcept;
 
         /**
          * @brief Atomic addition assignment
@@ -252,7 +251,7 @@ namespace original {
          * @brief Assignment operator (atomically stores value)
          * @param value Value to store
          */
-        void operator=(TYPE value) noexcept;
+        atomicImpl& operator=(TYPE value) noexcept;
 
         /**
          * @brief Atomic addition assignment
@@ -316,9 +315,9 @@ namespace original {
     template<typename TYPE>
     class atomicImpl<TYPE, false>
     {
-        using val_type = some<sizeof(TYPE) == 4, LONG, LONG64>;
+        using val_type = some_t<sizeof(TYPE) == 4, LONG, LONG64>;
 
-        alignas(TYPE) volatile TYPE data_;
+        alignas(TYPE) volatile TYPE data_{};
 
         atomicImpl();
 
@@ -345,7 +344,7 @@ namespace original {
 
         explicit operator TYPE() const noexcept;
 
-        void operator=(TYPE value) noexcept;
+        atomicImpl& operator=(TYPE value) noexcept;
 
         atomicImpl& operator+=(TYPE value) noexcept;
 
@@ -370,6 +369,9 @@ namespace original {
         mutable wMutex mutex_;
         alternative<TYPE> data_;
 
+        atomicImpl() = default;
+
+        explicit atomicImpl(TYPE value, memOrder order = RELEASE);
     public:
         static constexpr auto RELAXED = memOrder::RELAXED;
         static constexpr auto ACQUIRE = memOrder::ACQUIRE;
@@ -392,7 +394,7 @@ namespace original {
 
         explicit operator TYPE() const noexcept;
 
-        void operator=(TYPE value) noexcept;
+        atomicImpl& operator=(TYPE value) noexcept;
 
         atomicImpl& operator+=(TYPE value) noexcept;
 
@@ -473,9 +475,10 @@ original::atomicImpl<TYPE, false>::operator TYPE() const noexcept
 }
 
 template <typename TYPE>
-void original::atomicImpl<TYPE, false>::operator=(TYPE value) noexcept
+original::atomicImpl<TYPE, false>& original::atomicImpl<TYPE, false>::operator=(TYPE value) noexcept
 {
     this->store(std::move(value));
+    return *this;
 }
 
 template <typename TYPE>
@@ -544,9 +547,11 @@ original::atomicImpl<TYPE, true>::operator TYPE() const noexcept
 }
 
 template <typename TYPE>
-void original::atomicImpl<TYPE, true>::operator=(TYPE value) noexcept
+original::atomicImpl<TYPE, true>&
+original::atomicImpl<TYPE, true>::operator=(TYPE value) noexcept
 {
     this->store(std::move(value));
+    return *this;
 }
 
 template <typename TYPE>
@@ -672,9 +677,11 @@ original::atomicImpl<TYPE, false>::operator TYPE() const noexcept
 }
 
 template <typename TYPE>
-void original::atomicImpl<TYPE, false>::operator=(TYPE value) noexcept
+original::atomicImpl<TYPE, false>&
+original::atomicImpl<TYPE, false>::operator=(TYPE value) noexcept
 {
     this->store(std::move(value));
+    return *this;
 }
 
 template <typename TYPE>
@@ -711,7 +718,7 @@ bool original::atomicImpl<TYPE, false>::exchangeCmp(TYPE& expected, TYPE desired
 {
     if constexpr (sizeof(TYPE) == 4) {
         val_type old = InterlockedCompareExchange(
-            reinterpret_cast<volatile LONG*>(&this->data_),
+            reinterpret_cast<volatile val_type*>(&this->data_),
             static_cast<val_type>(desired),
             static_cast<val_type>(expected));
         const bool success = old == static_cast<val_type>(expected);
@@ -726,6 +733,86 @@ bool original::atomicImpl<TYPE, false>::exchangeCmp(TYPE& expected, TYPE desired
         if (!success) expected = static_cast<TYPE>(old);
         return success;
     }
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>::atomicImpl(TYPE value, memOrder) {
+    uniqueLock lock{this->mutex_};
+    this->data_.set(value);
+}
+
+template <typename TYPE>
+constexpr bool original::atomicImpl<TYPE, true>::isLockFree() noexcept {
+    return false;
+}
+
+template <typename TYPE>
+void original::atomicImpl<TYPE, true>::store(TYPE value, memOrder) {
+    uniqueLock lock{this->mutex_};
+    this->data_.set(value);
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, true>::load(memOrder) const noexcept {
+    uniqueLock lock{this->mutex_};
+    return *this->data_;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, true>::operator*() const noexcept
+{
+    return this->load();
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>::operator TYPE() const noexcept
+{
+    return this->load();
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>&
+original::atomicImpl<TYPE, true>::operator=(TYPE value) noexcept
+{
+    this->store(std::move(value));
+    return *this;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator+=(TYPE value) noexcept
+{
+    uniqueLock lock{this->mutex_};
+    TYPE result = *this->data_ + value;
+    this->data_.set(result);
+    return *this;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator-=(TYPE value) noexcept
+{
+    uniqueLock lock{this->mutex_};
+    TYPE result = *this->data_ - value;
+    this->data_.set(result);
+    return *this;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, true>::exchange(const TYPE& value, memOrder) noexcept {
+    uniqueLock lock{this->mutex_};
+    TYPE result = *this->data_;
+    this->data_.set(value);
+    return result;
+}
+
+template <typename TYPE>
+bool original::atomicImpl<TYPE, true>::exchangeCmp(TYPE& expected, const TYPE& desired, memOrder) noexcept {
+    uniqueLock lock{this->mutex_};
+    if (*this->data_ == expected) {
+        this->data_.set(desired);
+        return true;
+    }
+    expected = *this->data_;
+    return false;
 }
 
 #endif
