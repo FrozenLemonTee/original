@@ -238,6 +238,38 @@ namespace original {
     };
 #endif
 
+    class mutex final : public mutexBase {
+    #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+        pMutex mutex_;
+    #elif ORIGINAL_COMPILER_MSVC
+        wMutex mutex_;
+    #endif
+
+    public:
+        using native_handle =
+    #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+            pMutex::native_handle;
+    #elif ORIGINAL_COMPILER_MSVC
+            wMutex::native_handle;
+    #endif
+
+        mutex();
+
+        mutex(mutex&&) = delete;
+
+        mutex& operator=(mutex&) = delete;
+
+        [[nodiscard]] ul_integer id() const override;
+
+        [[nodiscard]] void* nativeHandle() noexcept override;
+
+        void lock() override;
+
+        bool tryLock() override;
+
+        void unlock() override;
+    };
+
     /**
      * @class uniqueLock
      * @brief RAII wrapper for single mutex locking
@@ -471,7 +503,34 @@ inline original::wMutex::~wMutex()
 }
 #endif
 
-inline original::uniqueLock::uniqueLock(mutexBase& mutex, lockPolicy policy)
+inline original::mutex::mutex() = default;
+
+inline original::ul_integer original::mutex::id() const
+{
+    return this->mutex_.id();
+}
+
+inline void* original::mutex::nativeHandle() noexcept
+{
+    return this->mutex_.nativeHandle();
+}
+
+inline void original::mutex::lock()
+{
+    this->mutex_.lock();
+}
+
+inline bool original::mutex::tryLock()
+{
+    return this->mutex_.tryLock();
+}
+
+inline void original::mutex::unlock()
+{
+    this->mutex_.unlock();
+}
+
+inline original::uniqueLock::uniqueLock(mutexBase& mutex, const lockPolicy policy)
     : mutex_(mutex), is_locked(false) {
     switch (policy) {
         case MANUAL_LOCK:

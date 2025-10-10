@@ -205,6 +205,29 @@ namespace original
         ~wCondition() override;
     };
 #endif
+
+    class condition final : public conditionBase {
+    #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+        pCondition cond_;
+    #elif ORIGINAL_COMPILER_MSVC
+        wCondition cond_;
+    #endif
+
+    public:
+        using conditionBase::wait;
+        using conditionBase::waitFor;
+
+        condition();
+
+        void wait(mutexBase& mutex) override;
+
+        bool waitFor(mutexBase& mutex, time::duration d) override;
+
+        void notify() override;
+
+        void notifyAll() override;
+    };
+
 }
 template<typename Pred>
 void original::conditionBase::wait(mutexBase& mutex, Pred predicate) noexcept(noexcept(predicate())) {
@@ -346,5 +369,27 @@ inline void original::wCondition::notifyAll()
     WakeAllConditionVariable(&this->cond_);
 }
 #endif
+
+inline original::condition::condition() = default;
+
+inline void original::condition::wait(mutexBase& mutex)
+{
+    this->cond_.wait(mutex);
+}
+
+inline bool original::condition::waitFor(mutexBase& mutex, time::duration d)
+{
+    return this->cond_.waitFor(mutex, d);
+}
+
+inline void original::condition::notify()
+{
+    this->cond_.notify();
+}
+
+inline void original::condition::notifyAll()
+{
+    this->cond_.notifyAll();
+}
 
 #endif //CONDITION_H
