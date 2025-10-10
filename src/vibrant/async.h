@@ -487,7 +487,7 @@ namespace original {
      * @return A new future holding the result of the callback
      */
     template<typename T, typename Callback>
-    auto operator|(async::sharedFuture<T> sf, Callback&& c);
+    auto operator|(const async::sharedFuture<T>& sf, Callback&& c);
 
     /**
      * @brief Pipe operator specialization for sharedFuture<void>
@@ -501,7 +501,7 @@ namespace original {
      * @return A new future holding the result of the callback
      */
     template <typename Callback>
-    auto operator|(async::sharedFuture<void> sf, Callback&& c);
+    auto operator|(const async::sharedFuture<void>& sf, Callback&& c);
 
     /**
      * @brief Lazy pipe operator for chaining promise computations
@@ -1194,7 +1194,7 @@ auto original::operator|(async::future<void> f, Callback&& c)
 }
 
 template <typename T, typename Callback>
-auto original::operator|(async::sharedFuture<T> sf, Callback&& c)
+auto original::operator|(const async::sharedFuture<T>& sf, Callback&& c)
 {
     using ResultType = std::invoke_result_t<Callback, T>;
     return async::get([sf, c = std::forward<Callback>(c)] mutable -> ResultType {
@@ -1203,7 +1203,7 @@ auto original::operator|(async::sharedFuture<T> sf, Callback&& c)
 }
 
 template <typename Callback>
-auto original::operator|(async::sharedFuture<void> sf, Callback&& c)
+auto original::operator|(const async::sharedFuture<void>& sf, Callback&& c)
 {
     using ResultType = std::invoke_result_t<Callback>;
     return async::get([sf, c = std::forward<Callback>(c)]() mutable -> ResultType {
