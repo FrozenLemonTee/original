@@ -23,6 +23,15 @@ protected:
     JMap<std::string, int>* stringMap{};
 };
 
+namespace {
+    template<typename>
+    struct CustomCompare {
+        bool operator()(const int a, const int b) const {
+            return a > b; // Reverse order
+        }
+    };
+}
+
 // Basic Functionality Tests
 TEST_F(JMapTest, InitialState) {
 EXPECT_EQ(intMap->size(), 0);
@@ -209,13 +218,8 @@ EXPECT_EQ(intMap->size(), 0); // NOLINT(bugprone-use-after-move)
 
 // Custom Comparator Test
 TEST(JMapCustomCompareTest, CustomCompareFunction) {
-struct CustomCompare {
-    bool operator()(const int a, const int b) const {
-        return a > b; // Reverse order
-    }
-};
 
-JMap<int, int, CustomCompare> customMap;
+JMap<int, int, CustomCompare<int>> customMap;
 customMap.add(1, 10);
 customMap.add(2, 20);
 customMap.add(3, 30);

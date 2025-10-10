@@ -22,6 +22,16 @@ protected:
     JSet<std::string>* stringSet{};
 };
 
+namespace
+{
+    template <typename>
+    struct ReverseCompare {
+        bool operator()(int a, int b) const {
+            return a > b;
+        }
+    };
+}
+
 // 基础功能测试
 TEST_F(JSetTest, InitialState) {
     EXPECT_EQ(intSet->size(), 0);
@@ -139,13 +149,7 @@ TEST_F(JSetTest, ToString) {
 
 // 自定义比较器测试（反向排序）
 TEST(JSetCustomCompareTest, CustomCompare) {
-    struct ReverseCompare {
-        bool operator()(int a, int b) const {
-            return a > b;
-        }
-    };
-
-    JSet<int, ReverseCompare> set;
+    JSet<int, ReverseCompare<int>> set;
     for (int i = 1; i <= 3; ++i) set.add(i);
 
     auto it = set.begins();

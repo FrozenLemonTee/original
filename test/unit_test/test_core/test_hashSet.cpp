@@ -188,15 +188,19 @@ TEST_F(HashSetTest, ToString) {
     EXPECT_TRUE(str.find('2') != std::string::npos);
 }
 
-// Custom Hash Function Test
-TEST(HashSetCustomHashTest, CustomHashFunction) {
+namespace
+{
+    template<typename>
     struct CustomHash {
         u_integer operator()(const int key) const {
             return key % 10; // Simple hash for testing
         }
     };
+}
 
-    hashSet<int, CustomHash> customSet;
+// Custom Hash Function Test
+TEST(HashSetCustomHashTest, CustomHashFunction) {
+    hashSet<int, CustomHash<int>> customSet;
     for (int i = 0; i < 20; ++i) {
         customSet.add(i);
     }
