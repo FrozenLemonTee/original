@@ -48,7 +48,7 @@ namespace original {
              * @brief Sets an exception and marks as ready
              * @param e Exception pointer to store
              */
-            void setException(std::exception_ptr e);
+            void setException(const std::exception_ptr& e);
 
             /**
              * @brief Checks if the result is ready
@@ -572,7 +572,7 @@ namespace original {
          * @brief Sets an exception and marks as completed
          * @param e Exception pointer to store
          */
-        void setException(std::exception_ptr e);
+        void setException(const std::exception_ptr& e);
 
         /**
          * @brief Checks if the computation is completed
@@ -838,11 +838,11 @@ void original::async::asyncWrapper<TYPE>::setValue(TYPE&& v)
 }
 
 template <typename TYPE>
-void original::async::asyncWrapper<TYPE>::setException(std::exception_ptr e)
+void original::async::asyncWrapper<TYPE>::setException(const std::exception_ptr &e)
 {
     {
         uniqueLock lock{this->mutex_};
-        this->e_ = std::move(e);
+        this->e_ = e;
         this->ready_.store(true);
     }
     this->cond_.notifyAll();
@@ -1249,11 +1249,11 @@ inline void original::async::asyncWrapper<void>::setValue()
     this->cond_.notifyAll();
 }
 
-inline void original::async::asyncWrapper<void>::setException(std::exception_ptr e)
+inline void original::async::asyncWrapper<void>::setException(const std::exception_ptr& e)
 {
     {
         uniqueLock lock{this->mutex_};
-        this->e_ = std::move(e);
+        this->e_ = e;
         this->ready_.store(true);
     }
     this->cond_.notifyAll();
