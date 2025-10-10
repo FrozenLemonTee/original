@@ -1,16 +1,16 @@
 #ifndef MUTEX_H
 #define MUTEX_H
 
+#include "config.h"
+
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
 #elif ORIGINAL_COMPILER_MSVC
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <synchapi.h>
 #endif
 
 #include "error.h"
 #include "tuple.h"
+#include "zeit.h"
 #include <iostream>
 
 /**

@@ -1,15 +1,19 @@
 #ifndef ORIGINAL_ZEIT_H
 #define ORIGINAL_ZEIT_H
 
+#include "config.h"
+
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <ctime>
 #elif ORIGINAL_COMPILER_MSVC
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#endif
+#include <Windows.h>
+#include <sysinfoapi.h>
 #endif
 
 #include <cmath>
-#include "config.h"
 #include "comparable.h"
 #include "hash.h"
 #include "printable.h"
