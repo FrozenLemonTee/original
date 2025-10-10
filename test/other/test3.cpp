@@ -8,7 +8,6 @@
 #include "chain.h"
 #include "vector.h"
 #include "algorithms.h"
-#include "filter.h"
 
 
 int main(){
@@ -148,7 +147,7 @@ int main(){
     std::cout << "p1 == p2: " << original::printable::formatString(p1 == p2) << std::endl;
     std::cout << "p1 < p2: " << original::printable::formatString(p1 < p2) << std::endl;
     auto cmp = p1 <=> p2;
-    std::cout << (cmp == nullptr) << std::endl;
+    std::cout << (cmp == 0) << std::endl;
     std::cout << "p1: " << p1 << std::endl;
     while (!p1.empty())
     {
