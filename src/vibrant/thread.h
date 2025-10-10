@@ -431,11 +431,11 @@ namespace original {
          */
         [[nodiscard]] bool joinable() const override;
 
-        integer compareTo(const thread &other) const override;
+        [[nodiscard]] integer compareTo(const thread &other) const override;
 
-        u_integer toHash() const noexcept override;
+        [[nodiscard]] u_integer toHash() const noexcept override;
 
-        std::string className() const override;
+        [[nodiscard]] std::string className() const override;
 
         /**
          * @brief Wait for thread to complete

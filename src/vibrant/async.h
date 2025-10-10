@@ -66,7 +66,7 @@ namespace original {
              * @param timeout Maximum time to wait
              * @return True if result is ready within timeout, false otherwise
              */
-            bool waitFor(time::duration timeout) const;
+            [[nodiscard]] bool waitFor(time::duration timeout) const;
 
             /**
              * @brief Retrieves the result value (blocks until ready)
@@ -86,7 +86,7 @@ namespace original {
              * @brief Gets a strong pointer to the result value
              * @return Strong pointer to the result
              */
-            strongPtr<TYPE> getPtr() const;
+            [[nodiscard]] strongPtr<TYPE> getPtr() const;
 
             /**
              * @brief Throws stored exception if present
@@ -590,7 +590,7 @@ namespace original {
          * @param timeout Maximum time to wait
          * @return True if result is ready within timeout, false otherwise
          */
-        bool waitFor(const time::duration& timeout) const;
+        [[nodiscard]] bool waitFor(const time::duration& timeout) const;
 
         /**
          * @brief Waits for completion and checks for exceptions

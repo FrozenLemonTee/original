@@ -200,10 +200,10 @@ namespace original {
             static void connect(RBNode* parent, RBNode* child, bool is_left);
         };
 
-        using color = typename RBNode::color;                                       ///< Color type alias
+        using color = RBNode::color;                                       ///< Color type alias
         static constexpr color BLACK = color::BLACK;                                ///< Black color constant
         static constexpr color RED = color::RED;                                    ///< Red color constant
-        using rebind_alloc_node = typename ALLOC::template rebind_alloc<RBNode>;    ///< Rebound allocator type
+        using rebind_alloc_node = ALLOC::template rebind_alloc<RBNode>;    ///< Rebound allocator type
 
         RBNode* root_;                              ///< Root node pointer
         u_integer size_;                            ///< Number of elements
@@ -476,7 +476,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::RBNode(const RBNode &o
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode&
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode&
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::operator=(const RBNode &other) {
     if (this == &other)
         return *this;
@@ -539,38 +539,38 @@ void original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::setValue(const V_
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::color
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::color
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getColor() const {
     return this->color_;
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getPParent() const {
     return this->parent_;
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getPLeft() const {
     return this->left_;
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getPRight() const {
     return this->right_;
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*&
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*&
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getPLeftRef()
 {
     return this->left_;
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*&
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*&
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode::getPRightRef()
 {
     return this->right_;
@@ -617,7 +617,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::Iterator(const Itera
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator&
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator&
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::operator=(const Iterator& other)
 {
     if (this == &other)
@@ -704,7 +704,7 @@ bool original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::isValid() const
 
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::treeCopy() const {
     if (!this->root_) {
         return nullptr;
@@ -740,7 +740,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::treeCopy() const {
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getPrecursorNode(RBNode *cur) const {
     if (!cur)
         return nullptr;
@@ -762,7 +762,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getPrecursorNode(RBNode *cur) 
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getSuccessorNode(RBNode *cur) const {
     if (!cur)
         return nullptr;
@@ -784,7 +784,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getSuccessorNode(RBNode *cur) 
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getMinNode() const
 {
     if (!root_) return nullptr;
@@ -797,7 +797,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getMinNode() const
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getMaxNode() const
 {
     if (!this->root_) {
@@ -812,7 +812,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::getMaxNode() const
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::replaceNode(RBNode* src, RBNode* tar)
 {
     auto moved_src = this->createNode(std::move(*src));
@@ -829,7 +829,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::replaceNode(RBNode* src, RBNod
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::createNode(const K_TYPE &key, const V_TYPE &value,
                                                              color color, RBNode* parent,
                                                              RBNode* left, RBNode* right) const {
@@ -839,7 +839,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::createNode(const K_TYPE &key, 
 }
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::createNode(RBNode&& other_node) const
 {
     auto node = this->rebind_alloc.allocate(1);
@@ -870,7 +870,7 @@ bool original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::highPriority(const K_TYPE
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::rotateLeft(RBNode *cur) {
     RBNode* child_left = cur;
     RBNode* child_root = child_left->getPRight();
@@ -884,7 +884,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::rotateLeft(RBNode *cur) {
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::rotateRight(RBNode *cur) {
     RBNode* child_right = cur;
     RBNode* child_root = cur->getPLeft();
@@ -1117,7 +1117,7 @@ original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBTree(Compare compare)
     : root_(nullptr), size_(0), compare_(std::move(compare)) {}
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
-typename original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
+original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::RBNode*
 original::RBTree<K_TYPE, V_TYPE, ALLOC, Compare>::find(const K_TYPE &key) const {
     auto cur = this->root_;
     while (cur){
