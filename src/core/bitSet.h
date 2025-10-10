@@ -800,7 +800,7 @@ namespace std {
         }
 
         auto nb = bitSet(new_size);
-        const u_integer blocks_min = min(nb.map.size(),
+        const u_integer blocks_min = minimum(nb.map.size(),
                                         this->map.size());
         for (u_integer i = 0; i < blocks_min; i++) {
             nb.map.set(i, this->map.get(i));

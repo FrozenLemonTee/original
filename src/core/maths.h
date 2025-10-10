@@ -100,7 +100,7 @@ TYPE maximum(TYPE a, TYPE b);
  * @endcode
  */
 template<typename TYPE>
-TYPE min(TYPE a, TYPE b);
+TYPE minimum(TYPE a, TYPE b);
 
 /**
  * @brief Returns the result of raising a base to an exponent.
@@ -192,7 +192,7 @@ auto original::maximum(TYPE a, TYPE b) -> TYPE
 }
 
 template<typename TYPE>
-auto original::min(TYPE a, TYPE b) -> TYPE
+auto original::minimum(TYPE a, TYPE b) -> TYPE
 {
     return a < b ? a : b;
 }
