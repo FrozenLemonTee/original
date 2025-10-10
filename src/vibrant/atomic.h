@@ -319,6 +319,12 @@ namespace original {
 
         alignas(TYPE) volatile TYPE data_{};
 
+        template<typename From, typename To>
+        static To atomicCastTo(From value);
+
+        template<typename To, typename From>
+        static To atomicCastBack(From value);
+
         atomicImpl();
 
         explicit atomicImpl(TYPE value, memOrder order = SEQ_CST);
@@ -598,6 +604,28 @@ constexpr bool original::isLockFreeType() noexcept {
 }
 
 template <typename TYPE>
+template <typename From, typename To>
+To original::atomicImpl<TYPE, false>::atomicCastTo(From value)
+{
+    if constexpr (std::is_pointer_v<From>) {
+        return reinterpret_cast<To>(value);
+    } else {
+        return static_cast<To>(value);
+    }
+}
+
+template <typename TYPE>
+template <typename To, typename From>
+To original::atomicImpl<TYPE, false>::atomicCastBack(From value)
+{
+    if constexpr (std::is_pointer_v<To>) {
+        return reinterpret_cast<To>(value);
+    } else {
+        return static_cast<To>(value);
+    }
+}
+
+template <typename TYPE>
 original::atomicImpl<TYPE, false>::atomicImpl()
 {
     std::memset(this->data_, byte{}, sizeof(TYPE));
@@ -630,9 +658,11 @@ void original::atomicImpl<TYPE, false>::store(TYPE value, const memOrder order)
     case memOrder::SEQ_CST:
     default:
         if constexpr (sizeof(TYPE) == 4) {
-            InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+            InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_),
+                                atomicCastTo<TYPE, val_type>(value));
         } else {
-            InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+            InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_),
+                                  atomicCastTo<TYPE, val_type>(value));
         }
         break;
     }
@@ -653,11 +683,15 @@ TYPE original::atomicImpl<TYPE, false>::load(const memOrder order) const noexcep
     case memOrder::SEQ_CST:
     default:
         if constexpr (sizeof(TYPE) == 4) {
-            value = InterlockedCompareExchange(
-                reinterpret_cast<volatile val_type*>(&this->data_), 0, 0);
+            return atomicCastBack<TYPE, val_type>(
+                InterlockedCompareExchange(
+                    reinterpret_cast<volatile LONG*>(const_cast<TYPE*>(&this->data_)),
+                    0, 0));
         } else {
-            value = InterlockedCompareExchange64(
-                reinterpret_cast<volatile val_type*>(&this->data_), 0, 0);
+            return atomicCastBack<TYPE, val_type>(
+                InterlockedCompareExchange64(
+                    reinterpret_cast<volatile LONG64*>(const_cast<TYPE*>(&this->data_)),
+                    0, 0));
         }
         break;
     }
@@ -689,9 +723,11 @@ original::atomicImpl<TYPE, false>&
 original::atomicImpl<TYPE, false>::operator+=(TYPE value) noexcept
 {
     if constexpr (sizeof(TYPE) == 4) {
-        InterlockedAdd(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        InterlockedAdd(reinterpret_cast<volatile val_type*>(&this->data_),
+                       atomicCastTo<TYPE, val_type>(value));
     } else {
-        InterlockedAdd64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        InterlockedAdd64(reinterpret_cast<volatile val_type*>(&this->data_),
+                         atomicCastTo<TYPE, val_type>(value));
     }
     return *this;
 }
@@ -707,9 +743,15 @@ template <typename TYPE>
 TYPE original::atomicImpl<TYPE, false>::exchange(TYPE value, memOrder) noexcept
 {
     if constexpr (sizeof(TYPE) == 4) {
-        return InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        return atomicCastBack<TYPE, val_type>(
+            InterlockedExchange(reinterpret_cast<volatile val_type*>(&this->data_),
+                                atomicCastTo<TYPE, val_type>(value))
+        );
     } else {
-        return InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_), static_cast<val_type>(value));
+        return atomicCastBack<TYPE, val_type>(
+            InterlockedExchange64(reinterpret_cast<volatile val_type*>(&this->data_),
+                                  atomicCastTo<TYPE, val_type>(value))
+        );
     }
 }
 
@@ -719,18 +761,18 @@ bool original::atomicImpl<TYPE, false>::exchangeCmp(TYPE& expected, TYPE desired
     if constexpr (sizeof(TYPE) == 4) {
         val_type old = InterlockedCompareExchange(
             reinterpret_cast<volatile val_type*>(&this->data_),
-            static_cast<val_type>(desired),
-            static_cast<val_type>(expected));
-        const bool success = old == static_cast<val_type>(expected);
-        if (!success) expected = static_cast<TYPE>(old);
+            atomicCastTo<TYPE, val_type>(desired),
+            atomicCastTo<TYPE, val_type>(expected));
+        const bool success = old == atomicCastTo<TYPE, val_type>(expected);
+        if (!success) expected = atomicCastBack<TYPE, val_type>(old);
         return success;
     } else {
         val_type old = InterlockedCompareExchange64(
             reinterpret_cast<volatile val_type*>(&this->data_),
-            static_cast<val_type>(desired),
-            static_cast<val_type>(expected));
-        const bool success = old == static_cast<val_type>(expected);
-        if (!success) expected = static_cast<TYPE>(old);
+            atomicCastTo<TYPE, val_type>(desired),
+            atomicCastTo<TYPE, val_type>(expected));
+        const bool success = old == atomicCastTo<TYPE, val_type>(expected);
+        if (!success) expected = atomicCastBack<TYPE, val_type>(old);
         return success;
     }
 }
