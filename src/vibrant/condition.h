@@ -273,12 +273,9 @@ inline original::pCondition::pCondition() : cond_{}
 
 inline void original::pCondition::wait(mutexBase& mutex)
 {
-    const auto p_mutex = dynamic_cast<pMutex*>(&mutex);
-    if (!p_mutex) {
-        throw valueError("Invalid mutex type for condition variable: must be pMutex");
-    }
+    staticError<valueError, !std::is_same_v<mutex::native_handle, pMutex::native_handle>>::asserts();
 
-    const auto handle = static_cast<pMutex::native_handle*>(p_mutex->nativeHandle());
+    const auto handle = static_cast<mutex::native_handle*>(mutex.nativeHandle());
     if (const int code = pthread_cond_wait(&this->cond_, handle); code != 0) {
         throw sysError("Failed to wait on condition variable (pthread_cond_wait returned " + printable::formatString(code) + ")");
     }
@@ -286,14 +283,11 @@ inline void original::pCondition::wait(mutexBase& mutex)
 
 inline bool original::pCondition::waitFor(mutexBase& mutex, const time::duration d)
 {
-    const auto p_mutex = dynamic_cast<pMutex*>(&mutex);
-    if (!p_mutex) {
-        throw valueError("Invalid mutex type for condition variable: must be pMutex");
-    }
+    staticError<valueError, !std::is_same_v<mutex::native_handle, pMutex::native_handle>>::asserts();
 
     const auto deadline = time::point::now() + d;
     const auto ts = deadline.toTimespec();
-    const auto handle = static_cast<pMutex::native_handle*>(p_mutex->nativeHandle());
+    const auto handle = static_cast<mutex::native_handle*>(mutex.nativeHandle());
     const int code = pthread_cond_timedwait(&this->cond_, handle, &ts);
     if (code == 0) return true;
     if (code == ETIMEDOUT) return false;
