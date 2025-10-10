@@ -366,7 +366,7 @@ namespace original {
          * @brief Destructor
          * @details Cleans up all list nodes and allocated memory
          */
-        ~skipList();
+        virtual ~skipList();
     };
 }
 

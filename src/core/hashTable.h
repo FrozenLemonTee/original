@@ -491,7 +491,7 @@ namespace original {
          * @brief Destroys hashTable
          * @details Cleans up all nodes and buckets
          */
-        ~hashTable();
+        virtual ~hashTable();
     };
 }
 

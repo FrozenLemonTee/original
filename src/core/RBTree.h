@@ -460,7 +460,7 @@ namespace original {
          * @brief Destructor
          * @details Cleans up all tree nodes and allocated memory
          */
-        ~RBTree();
+        virtual ~RBTree();
     };
 
 }
