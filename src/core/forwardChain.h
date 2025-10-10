@@ -559,7 +559,10 @@ namespace original {
 
     template <typename TYPE, typename ALLOC>
     original::forwardChain<TYPE, ALLOC>::forwardChain(ALLOC alloc)
-        : baseList<TYPE, ALLOC>(std::move(alloc)), size_(0) , rebind_alloc(std::move(rebind_alloc_node{}))
+    : baseList<TYPE, ALLOC>(std::move(alloc)),
+      size_(0),
+      begin_(nullptr),
+      rebind_alloc(std::move(rebind_alloc_node{}))
     {
         this->chainInit();
     }
