@@ -517,12 +517,12 @@ template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::integer
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::operator-(const Iterator& other) const {
     if (const integer pos_dis = ptrDistance(&other, this);
-            pos_dis != std::numeric_limits<integer>::max()) return pos_dis;
+            pos_dis != (std::numeric_limits<integer>::max)()) return pos_dis;
     if (const integer neg_dis = ptrDistance(this, &other);
-            neg_dis != std::numeric_limits<integer>::max()) return -neg_dis;
+            neg_dis != (std::numeric_limits<integer>::max)()) return -neg_dis;
     return this->cur_ > other.cur_ ?
-           std::numeric_limits<integer>::max() :
-           std::numeric_limits<integer>::min();
+           (std::numeric_limits<integer>::max)() :
+           (std::numeric_limits<integer>::min)();
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
@@ -564,7 +564,7 @@ original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::ptrDistance(const 
         s->next();
     }
     if (e->isValid()){
-        dis = std::numeric_limits<integer>::max();
+        dis = (std::numeric_limits<integer>::max)();
     }
     return dis;
 }

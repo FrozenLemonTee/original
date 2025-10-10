@@ -260,12 +260,12 @@ namespace original {
         auto* other_it = dynamic_cast<const randomAccessIterator*>(&other);
         if (other_it == nullptr)
             return this > &other ?
-                std::numeric_limits<integer>::max() :
-                std::numeric_limits<integer>::min();
+                (std::numeric_limits<integer>::max)() :
+                (std::numeric_limits<integer>::min)();
         if (this->_container != other_it->_container)
             return this->_container > other_it->_container ?
-                std::numeric_limits<integer>::max() :
-                std::numeric_limits<integer>::min();
+                (std::numeric_limits<integer>::max)() :
+                (std::numeric_limits<integer>::min)();
         return this->_ptr - other_it->_ptr;
     }
 

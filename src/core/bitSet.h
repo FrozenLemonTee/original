@@ -674,12 +674,12 @@ namespace std {
         auto* other_it = dynamic_cast<const Iterator*>(&other);
         if (other_it == nullptr)
             return this > &other ?
-                std::numeric_limits<integer>::max() :
-                std::numeric_limits<integer>::min();
+                (std::numeric_limits<integer>::max)() :
+                (std::numeric_limits<integer>::min)();
         if (this->container_ != other_it->container_)
             return this->container_ > other_it->container_ ?
-                std::numeric_limits<integer>::max() :
-                std::numeric_limits<integer>::min();
+                (std::numeric_limits<integer>::max)() :
+                (std::numeric_limits<integer>::min)();
 
         return toOuterIdx(this->cur_block, this->cur_bit) - toOuterIdx(other_it->cur_block, other_it->cur_bit);
     }
