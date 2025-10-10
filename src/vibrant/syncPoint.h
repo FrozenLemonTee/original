@@ -111,7 +111,7 @@ inline void original::syncPoint::arrive() {
             lock.unlock();
             this->condition_.notifyAll();
             if (this->e_) {
-                throw this->e_;
+                std::rethrow_exception(this->e_);
             }
         }
     }
