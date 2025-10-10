@@ -43,7 +43,7 @@ namespace original {
             typename ALLOC = allocator<K_TYPE>,
             typename Compare = increaseComparator<K_TYPE>>
     class skipList {
-    protected:
+    public:
         /**
          * @class skipListNode
          * @brief Internal node class for Skip List

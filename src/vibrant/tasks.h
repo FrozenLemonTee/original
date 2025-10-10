@@ -47,6 +47,7 @@ namespace original {
      * manually activated or discarded on shutdown.
      */
     class taskDelegator {
+    public:
         // ==================== Task Base Interface ====================
 
         /**
@@ -111,7 +112,6 @@ namespace original {
             async::future<TYPE> getFuture();
         };
 
-    public:
         // ==================== Task Priorities ====================
 
         /**

@@ -38,7 +38,7 @@ namespace original {
              typename ALLOC = allocator<K_TYPE>,
              typename Compare = increaseComparator<K_TYPE>>
     class RBTree {
-    protected:
+    public:
 
         /**
          * @class RBNode

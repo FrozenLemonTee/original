@@ -4,7 +4,6 @@
 #include "allocator.h"
 #include "couple.h"
 #include "hash.h"
-#include "singleDirectionIterator.h"
 #include "vector.h"
 #include "wrapper.h"
 
@@ -53,7 +52,7 @@ namespace original {
      */
     template<typename K_TYPE, typename V_TYPE, typename ALLOC = allocator<K_TYPE>, typename HASH = hash<K_TYPE>>
     class hashTable{
-    protected:
+    public:
 
         /**
          * @class hashNode
