@@ -58,7 +58,7 @@ namespace {
 
     // Function with delay for join/detach tests
     void delayedFunction(std::atomic<bool>& flag) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        thread::sleep(milliseconds(500));
         flag = true;
     }
 }
@@ -161,7 +161,7 @@ TEST_F(ThreadTest, Detach) {
     ASSERT_FALSE(t);
 }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    thread::sleep(milliseconds(1000));
     ASSERT_TRUE(flag);
 }
 
@@ -183,7 +183,7 @@ TEST_F(ThreadTest, DestructorDetach) {
     // t will be detached when it goes out of scope
     }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    thread::sleep(milliseconds(1000));
     ASSERT_TRUE(flag);
 }
 
@@ -243,14 +243,14 @@ TEST_F(ThreadTest, WillJoinFlag) {
     // Will be detached on destruction
     }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    thread::sleep(microseconds(200));
     ASSERT_TRUE(flag);
 }
 
 // Test thread ID uniqueness
 TEST_F(ThreadTest, ThreadIdUniqueness) {
-    thread t1([] { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
-    thread t2([] { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
+    thread t1([] { thread::sleep(microseconds(100)); });
+    thread t2([] { thread::sleep(microseconds(100)); });
 
     const ul_integer id1 = t1.id();
     const ul_integer id2 = t2.id();
