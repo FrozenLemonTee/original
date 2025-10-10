@@ -1394,9 +1394,20 @@ original::time::point::now() {
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
 #elif ORIGINAL_COMPILER_MSVC
-    // Other implements not complete
-    return point();
+    FILETIME file_time;
+    GetSystemTimePreciseAsFileTime(&file_time);
+
+    ULARGE_INTEGER uli;
+    uli.LowPart = file_time.dwLowDateTime;
+    uli.HighPart = file_time.dwHighDateTime;
+
+    constexpr time_val_type WINDOWS_TO_UNIX_EPOCH = 11644473600LL * FACTOR_SECOND;
+
+    const time_val_type nanoseconds = uli.QuadPart * 100 - WINDOWS_TO_UNIX_EPOCH;
+
+    return point{nanoseconds, NANOSECOND};
 #endif
+    return point{};
 }
 
 inline original::time::point::point(const time_val_type val, const unit unit)
