@@ -1,6 +1,8 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include "config.h"
+
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
 #elif ORIGINAL_COMPILER_MSVC
@@ -11,6 +13,7 @@
 
 #include "error.h"
 #include "functional"
+#include "hash.h"
 #include "ownerPtr.h"
 #include "zeit.h"
 
