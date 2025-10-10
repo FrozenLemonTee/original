@@ -1,6 +1,8 @@
 #include <iostream>
 
 #include "atomic.h"
+#include "array.h"
+#include "allocator.h"
 #include "thread.h"
 #include "maps.h"
 #include "mutex.h"
@@ -15,37 +17,24 @@ using namespace original::literals;
 int main()
 {
     std::cout << "id of main thread: " << original::thread::thisId() << std::endl;
-    original::pMutex print_mtx;
-    original::pCondition p;
-
-    auto printErr = [&](const original::error& e){
-        original::uniqueLock lock{print_mtx};
-        std::cout << e << ": " << e.message() << std::endl;
-        p.notify();
-    };
-
-    const auto err = original::valueError("Divided by zero");
-    original::thread print_thread {printErr, std::cref(err)};
-    p.wait(print_mtx);
-
-    original::pMutex mutex;
+    original::mutex mutex;
     auto task1 = [&](const int a, const std::string& b)
     {
         original::uniqueLock lock{mutex};
         std::cout << b << a << std::endl;
     };
-    original::pThread t1{task1, 1, "show: "};
+    original::thread t1{task1, 1, "show: "};
     original::thread::sleep(100_ms);
     std::cout << "id t1: " << t1.id() << std::endl;
     t1.join();
-    original::pThread t2{task1, 2, "show: "};
+    original::thread t2{task1, 2, "show: "};
     t2.join();
-    original::pThread t3{task1, 3, "show: "};
+    original::thread t3{task1, 3, "show: "};
     auto t4 = std::move(t3);
     t4.join();
 
-    original::pThread t5{task1, 4, "show: "};
-    original::pThread t6{task1, 5, "show: "};
+    original::thread t5{task1, 4, "show: "};
+    original::thread t6{task1, 5, "show: "};
     if (t5) {
         std::cout << "t5 is valid" << std::endl;
     }
@@ -58,11 +47,11 @@ int main()
     original::thread t7{task1, 6, "show: "};
     original::thread t8{task1, 7, "show: "};
 
-    original::pThread t9{task1, 8, "show: "};
+    original::thread t9{task1, 8, "show: "};
     original::thread t10{std::move(t9), original::thread::AUTO_JOIN};
     original::thread::sleep(100_ms);
     std::cout << "t10 id: " << t10.id() << std::endl;
-    original::pThread t11{task1, 9, "show: "};
+    original::thread t11{task1, 9, "show: "};
     original::thread t12{std::move(t11)};
 
     original::thread t13;
@@ -94,8 +83,8 @@ int main()
     std::cout << "On win64: " << original::printable::formatString(original::ON_WIN64()) << std::endl;
     std::cout << "Using GCC: " << original::printable::formatString(original::USING_GCC()) << std::endl;
 
-    original::pMutex m1;
-    original::pMutex m2;
+    original::mutex m1;
+    original::mutex m2;
     original::multiLock ml{m1, m2};
 
     auto d1 = original::time::duration(100, original::time::MILLISECOND);

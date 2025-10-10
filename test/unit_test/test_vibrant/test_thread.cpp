@@ -9,6 +9,12 @@ using namespace original::literals;
 using namespace std::literals;
 
 namespace {
+    using thread_type =
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+        pThread;
+#elif ORIGINAL_COMPILER_MSVC
+        wThread;
+#endif
     // Test class with member functions
     class Worker {
     public:
@@ -274,13 +280,13 @@ TEST_F(ThreadTest, ThreadIdAfterMove) {
     ASSERT_EQ(t2.id(), 0);            // After joining, ID should be 0
 }
 
-// Test pThread ID functionality
-TEST_F(ThreadTest, PThreadId) {
-    pThread pt([] {});
+// Test platform thread ID functionality
+TEST_F(ThreadTest, PlatformThreadId) {
+    thread_type pt([] {});
     const ul_integer id1 = pt.id();
     ASSERT_NE(id1, 0);
 
-    pThread pt2(std::move(pt));
+    thread_type pt2(std::move(pt));
     ASSERT_EQ(pt2.id(), id1);  // ID should be preserved after move
     ASSERT_EQ(pt.id(), 0);     // Moved-from pThread should have ID 0
 
@@ -467,21 +473,23 @@ TEST_F(ThreadTest, PrintableInterface) {
     t2.join();
 }
 
-// Test pThread printable interface
-TEST_F(ThreadTest, PThreadPrintableInterface) {
-    pThread pt1([] {});
-    pThread pt2;
+// Test platform thread printable interface
+TEST_F(ThreadTest, PlatformThreadPrintableInterface) {
+    thread_type pt1([] {});
+    thread_type pt2;
+
+    const std::string platform_thread_name = ON_WINDOWS() ? "wThread": "pThread";
 
     // Test className
-    ASSERT_EQ(pt1.className(), "pThread");
+    ASSERT_EQ(pt1.className(), platform_thread_name);
 
     // Test toString
     const std::string str1 = pt1.toString(false);
     const std::string str2 = pt2.toString(false);
 
-    ASSERT_TRUE(str1.find("pThread") != std::string::npos);
+    ASSERT_TRUE(str1.find(platform_thread_name) != std::string::npos);
     ASSERT_TRUE(str1.find(std::to_string(pt1.id())) != std::string::npos);
-    ASSERT_TRUE(str2.find("pThread") != std::string::npos);
+    ASSERT_TRUE(str2.find(platform_thread_name) != std::string::npos);
 
     pt1.join();
 }
