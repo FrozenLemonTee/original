@@ -708,8 +708,8 @@ namespace original {
     template <typename TYPE,
             typename Compare = increaseComparator<TYPE>,
             typename ALLOC = allocator<couple<const TYPE, const bool>>>
-    class JSet final : public skipList<const TYPE, const bool, ALLOC, Compare>,
-                       public set<TYPE, ALLOC>,
+    class JSet final : public set<TYPE, ALLOC>,
+                       public skipList<const TYPE, const bool, ALLOC, Compare>,
                        public iterable<const TYPE>,
                        public printable {
         using skipListType = skipList<const TYPE, const bool, ALLOC, Compare>;
@@ -1723,8 +1723,8 @@ bool original::JSet<TYPE, Compare, ALLOC>::Iterator::isValid() const {
 
 template<typename TYPE, typename Compare, typename ALLOC>
 original::JSet<TYPE, Compare, ALLOC>::JSet(Compare comp, ALLOC alloc)
-        : skipListType(std::move(comp)),
-          set<TYPE, ALLOC>(std::move(alloc)) {}
+        : set<TYPE, ALLOC>(std::move(alloc)),
+          skipListType(std::move(comp)) {}
 
 template<typename TYPE, typename Compare, typename ALLOC>
 original::JSet<TYPE, Compare, ALLOC>::JSet(const JSet& other) : JSet() {

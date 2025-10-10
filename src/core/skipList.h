@@ -672,7 +672,10 @@ original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::findLastNode() const {
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::skipList(Compare compare)
-    : size_(0), head_(this->createNode()), compare_(std::move(compare)) {}
+    : size_(0), head_(nullptr), compare_(std::move(compare))
+{
+    this->head_ = this->createNode();
+}
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::skipListNode*
