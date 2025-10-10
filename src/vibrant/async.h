@@ -31,8 +31,8 @@ namespace original {
         class asyncWrapper {
             atomic<bool> ready_{makeAtomic(false)};  ///< Atomic flag indicating result readiness
             strongPtr<TYPE> result_;                      ///< Storage of asynchronous computation result
-            mutable pCondition cond_{};                   ///< Condition variable for synchronization
-            mutable pMutex mutex_{};                      ///< Mutex for thread safety
+            mutable condition cond_{};                   ///< Condition variable for synchronization
+            mutable mutex mutex_{};                      ///< Mutex for thread safety
             std::exception_ptr e_{};                      ///< Exception pointer for error handling
 
         public:
@@ -556,8 +556,8 @@ namespace original {
     class async::asyncWrapper<void> {
         atomic<bool> ready_{makeAtomic(false)};  ///< Atomic flag indicating completion
         alternative<void> result_;                    ///< Mark of asynchronous computation status
-        mutable pCondition cond_{};                   ///< Condition variable for synchronization
-        mutable pMutex mutex_{};                      ///< Mutex for thread safety
+        mutable condition cond_{};                   ///< Condition variable for synchronization
+        mutable mutex mutex_{};                      ///< Mutex for thread safety
         std::exception_ptr e_{};                      ///< Exception pointer for error handling
 
     public:

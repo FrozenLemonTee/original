@@ -172,8 +172,8 @@ namespace original {
         priorityTaskQueue tasks_waiting_;    ///< Waiting tasks
         queue<strongPtr<taskBase>> task_immediate_;  ///< Immediate tasks
         queue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks
-        mutable pCondition condition_;       ///< Synchronization
-        mutable pMutex mutex_;               ///< Mutex for thread safety
+        mutable condition condition_;       ///< Synchronization
+        mutable mutex mutex_;               ///< Mutex for thread safety
         bool stopped_;                       ///< Stop flag
         u_integer active_threads_;           ///< Count of active threads
         u_integer idle_threads_;             ///< Count of idle threads
