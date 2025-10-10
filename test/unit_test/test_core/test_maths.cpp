@@ -21,30 +21,30 @@ TEST(MathsTests, AbsDoubleNegative) {
     EXPECT_EQ(original::abs(-5.5), std::abs(-5.5));
 }
 
-// Tests for max
+// Tests for maximum
 TEST(MathsTests, MaxInt) {
-    EXPECT_EQ(original::max(3, 5), std::max(3, 5));
+    EXPECT_EQ(original::maximum(3, 5), std::max(3, 5));
 }
 
 TEST(MathsTests, MaxDouble) {
-    EXPECT_EQ(original::max(3.5, 5.5), std::max(3.5, 5.5));
+    EXPECT_EQ(original::maximum(3.5, 5.5), std::max(3.5, 5.5));
 }
 
 TEST(MathsTests, MaxEqual) {
-    EXPECT_EQ(original::max(3, 3), std::max(3, 3));
+    EXPECT_EQ(original::maximum(3, 3), std::max(3, 3));
 }
 
-// Tests for min
+// Tests for minimum
 TEST(MathsTests, MinInt) {
-    EXPECT_EQ(original::min(3, 5), std::min(3, 5));
+    EXPECT_EQ(original::minimum(3, 5), std::min(3, 5));
 }
 
 TEST(MathsTests, MinDouble) {
-    EXPECT_EQ(original::min(3.5, 5.5), std::min(3.5, 5.5));
+    EXPECT_EQ(original::minimum(3.5, 5.5), std::min(3.5, 5.5));
 }
 
 TEST(MathsTests, MinEqual) {
-    EXPECT_EQ(original::min(3, 3), std::min(3, 3));
+    EXPECT_EQ(original::minimum(3, 3), std::min(3, 3));
 }
 
 // Tests for pow

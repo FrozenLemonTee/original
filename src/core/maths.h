@@ -79,7 +79,7 @@ TYPE abs(TYPE a);
  * @endcode
  */
 template<typename TYPE>
-TYPE max(TYPE a, TYPE b);
+TYPE maximum(TYPE a, TYPE b);
 
 /**
  * @brief Returns the smaller of two given values.
@@ -186,7 +186,7 @@ auto original::abs(TYPE a) -> TYPE
 }
 
 template<typename TYPE>
-auto original::max(TYPE a, TYPE b) -> TYPE
+auto original::maximum(TYPE a, TYPE b) -> TYPE
 {
     return a > b ? a : b;
 }
