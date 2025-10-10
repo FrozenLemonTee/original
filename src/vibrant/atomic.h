@@ -406,9 +406,9 @@ namespace original {
 
         atomicImpl& operator-=(TYPE value) noexcept;
 
-        TYPE exchange(TYPE value, memOrder order = SEQ_CST) noexcept;
+        TYPE exchange(const TYPE& value, memOrder order = SEQ_CST) noexcept;
 
-        bool exchangeCmp(TYPE& expected, TYPE desired, memOrder order = SEQ_CST) noexcept;
+        bool exchangeCmp(TYPE& expected, const TYPE& desired, memOrder order = SEQ_CST) noexcept;
 
         ~atomicImpl() = default;
 
