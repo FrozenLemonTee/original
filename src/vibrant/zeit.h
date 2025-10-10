@@ -843,7 +843,7 @@ namespace original {
              * @warning When converting back to time::point, the time point will only
              * have second-level precision (sub-second components will be zero)
              */
-            explicit operator point() const;
+            explicit operator original::time::point() const;
 
             point toPoint() const;
 
@@ -1773,7 +1773,7 @@ original::time::UTCTime::value(const calendar calendar) const {
     }
 }
 
-inline original::time::UTCTime::operator point() const {
+inline original::time::UTCTime::operator original::time::point() const {
     time_val_type total_days = 0;
 
     for (integer year = EPOCH_YEAR; year < this->year_; ++year) {
