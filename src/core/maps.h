@@ -1923,8 +1923,8 @@ original::JMap<K_TYPE, V_TYPE, Compare, ALLOC>::Iterator::operator-(
     auto other_it = dynamic_cast<const Iterator*>(&other);
     if (other_it == nullptr)
         return this > &other ?
-               std::numeric_limits<integer>::max() :
-               std::numeric_limits<integer>::min();
+               (std::numeric_limits<integer>::max)() :
+               (std::numeric_limits<integer>::min)();
     return skipListType::Iterator::operator-(*other_it);
 }
 
