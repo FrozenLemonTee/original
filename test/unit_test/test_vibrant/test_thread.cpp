@@ -478,7 +478,7 @@ TEST_F(ThreadTest, PlatformThreadPrintableInterface) {
     thread_type pt1([] {});
     thread_type pt2;
 
-    const std::string platform_thread_name = ON_WINDOWS() ? "wThread": "pThread";
+    const std::string platform_thread_name = USING_MSVC() ? "wThread": "pThread";
 
     // Test className
     ASSERT_EQ(pt1.className(), platform_thread_name);
