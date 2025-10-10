@@ -252,7 +252,7 @@ namespace original {
         explicit wThread();
 
         template<typename Callback, typename... ARGS>
-        explicit wThread(Callback c, ARGS&& args...);
+        explicit wThread(Callback c, ARGS&&... args...);
 
         wThread(wThread&& other) noexcept;
 
@@ -628,7 +628,7 @@ inline bool original::wThread::valid() const
 inline original::wThread::wThread() : handle(), is_joinable() {}
 
 template <typename Callback, typename ... ARGS>
-original::wThread::wThread(Callback c, ARGS&& args, ...) : handle(), is_joinable(true)
+original::wThread::wThread(Callback c, ARGS&&... args, ...) : handle(), is_joinable(true)
 {
     auto bound_lambda =
     [func = std::forward<Callback>(c), ...lambda_args = std::forward<ARGS>(args)]() mutable {
@@ -640,7 +640,16 @@ original::wThread::wThread(Callback c, ARGS&& args, ...) : handle(), is_joinable
 
     auto task = new bound_thread_data(std::move(bound_lambda));
 
-    this->handle = CreateThread(nullptr, 0, task, nullptr, 0, nullptr);
+    static auto threadEntry = [](LPVOID param) -> DWORD {
+        bound_thread_data::run(param);
+        return 0;
+    };
+
+    this->handle = CreateThread(nullptr, 0, threadEntry, task, 0, nullptr);
+    if (this->handle == nullptr) {
+        delete task;
+        throw sysError("Failed to create thread (CreateThread returned null)");
+    }
 }
 
 inline original::wThread::wThread(wThread&& other) noexcept : wThread()
@@ -697,11 +706,15 @@ inline std::string original::wThread::className() const
 inline void original::wThread::join()
 {
     WaitForSingleObject(this->handle, INFINITE);
+    this->is_joinable = false;
+    this->handle = {};
 }
 
 inline void original::wThread::detach()
 {
     CloseHandle(this->handle);
+    this->is_joinable = false;
+    this->handle = {};
 }
 
 inline original::wThread::~wThread()
@@ -756,7 +769,7 @@ inline void original::thread::sleep(const time::duration& d)
                       ", errno: " + std::to_string(errno) + ")");
     }
 #elif ORIGINAL_COMPILER_MSVC
-    Sleep(static_cast<DWORD>((d.value() + time::FACTOR_MILLISECOND - 1) / time::FACTOR_MILLISECOND));
+    Sleep(d.toDWMilliseconds());
 #endif
 }
 
