@@ -26,7 +26,7 @@ TEST(PrintableTest, ToStringTest) {
     // 测试 toString 传入 false，不带换行
     std::string str = obj.toString(false);
     EXPECT_TRUE(str.find("TestClass") != std::string::npos); // 应该包含类名
-    EXPECT_TRUE(str.find("0x") != std::string::npos); // 应该包含地址信息
+    EXPECT_TRUE(str.find('@') != std::string::npos); // 应该包含地址信息
 
     // 测试 toString 传入 true，带换行
     str = obj.toString(true);
@@ -88,5 +88,5 @@ TEST(PrintableTest, OutputOperatorTest) {
     std::ostringstream oss;
     oss << obj;
     EXPECT_TRUE(oss.str().find("TestClass") != std::string::npos); // 输出应包含类名
-    EXPECT_TRUE(oss.str().find("0x") != std::string::npos); // 输出应包含对象地址
+    EXPECT_TRUE(oss.str().find('@') != std::string::npos); // 输出应包含对象地址
 }
