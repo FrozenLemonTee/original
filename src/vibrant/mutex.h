@@ -214,9 +214,9 @@ namespace original {
     };
 #elif ORIGINAL_COMPILER_MSVC
     class wMutex final : public mutexBase {
-        CRITICAL_SECTION cs_;
+        SRWLOCK lock_;
     public:
-        using native_handle = CRITICAL_SECTION;
+        using native_handle = SRWLOCK;
 
         explicit wMutex();
 
@@ -467,40 +467,38 @@ inline original::pMutex::~pMutex() {
     }
 }
 #elif ORIGINAL_COMPILER_MSVC
-inline original::wMutex::wMutex() : cs_{}
+inline original::wMutex::wMutex()
 {
-    InitializeCriticalSection(&this->cs_);
+    InitializeSRWLock(&this->lock_);
 }
 
 inline original::ul_integer original::wMutex::id() const
 {
-    return reinterpret_cast<ul_integer>(&this->cs_);
+    return reinterpret_cast<ul_integer>(&this->lock_);
 }
 
 inline void* original::wMutex::nativeHandle() noexcept
 {
-    return &this->cs_;
+    return &this->lock_;
 }
 
 inline void original::wMutex::lock()
 {
-    EnterCriticalSection(&this->cs_);
+    AcquireSRWLockExclusive(&this->lock_);
 }
 
 inline bool original::wMutex::tryLock()
 {
-    return TryEnterCriticalSection(&this->cs_) != 0;
+    return TryAcquireSRWLockExclusive(&this->lock_) != 0;
 }
 
 inline void original::wMutex::unlock()
 {
-    LeaveCriticalSection(&this->cs_);
+    ReleaseSRWLockExclusive(&this->lock_);
 }
 
-inline original::wMutex::~wMutex()
-{
-    DeleteCriticalSection(&this->cs_);
-}
+inline original::wMutex::~wMutex() = default;
+
 #endif
 
 inline original::mutex::mutex() = default;

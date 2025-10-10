@@ -329,31 +329,23 @@ inline original::wCondition::wCondition() : cond_{}
 
 inline void original::wCondition::wait(mutexBase& mutex)
 {
-    const auto w_mutex = dynamic_cast<wMutex*>(&mutex);
-    if (!w_mutex) {
-        throw valueError("Invalid mutex type for condition variable: must be wMutex");
-    }
-    if (const auto handle = static_cast<wMutex::native_handle*>(w_mutex->nativeHandle());
-        !SleepConditionVariableCS(&this->cond_, handle, INFINITE)) {
-        throw sysError("Failed to wait on condition variable (SleepConditionVariableCS returned error " +
+    if (const auto handle = static_cast<mutex::native_handle*>(mutex.nativeHandle());
+        !SleepConditionVariableSRW(&this->cond_, handle, INFINITE, 0)) {
+        throw sysError("Failed to wait on condition variable (SleepConditionVariableSRW returned error " +
                       printable::formatString(GetLastError()));
     }
 }
 
 inline bool original::wCondition::waitFor(mutexBase& mutex, const time::duration d)
 {
-    const auto w_mutex = dynamic_cast<wMutex*>(&mutex);
-    if (!w_mutex) {
-        throw valueError("Invalid mutex type for condition variable: must be wMutex");
-    }
-
-    const auto handle = static_cast<wMutex::native_handle*>(w_mutex->nativeHandle());
-    if (const auto timeout_ms = d.toDWMilliseconds(); !SleepConditionVariableCS(&this->cond_, handle, timeout_ms)) {
+    const auto handle = static_cast<mutex::native_handle*>(mutex.nativeHandle());
+    if (const auto timeout_ms = d.toDWMilliseconds();
+        !SleepConditionVariableSRW(&this->cond_, handle, timeout_ms, 0)) {
         const DWORD error = GetLastError();
         if (error == ERROR_TIMEOUT) {
             return false;
         }
-        throw sysError("Failed to timed wait on condition variable (SleepConditionVariableCS returned error " +
+        throw sysError("Failed to timed wait on condition variable (SleepConditionVariableSRW returned error " +
                       printable::formatString(error));
     }
     return true;
@@ -368,6 +360,8 @@ inline void original::wCondition::notifyAll()
 {
     WakeAllConditionVariable(&this->cond_);
 }
+
+inline original::wCondition::~wCondition() = default;
 #endif
 
 inline original::condition::condition() = default;
