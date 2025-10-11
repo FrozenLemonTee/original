@@ -6,6 +6,7 @@ install/
 .vscode/
 out/
 original/
+**/__pycache__/
 
 test.exe
 original.zip
