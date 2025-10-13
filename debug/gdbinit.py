@@ -38,7 +38,7 @@ def load_printers_from_directory(pretty_printer_collection, directory):
             type_regex = f"^original::{type_name}(<.*>)?$"
 
             pretty_printer_collection.add_printer(module_name, type_regex, printer_class)
-            print(f"Registered pretty-printer: {type_name} -> {printer_class.__name__}")
+            print(f"Registered pretty-printer: {type_name}")
 
         except Exception as e:
             print(f"Failed to load {file_name}: {e}")
