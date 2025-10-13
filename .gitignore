@@ -1,5 +1,5 @@
 cmake-build-*/
-.idea/
+**/.idea/
 build/
 install/
 .vs/
