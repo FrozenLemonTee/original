@@ -73,6 +73,8 @@ install(FILES
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/original
 )
 
+add_subdirectory(debug)
+
 option(BUILD_TESTING "Build the testing directories" ON)
 
 if (BUILD_TESTING)
