@@ -1,6 +1,11 @@
 # debug/printers/core/tuple_printer.py
 
 import gdb
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from utils import *
+
 
 class Printer:
     """Pretty printer for original::tuple"""
@@ -9,7 +14,7 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::tuple(@{int(self.val.address):#x})"
+        return f"original::tuple(@{address(self.val):#x})"
 
     def children(self):
         elems = self.val['elems']
