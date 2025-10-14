@@ -26,7 +26,8 @@ class Printer:
                 v = v.referenced_value()
             yield f"[{i}]", v
         if gdb.parameter('print pretty') > 0:
-            yield "body", f"@{int(self.val["body"]):#x}"
+            addr = addr_str(self.val["body"])
+            yield "body", f"{addr}"
 
     def display_hint(self):
         return "array"
