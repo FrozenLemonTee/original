@@ -26,6 +26,8 @@ def type_name(obj):
 
 def call(obj, method_name, *args):
     try:
+        if obj.type.code == gdb.TYPE_CODE_REF:
+            obj = obj.referenced_value()
         args_str = ', '.join(str(arg) for arg in args)
         addr = address(obj)
         expr = f'(({type_name(obj)}*)({addr}))->{method_name}({args_str})'
