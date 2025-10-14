@@ -16,6 +16,11 @@ def address(obj):
     except gdb.error:
         return None
 
+def addr_str(item):
+    if isinstance(item, int) or isinstance(item, str):
+        return f"@{item:#x}"
+    return f"@{address(item):#x}"
+
 def type_name(obj):
     return obj.type.name
 
