@@ -1,15 +1,19 @@
 #ifndef ORIGINAL_ATOMIC_H
 #define ORIGINAL_ATOMIC_H
 
+#include "config.h"
+
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <cstring>
 #elif ORIGINAL_COMPILER_MSVC
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+#include <intrin.h>
 #endif
 
-
-#include <type_traits>
 #include "optional.h"
-#include "config.h"
 #include "mutex.h"
 
 namespace original {
