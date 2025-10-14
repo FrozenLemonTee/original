@@ -79,7 +79,7 @@ TYPE abs(TYPE a);
  * @endcode
  */
 template<typename TYPE>
-TYPE max(TYPE a, TYPE b);
+TYPE maximum(TYPE a, TYPE b);
 
 /**
  * @brief Returns the smaller of two given values.
@@ -100,7 +100,7 @@ TYPE max(TYPE a, TYPE b);
  * @endcode
  */
 template<typename TYPE>
-TYPE min(TYPE a, TYPE b);
+TYPE minimum(TYPE a, TYPE b);
 
 /**
  * @brief Returns the result of raising a base to an exponent.
@@ -186,13 +186,13 @@ auto original::abs(TYPE a) -> TYPE
 }
 
 template<typename TYPE>
-auto original::max(TYPE a, TYPE b) -> TYPE
+auto original::maximum(TYPE a, TYPE b) -> TYPE
 {
     return a > b ? a : b;
 }
 
 template<typename TYPE>
-auto original::min(TYPE a, TYPE b) -> TYPE
+auto original::minimum(TYPE a, TYPE b) -> TYPE
 {
     return a < b ? a : b;
 }

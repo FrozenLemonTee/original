@@ -187,15 +187,19 @@ TEST_F(TreeSetTest, MoveAssignment) {
     EXPECT_EQ(intSet->size(), 0); // NOLINT(bugprone-use-after-move)
 }
 
-// Custom Comparator Test
-TEST(TreeSetCustomCompareTest, CustomCompareFunction) {
+namespace
+{
+    template<typename>
     struct CustomCompare {
         bool operator()(const int a, const int b) const {
             return a > b; // Reverse order
         }
     };
+}
 
-    treeSet<int, CustomCompare> customSet;
+// Custom Comparator Test
+TEST(TreeSetCustomCompareTest, CustomCompareFunction) {
+    treeSet<int, CustomCompare<int>> customSet;
     customSet.add(1);
     customSet.add(2);
     customSet.add(3);

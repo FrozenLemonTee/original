@@ -9,6 +9,12 @@ using namespace original::literals;
 using namespace std::literals;
 
 namespace {
+    using thread_type =
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+        pThread;
+#elif ORIGINAL_COMPILER_MSVC
+        wThread;
+#endif
     // Test class with member functions
     class Worker {
     public:
@@ -52,7 +58,7 @@ namespace {
 
     // Function with delay for join/detach tests
     void delayedFunction(std::atomic<bool>& flag) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        thread::sleep(milliseconds(500));
         flag = true;
     }
 }
@@ -155,7 +161,7 @@ TEST_F(ThreadTest, Detach) {
     ASSERT_FALSE(t);
 }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    thread::sleep(milliseconds(1000));
     ASSERT_TRUE(flag);
 }
 
@@ -177,7 +183,7 @@ TEST_F(ThreadTest, DestructorDetach) {
     // t will be detached when it goes out of scope
     }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    thread::sleep(milliseconds(1000));
     ASSERT_TRUE(flag);
 }
 
@@ -237,14 +243,14 @@ TEST_F(ThreadTest, WillJoinFlag) {
     // Will be detached on destruction
     }
     // Give some time for the thread to complete
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    thread::sleep(microseconds(200));
     ASSERT_TRUE(flag);
 }
 
 // Test thread ID uniqueness
 TEST_F(ThreadTest, ThreadIdUniqueness) {
-    thread t1([] { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
-    thread t2([] { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
+    thread t1([] { thread::sleep(microseconds(100)); });
+    thread t2([] { thread::sleep(microseconds(100)); });
 
     const ul_integer id1 = t1.id();
     const ul_integer id2 = t2.id();
@@ -274,13 +280,13 @@ TEST_F(ThreadTest, ThreadIdAfterMove) {
     ASSERT_EQ(t2.id(), 0);            // After joining, ID should be 0
 }
 
-// Test pThread ID functionality
-TEST_F(ThreadTest, PThreadId) {
-    pThread pt([] {});
+// Test platform thread ID functionality
+TEST_F(ThreadTest, PlatformThreadId) {
+    thread_type pt([] {});
     const ul_integer id1 = pt.id();
     ASSERT_NE(id1, 0);
 
-    pThread pt2(std::move(pt));
+    thread_type pt2(std::move(pt));
     ASSERT_EQ(pt2.id(), id1);  // ID should be preserved after move
     ASSERT_EQ(pt.id(), 0);     // Moved-from pThread should have ID 0
 
@@ -467,21 +473,23 @@ TEST_F(ThreadTest, PrintableInterface) {
     t2.join();
 }
 
-// Test pThread printable interface
-TEST_F(ThreadTest, PThreadPrintableInterface) {
-    pThread pt1([] {});
-    pThread pt2;
+// Test platform thread printable interface
+TEST_F(ThreadTest, PlatformThreadPrintableInterface) {
+    thread_type pt1([] {});
+    thread_type pt2;
+
+    const std::string platform_thread_name = USING_MSVC() ? "wThread": "pThread";
 
     // Test className
-    ASSERT_EQ(pt1.className(), "pThread");
+    ASSERT_EQ(pt1.className(), platform_thread_name);
 
     // Test toString
     const std::string str1 = pt1.toString(false);
     const std::string str2 = pt2.toString(false);
 
-    ASSERT_TRUE(str1.find("pThread") != std::string::npos);
+    ASSERT_TRUE(str1.find(platform_thread_name) != std::string::npos);
     ASSERT_TRUE(str1.find(std::to_string(pt1.id())) != std::string::npos);
-    ASSERT_TRUE(str2.find("pThread") != std::string::npos);
+    ASSERT_TRUE(str2.find(platform_thread_name) != std::string::npos);
 
     pt1.join();
 }

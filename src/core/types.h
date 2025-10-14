@@ -24,19 +24,19 @@ namespace original {
     // ==================== Fundamental Types ====================
 
     /**
-     * @class none
+     * @class null
      * @brief A placeholder type representing the absence of a value.
      * @details This class provides consteval operations and can be converted to bool,
      *          always returning false. Useful for template metaprogramming and
      *          representing empty states.
      */
-    class none {
+    class null {
     public:
         /// @brief Default constructor (consteval)
-        consteval explicit none() = default;
+        consteval explicit null() = default;
 
         /// @brief Default destructor (constexpr)
-        constexpr ~none() = default;
+        constexpr ~null() = default;
 
         /**
          * @brief Bool conversion operator
@@ -516,6 +516,26 @@ namespace original {
         c.pop_back();
     };
 
+    template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
+    class some;
+
+    template<typename MATCH_TYPE, typename OTHER_TYPE>
+    class some<true, MATCH_TYPE, OTHER_TYPE>
+    {
+    public:
+        using type = MATCH_TYPE;
+    };
+
+    template<typename MATCH_TYPE, typename OTHER_TYPE>
+    class some<false, MATCH_TYPE, OTHER_TYPE>
+    {
+    public:
+        using type = OTHER_TYPE;
+    };
+
+    template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
+    using some_t = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
+
     // ==================== Compile-time Index Sequences ====================
 
     /**
@@ -642,11 +662,11 @@ namespace original {
 
 } // namespace original
 
-consteval original::none::operator bool() const {
+consteval original::null::operator bool() const {
     return false;
 }
 
-consteval bool original::none::operator!() const {
+consteval bool original::null::operator!() const {
     return true;
 }
 

@@ -591,7 +591,12 @@ namespace std {
     }
 
     template <typename TYPE, typename ALLOC>
-    original::chain<TYPE, ALLOC>::chain(ALLOC alloc) : baseList<TYPE, ALLOC>(std::move(alloc)), size_(0), rebind_alloc(std::move(rebind_alloc_node{}))
+    original::chain<TYPE, ALLOC>::chain(ALLOC alloc)
+            : baseList<TYPE, ALLOC>(std::move(alloc)),
+              size_(0),
+              begin_(nullptr),
+              end_(nullptr),
+              rebind_alloc(std::move(rebind_alloc_node{}))
     {
         chainInit();
     }

@@ -5,9 +5,12 @@ name: Deploy Documentation - Stable
 on:
   push:
     branches: [ master ]
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'FrozenLemonTee/original'
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +48,7 @@ jobs:
           echo '<body>' >> ../original_docs/docs/html/version.html
           echo '    <h1>Documentation Version</h1>' >> ../original_docs/docs/html/version.html
           echo '    <p>Version: stable</p>' >> ../original_docs/docs/html/version.html
-          echo '    <p>Branch: master</p>' >> index.html
+          echo '    <p>Branch: master</p>' >> ../original_docs/docs/html/version.html
           echo "    <p>Build Date: $(date -u)</p>" >> ../original_docs/docs/html/version.html
           echo "    <p>Commit: ${{ github.sha }}</p>" >> ../original_docs/docs/html/version.html
           echo '</body>' >> ../original_docs/docs/html/version.html
@@ -64,12 +67,12 @@ jobs:
           
           cd deploy-repo
           
-          # Only update stable directory
+          # Update stable directory
           rm -rf stable
           mkdir -p stable
           cp -r ../../original_docs/docs/html/* stable/
           
-          # Create index.html redirection
+          # Regenerate the main index.html to include the latest tag version
           echo '<!DOCTYPE html>' > index.html
           echo '<html>' >> index.html
           echo '<head>' >> index.html
@@ -83,15 +86,46 @@ jobs:
           echo '        <li><a href="latest/index.html">Latest (test branch)</a></li>' >> index.html
           echo '        <li><a href="versions/">Tag versions</a></li>' >> index.html
           echo '    </ul>' >> index.html
+          echo '    <p>Recent tag versions:</p>' >> index.html
+          echo '    <ul>' >> index.html
+          
+          # Regenerate the list of recent tag versions (last 5)
+          for dir in $(ls -1 versions/ 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r | head -5); do
+            echo "        <li><a href=\"versions/$dir/index.html\">Version $dir</a></li>" >> index.html
+          done
+          
+          echo '    </ul>' >> index.html
           echo '</body>' >> index.html
           echo '</html>' >> index.html
           
+          # Also update versions/index.html to ensure that the list of all versions is up to date
+          echo '<!DOCTYPE html>' > versions/index.html
+          echo '<html>' >> versions/index.html
+          echo '<head>' >> versions/index.html
+          echo '    <title>Versioned Documentation</title>' >> versions/index.html
+          echo '</head>' >> versions/index.html
+          echo '<body>' >> versions/index.html
+          echo '    <h1>Versioned Documentation</h1>' >> versions/index.html
+          echo '    <p>Select a version:</p>' >> versions/index.html
+          echo '    <ul>' >> versions/index.html
+          
+          # List all versions (from newest to oldest)
+          for dir in $(ls -1 versions/ 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r); do
+            echo "        <li><a href=\"$dir/index.html\">Version $dir</a></li>" >> versions/index.html
+          done
+          
+          echo '    </ul>' >> versions/index.html
+          echo '    <p><a href="../stable/index.html">Stable (master branch)</a></p>' >> versions/index.html
+          echo '    <p><a href="../latest/index.html">Latest (test branch)</a></p>' >> versions/index.html
+          echo '</body>' >> versions/index.html
+          echo '</html>' >> versions/index.html
+
           # Submit and push
           git add .
           if git diff-index --quiet HEAD --; then
             echo "No changes to deploy"
           else
-            git commit -m "Deploy ${{ steps.version.outputs.docs-version }} documentation from ${{ github.sha }}"
+            git commit -m "Deploy stable documentation from ${{ github.sha }} and update version lists"
             git push origin master
-            echo "✅ Stable documentation deployed successfully"
+            echo "✅ Stable documentation deployed successfully with updated version lists"
           fi

@@ -1,15 +1,24 @@
 #ifndef ORIGINAL_ZEIT_H
 #define ORIGINAL_ZEIT_H
-#include <cmath>
+
 #include "config.h"
+
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#include <ctime>
+#elif ORIGINAL_COMPILER_MSVC
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+#include <sysinfoapi.h>
+#endif
+
+#include <cmath>
 #include "comparable.h"
 #include "hash.h"
 #include "printable.h"
 #include "error.h"
 #include <iomanip>
-#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-#include <ctime>
-#endif
 
 /**
  * @file zeit.h
@@ -156,6 +165,8 @@ namespace original {
              *          into a unified duration value in nanoseconds.
              */
             explicit duration(const timespec& ts);
+#elif ORIGINAL_COMPILER_MSVC
+            explicit duration(DWORD milliseconds);
 #endif
 
             /// Default copy constructor
@@ -219,6 +230,10 @@ namespace original {
             explicit operator timespec() const;
 
             timespec toTimespec() const;
+#elif ORIGINAL_COMPILER_MSVC
+            explicit operator DWORD() const;
+
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -403,6 +418,8 @@ namespace original {
              * @note The conversion computes the total nanoseconds from ts.tv_sec and ts.tv_nsec.
              */
             explicit point(const timespec& ts);
+#elif ORIGINAL_COMPILER_MSVC
+            explicit point(DWORD milliseconds);
 #endif
 
             /**
@@ -447,6 +464,10 @@ namespace original {
             explicit operator timespec() const;
 
             timespec toTimespec() const;
+#elif ORIGINAL_COMPILER_MSVC
+            explicit operator DWORD() const;
+
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -822,7 +843,7 @@ namespace original {
              * @warning When converting back to time::point, the time point will only
              * have second-level precision (sub-second components will be zero)
              */
-            explicit operator point() const;
+            explicit operator original::time::point() const;
 
             point toPoint() const;
 
@@ -1107,6 +1128,9 @@ inline original::time::duration::duration(const time_val_type val, const unit un
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::time::duration::duration(const timespec& ts)
     : nano_seconds_(ts.tv_sec * FACTOR_SECOND + ts.tv_nsec) {}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::duration::duration(const DWORD milliseconds)
+    : nano_seconds_(static_cast<time_val_type>(milliseconds) * FACTOR_MILLISECOND) {}
 #endif
 
 inline original::time::duration::duration(duration&& other) noexcept : duration() {
@@ -1190,6 +1214,16 @@ inline original::time::duration::operator timespec() const
 inline timespec original::time::duration::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::duration::operator DWORD() const
+{
+    return static_cast<DWORD>(this->value());
+}
+
+inline DWORD original::time::duration::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
@@ -1359,10 +1393,21 @@ original::time::point::now() {
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
-#else
-    // Other implements not complete
-    return point();
+#elif ORIGINAL_COMPILER_MSVC
+    FILETIME file_time;
+    GetSystemTimePreciseAsFileTime(&file_time);
+
+    ULARGE_INTEGER uli;
+    uli.LowPart = file_time.dwLowDateTime;
+    uli.HighPart = file_time.dwHighDateTime;
+
+    constexpr time_val_type WINDOWS_TO_UNIX_EPOCH = 11644473600LL * FACTOR_SECOND;
+
+    const time_val_type nanoseconds = uli.QuadPart * 100 - WINDOWS_TO_UNIX_EPOCH;
+
+    return point{nanoseconds, NANOSECOND};
 #endif
+    return point{};
 }
 
 inline original::time::point::point(const time_val_type val, const unit unit)
@@ -1374,6 +1419,9 @@ inline original::time::point::point(duration d)
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::time::point::point(const timespec& ts)
     : nano_since_epoch_(ts) {}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::point::point(const DWORD milliseconds)
+    : nano_since_epoch_(milliseconds) {}
 #endif
 
 inline original::time::time_val_type
@@ -1413,6 +1461,16 @@ inline original::time::point::operator timespec() const
 inline timespec original::time::point::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::time::point::operator DWORD() const
+{
+    return static_cast<DWORD>(this->nano_since_epoch_);
+}
+
+inline DWORD original::time::point::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
@@ -1726,7 +1784,7 @@ original::time::UTCTime::value(const calendar calendar) const {
     }
 }
 
-inline original::time::UTCTime::operator point() const {
+inline original::time::UTCTime::operator original::time::point() const {
     time_val_type total_days = 0;
 
     for (integer year = EPOCH_YEAR; year < this->year_; ++year) {

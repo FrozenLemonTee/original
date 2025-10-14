@@ -4,10 +4,11 @@ name: Deploy Documentation - Latest
 
 on:
   push:
-    branches: [ master ] # Temporary change from test to master to avoid concurrency push
+    branches: [ test ]
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'FrozenLemonTee/original'
     runs-on: ubuntu-latest
 
     steps:

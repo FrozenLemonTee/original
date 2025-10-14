@@ -3,6 +3,7 @@
 #include "coroutines.h"
 #include "couple.h"
 #include "sets.h"
+#include "vector.h"
 
 
 namespace original {
@@ -25,45 +26,6 @@ namespace original {
      */
     template<typename TYPE>
     coroutine::generator<couple<u_integer, TYPE>> enumerate(coroutine::generator<TYPE> gen);
-
-    /**
-     * @brief Collects generator elements into a set.
-     * @tparam TYPE The type of elements in the generator.
-     * @tparam SET The set type to collect into (default: hashSet).
-     * @param gen The generator to collect from.
-     * @return A set containing all unique elements from the generator.
-     * @details Transforms a generator sequence into a set container, removing duplicates
-     *          and providing fast lookup capabilities.
-     *
-     * Example:
-     * @code
-     * auto vec = vector{1, 2, 2, 3, 3, 3};
-     * auto gen = vec.generator();
-     * auto set = collect<int>(gen);  // {1, 2, 3}
-     * @endcode
-     */
-    template<typename TYPE, typename SET = hashSet<TYPE>>
-    requires ExtendsOf<set<TYPE, allocator<couple<const TYPE, const bool>>>, SET>
-    SET collect(coroutine::generator<TYPE> gen);
-
-    /**
-     * @brief Collects generator elements into a list container.
-     * @tparam TYPE The type of elements in the generator.
-     * @tparam SERIAL The list container type (default: vector).
-     * @param gen The generator to collect from.
-     * @return A list container with all generator elements in order.
-     * @details Converts a generator sequence into a concrete list container,
-     *          preserving element order and allowing random access.
-     *
-     * Example:
-     * @code
-     * auto gen = someContainer.generator();
-     * auto vec = list<int>(gen);  // Creates vector<int> with all elements
-     * @endcode
-     */
-    template<typename TYPE, template <typename> typename SERIAL = vector>
-    requires ExtendsOf<baseList<TYPE, allocator<TYPE>>, SERIAL<TYPE>>
-    SERIAL<TYPE> list(coroutine::generator<TYPE> gen);
 
     /**
      * @brief Transforms generator elements using a callable.
@@ -644,6 +606,61 @@ namespace original {
      */
     template<typename F>
     auto find(F&& f);
+
+    /**
+     * @brief Collects generator elements into a set.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SET The set type to collect into (default: hashSet).
+     * @param gen The generator to collect from.
+     * @return A set containing all unique elements from the generator.
+     * @details Transforms a generator sequence into a set container, removing duplicates
+     *          and providing fast lookup capabilities.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{1, 2, 2, 3, 3, 3};
+     * auto gen = vec.generator();
+     * auto set = collect<int>(gen);  // {1, 2, 3}
+     * @endcode
+     */
+    template<typename TYPE, typename SET = hashSet<TYPE>>
+    requires original::ExtendsOf<set<TYPE, allocator<couple<const TYPE, const bool>>>, SET>
+    SET collect(coroutine::generator<TYPE> gen)
+    {
+        SET set;
+        for (auto elem : gen)
+        {
+            set.add(elem);
+        }
+        return set;
+    }
+
+    /**
+     * @brief Collects generator elements into a list container.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SERIAL The list container type (default: vector).
+     * @param gen The generator to collect from.
+     * @return A list container with all generator elements in order.
+     * @details Converts a generator sequence into a concrete list container,
+     *          preserving element order and allowing random access.
+     *
+     * Example:
+     * @code
+     * auto gen = someContainer.generator();
+     * auto vec = list<int>(gen);  // Creates vector<int> with all elements
+     * @endcode
+     */
+    template <typename TYPE, template <typename> typename SERIAL = vector>
+    requires original::ExtendsOf<baseList<TYPE, allocator<TYPE>>, SERIAL<TYPE>>
+    SERIAL<TYPE> list(coroutine::generator<TYPE> gen)
+    {
+        SERIAL<TYPE> list;
+        for (auto elem : gen)
+        {
+            list.pushEnd(elem);
+        }
+        return list;
+    }
 }
 
 template <typename TYPE>
@@ -656,30 +673,6 @@ original::enumerate(coroutine::generator<TYPE> gen)
         co_yield {i, elem};
         i += 1;
     }
-}
-
-template<typename TYPE, typename SET>
-requires original::ExtendsOf<original::set<TYPE, original::allocator<original::couple<const TYPE, const bool>>>, SET>
-SET original::collect(coroutine::generator<TYPE> gen)
-{
-    SET set;
-    for (auto elem : gen)
-    {
-        set.add(elem);
-    }
-    return set;
-}
-
-template <typename TYPE, template <typename> class SERIAL>
-requires original::ExtendsOf<original::baseList<TYPE, original::allocator<TYPE>>, SERIAL<TYPE>>
-SERIAL<TYPE> original::list(coroutine::generator<TYPE> gen)
-{
-    SERIAL<TYPE> list;
-    for (auto elem : gen)
-    {
-        list.pushEnd(elem);
-    }
-    return list;
 }
 
 template <typename TYPE, typename Callback>

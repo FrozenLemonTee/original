@@ -43,7 +43,7 @@ namespace original {
             typename ALLOC = allocator<K_TYPE>,
             typename Compare = increaseComparator<K_TYPE>>
     class skipList {
-    protected:
+    public:
         /**
          * @class skipListNode
          * @brief Internal node class for Skip List
@@ -366,7 +366,7 @@ namespace original {
          * @brief Destructor
          * @details Cleans up all list nodes and allocated memory
          */
-        ~skipList();
+        virtual ~skipList();
     };
 }
 
@@ -517,12 +517,12 @@ template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::integer
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::operator-(const Iterator& other) const {
     if (const integer pos_dis = ptrDistance(&other, this);
-            pos_dis != std::numeric_limits<integer>::max()) return pos_dis;
+            pos_dis != (std::numeric_limits<integer>::max)()) return pos_dis;
     if (const integer neg_dis = ptrDistance(this, &other);
-            neg_dis != std::numeric_limits<integer>::max()) return -neg_dis;
+            neg_dis != (std::numeric_limits<integer>::max)()) return -neg_dis;
     return this->cur_ > other.cur_ ?
-           std::numeric_limits<integer>::max() :
-           std::numeric_limits<integer>::min();
+           (std::numeric_limits<integer>::max)() :
+           (std::numeric_limits<integer>::min)();
 }
 
 template<typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
@@ -564,7 +564,7 @@ original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::Iterator::ptrDistance(const 
         s->next();
     }
     if (e->isValid()){
-        dis = std::numeric_limits<integer>::max();
+        dis = (std::numeric_limits<integer>::max)();
     }
     return dis;
 }
@@ -672,7 +672,10 @@ original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::findLastNode() const {
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::skipList(Compare compare)
-    : size_(0), head_(this->createNode()), compare_(std::move(compare)) {}
+    : size_(0), head_(nullptr), compare_(std::move(compare))
+{
+    this->head_ = this->createNode();
+}
 
 template <typename K_TYPE, typename V_TYPE, typename ALLOC, typename Compare>
 original::skipList<K_TYPE, V_TYPE, ALLOC, Compare>::skipListNode*

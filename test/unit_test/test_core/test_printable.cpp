@@ -3,7 +3,7 @@
 
 namespace original {
     // 创建一个继承 printable 的测试类
-    class TestClass : public printable {
+    class TestClass final : public printable {
     public:
         std::string className() const override {
             return "TestClass";
@@ -21,12 +21,12 @@ TEST(PrintableTest, ClassNameTest) {
 
 // 测试 toString() 方法
 TEST(PrintableTest, ToStringTest) {
-    original::TestClass obj;
+    const original::TestClass obj;
 
     // 测试 toString 传入 false，不带换行
     std::string str = obj.toString(false);
     EXPECT_TRUE(str.find("TestClass") != std::string::npos); // 应该包含类名
-    EXPECT_TRUE(str.find("0x") != std::string::npos); // 应该包含地址信息
+    EXPECT_TRUE(str.find('@') != std::string::npos); // 应该包含地址信息
 
     // 测试 toString 传入 true，带换行
     str = obj.toString(true);
@@ -35,7 +35,7 @@ TEST(PrintableTest, ToStringTest) {
 
 // 测试 toCString() 方法
 TEST(PrintableTest, ToCStringTest) {
-    original::TestClass obj;
+    const original::TestClass obj;
     const char* c_str = obj.toCString(false);
     EXPECT_TRUE(std::string(c_str).find("TestClass") != std::string::npos);
 }
@@ -84,9 +84,9 @@ TEST(PrintableTest, FormatEnumTest) {
 
 // 测试输出操作符
 TEST(PrintableTest, OutputOperatorTest) {
-    original::TestClass obj;
+    const original::TestClass obj;
     std::ostringstream oss;
     oss << obj;
     EXPECT_TRUE(oss.str().find("TestClass") != std::string::npos); // 输出应包含类名
-    EXPECT_TRUE(oss.str().find("0x") != std::string::npos); // 输出应包含对象地址
+    EXPECT_TRUE(oss.str().find('@') != std::string::npos); // 输出应包含对象地址
 }

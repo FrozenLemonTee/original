@@ -232,15 +232,19 @@ TEST_F(HashMapTest, ToString) {
     EXPECT_TRUE(str.find("20") != std::string::npos);
 }
 
-// Custom Hash Function Test
-TEST(HashMapCustomHashTest, CustomHashFunction) {
+namespace
+{
+    template<typename>
     struct CustomHash {
         u_integer operator()(const int key) const {
             return key % 10; // Simple hash for testing
         }
     };
+}
 
-    hashMap<int, int, CustomHash> customMap;
+// Custom Hash Function Test
+TEST(HashMapCustomHashTest, CustomHashFunction) {
+    hashMap<int, int, CustomHash<int>> customMap;
     for (int i = 0; i < 20; ++i) {
         customMap.add(i, i * 10);
     }

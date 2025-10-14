@@ -1,9 +1,19 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include "config.h"
+
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#include "pthread.h"
+#elif ORIGINAL_COMPILER_MSVC
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#endif
+
 #include "error.h"
 #include "functional"
-#include "pthread.h"
+#include "hash.h"
 #include "ownerPtr.h"
 #include "zeit.h"
 
@@ -140,6 +150,7 @@ namespace original {
         std::string toString(bool enter) const override;
     };
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pThread
      * @brief POSIX thread implementation
@@ -231,6 +242,39 @@ namespace original {
          */
         ~pThread() override;
     };
+#elif ORIGINAL_COMPILER_MSVC
+    class wThread final : public threadBase<wThread> {
+        HANDLE handle;
+        bool is_joinable;
+
+        [[nodiscard]] bool valid() const override;
+    public:
+        explicit wThread();
+
+        template<typename Callback, typename... ARGS>
+        explicit wThread(Callback c, ARGS&&... args...);
+
+        wThread(wThread&& other) noexcept;
+
+        wThread& operator=(wThread&& other) noexcept;
+
+        [[nodiscard]] ul_integer id() const override;
+
+        [[nodiscard]] bool joinable() const override;
+
+        integer compareTo(const wThread &other) const override;
+
+        u_integer toHash() const noexcept override;
+
+        std::string className() const override;
+
+        void join() override;
+
+        void detach() override;
+
+        ~wThread() override;
+    };
+#endif
 
     /**
      * @class thread
@@ -261,7 +305,11 @@ namespace original {
      * @see original::thread::joinPolicy
      */
     class thread final : public threadBase<thread> {
+        #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
         pThread thread_; ///< Underlying thread implementation
+        #elif ORIGINAL_COMPILER_MSVC
+        wThread thread_;
+        #endif
         bool will_join;  ///< Join policy flag
 
         /**
@@ -335,6 +383,7 @@ namespace original {
         template<typename Callback, typename... ARGS>
         explicit thread(Callback c, joinPolicy policy, ARGS&&... args);
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
         /**
          * @brief Construct a thread from an existing pThread with a join policy
          * @param p_thread The POSIX thread wrapper to take ownership of
@@ -342,6 +391,9 @@ namespace original {
          * @post Takes ownership of the thread and applies the specified join policy
          */
         explicit thread(pThread p_thread, joinPolicy policy = AUTO_JOIN);
+#elif ORIGINAL_COMPILER_MSVC
+        explicit thread(wThread w_thread, joinPolicy policy = AUTO_JOIN);
+#endif
 
         thread(const thread&) = delete; ///< Deleted copy constructor
         thread& operator=(const thread&) = delete; ///< Deleted copy assignment
@@ -382,11 +434,11 @@ namespace original {
          */
         [[nodiscard]] bool joinable() const override;
 
-        integer compareTo(const thread &other) const override;
+        [[nodiscard]] integer compareTo(const thread &other) const override;
 
-        u_integer toHash() const noexcept override;
+        [[nodiscard]] u_integer toHash() const noexcept override;
 
-        std::string className() const override;
+        [[nodiscard]] std::string className() const override;
 
         /**
          * @brief Wait for thread to complete
@@ -457,7 +509,7 @@ std::string original::threadBase<DERIVED>::toString(bool enter) const {
         ss << "\n";
     return ss.str();
 }
-
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::pThread::pThread() : handle(), is_joinable() {}
 
 template<typename Callback, typename... ARGS>
@@ -567,6 +619,116 @@ inline original::pThread::~pThread()
         }
     }
 }
+#elif ORIGINAL_COMPILER_MSVC
+inline bool original::wThread::valid() const
+{
+    return this->handle != HANDLE{};
+}
+
+inline original::wThread::wThread() : handle(), is_joinable() {}
+
+template <typename Callback, typename ... ARGS>
+original::wThread::wThread(Callback c, ARGS&&... args, ...) : handle(), is_joinable(true)
+{
+    auto bound_lambda =
+    [func = std::forward<Callback>(c), ...lambda_args = std::forward<ARGS>(args)]() mutable {
+        std::invoke(std::move(func), std::move(lambda_args)...);
+    };
+
+    using bound_callback = decltype(bound_lambda);
+    using bound_thread_data = threadData<bound_callback>;
+
+    auto task = new bound_thread_data(std::move(bound_lambda));
+
+    static auto threadEntry = [](LPVOID param) -> DWORD {
+        bound_thread_data::run(param);
+        return 0;
+    };
+
+    this->handle = CreateThread(nullptr, 0, threadEntry, task, 0, nullptr);
+    if (this->handle == nullptr) {
+        delete task;
+        throw sysError("Failed to create thread (CreateThread returned null)");
+    }
+}
+
+inline original::wThread::wThread(wThread&& other) noexcept : wThread()
+{
+    this->operator=(std::move(other));
+}
+
+inline original::wThread& original::wThread::operator=(wThread&& other) noexcept
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    if (this->is_joinable && this->valid()) {
+        CloseHandle(this->handle);
+    }
+
+    this->handle = other.handle;
+    other.handle = {};
+    this->is_joinable = other.is_joinable;
+    other.is_joinable = false;
+    return *this;
+}
+
+inline original::ul_integer original::wThread::id() const
+{
+    ul_integer id = 0;
+    std::memcpy(&id, &this->handle, sizeof(HANDLE));
+    return id;
+}
+
+inline bool original::wThread::joinable() const
+{
+    return this->is_joinable;
+}
+
+inline original::integer original::wThread::compareTo(const wThread& other) const
+{
+    if (this->id() != other.id())
+        return this->id() > other.id() ? 1 : -1;
+    return 0;
+}
+
+inline original::u_integer original::wThread::toHash() const noexcept
+{
+    return hash<HANDLE>::hashFunc(this->id());
+}
+
+inline std::string original::wThread::className() const
+{
+    return "wThread";
+}
+
+inline void original::wThread::join()
+{
+    WaitForSingleObject(this->handle, INFINITE);
+    this->is_joinable = false;
+    this->handle = {};
+}
+
+inline void original::wThread::detach()
+{
+    CloseHandle(this->handle);
+    this->is_joinable = false;
+    this->handle = {};
+}
+
+inline original::wThread::~wThread()
+{
+    if (this->is_joinable) {
+        try {
+            this->detach();
+        } catch (...) {
+            std::cerr << "Fatal error in wThread destructor" << std::endl;
+            std::terminate();
+        }
+    }
+}
+#endif
 
 inline bool original::thread::valid() const
 {
@@ -576,9 +738,12 @@ inline bool original::thread::valid() const
 inline original::ul_integer
 original::thread::thisId() {
     ul_integer id = 0;
-#ifdef ORIGINAL_COMPILER_GCC
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     auto handle = pthread_self();
     std::memcpy(&id, &handle, sizeof(pthread_t));
+#elif ORIGINAL_COMPILER_MSVC
+    const auto handle = GetCurrentThreadId();
+    std::memcpy(&id, &handle, sizeof(HANDLE));
 #endif
     return id;
 }
@@ -603,8 +768,8 @@ inline void original::thread::sleep(const time::duration& d)
         throw sysError("Failed to sleep thread (clock_nano-sleep returned " + formatString(ret) +
                       ", errno: " + std::to_string(errno) + ")");
     }
-#else
-    ::Sleep(static_cast<DWORD>((d.value() + time::FACTOR_MILLISECOND - 1) / time::FACTOR_MILLISECOND));
+#elif ORIGINAL_COMPILER_MSVC
+    Sleep(d.toDWMilliseconds());
 #endif
 }
 
@@ -619,8 +784,13 @@ template <typename Callback, typename ... ARGS>
 original::thread::thread(Callback c, const joinPolicy policy, ARGS&&... args)
     : thread_(std::forward<Callback>(c), std::forward<ARGS>(args)...), will_join(policy == AUTO_JOIN) {}
 
+#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::thread::thread(pThread p_thread, const joinPolicy policy)
     : thread_(std::move(p_thread)), will_join(policy == AUTO_JOIN) {}
+#elif ORIGINAL_COMPILER_MSVC
+inline original::thread::thread(wThread w_thread, const joinPolicy policy)
+    : thread_(std::move(w_thread)), will_join(policy == AUTO_JOIN) {}
+#endif
 
 inline original::thread::thread(thread&& other) noexcept
     : thread_(std::move(other.thread_)), will_join(true) {}

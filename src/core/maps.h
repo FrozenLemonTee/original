@@ -830,8 +830,8 @@ namespace original {
             typename V_TYPE,
             typename Compare = increaseComparator<K_TYPE>,
             typename ALLOC = allocator<couple<const K_TYPE, V_TYPE>>>
-    class JMap final : public skipList<const K_TYPE, V_TYPE, ALLOC, Compare>,
-                       public map<K_TYPE, V_TYPE, ALLOC>,
+    class JMap final : public map<K_TYPE, V_TYPE, ALLOC>,
+                       public skipList<const K_TYPE, V_TYPE, ALLOC, Compare>,
                        public iterable<couple<const K_TYPE, V_TYPE>>,
                        public printable {
 
@@ -1923,8 +1923,8 @@ original::JMap<K_TYPE, V_TYPE, Compare, ALLOC>::Iterator::operator-(
     auto other_it = dynamic_cast<const Iterator*>(&other);
     if (other_it == nullptr)
         return this > &other ?
-               std::numeric_limits<integer>::max() :
-               std::numeric_limits<integer>::min();
+               (std::numeric_limits<integer>::max)() :
+               (std::numeric_limits<integer>::min)();
     return skipListType::Iterator::operator-(*other_it);
 }
 
@@ -1993,8 +1993,7 @@ bool original::JMap<K_TYPE, V_TYPE, Compare, ALLOC>::Iterator::isValid() const {
 
 template<typename K_TYPE, typename V_TYPE, typename Compare, typename ALLOC>
 original::JMap<K_TYPE, V_TYPE, Compare, ALLOC>::JMap(Compare comp, ALLOC alloc)
-    : skipListType(std::move(comp)) ,
-      map<K_TYPE, V_TYPE, ALLOC>(std::move(alloc)) {}
+    : map<K_TYPE, V_TYPE, ALLOC>(std::move(alloc)), skipListType(std::move(comp)) {}
 
 template<typename K_TYPE, typename V_TYPE, typename Compare, typename ALLOC>
 original::JMap<K_TYPE, V_TYPE, Compare, ALLOC>::JMap(const JMap& other) : JMap() {

@@ -894,19 +894,26 @@ TEST(AsyncTest, SharedFutureWaitFor) {
 
 // 测试 sharedFuture<void> 的 waitFor 方法
 TEST(AsyncTest, SharedFutureVoidWaitFor) {
-    std::atomic executed{false};
+    auto executed = std::make_shared<std::atomic<bool>>(false);
 
-    const auto sf = async::get([&executed] {
+    const auto sf = async::get([executed] {
         thread::sleep(milliseconds(100));
-        executed = true;
+        executed->store(true);
     }).share();
 
     // 等待足够长的时间
     const bool success = sf.waitFor(milliseconds(150));
     EXPECT_TRUE(success);
     EXPECT_TRUE(sf.ready());
-    EXPECT_NO_THROW(sf.result());
-    EXPECT_TRUE(executed);
+
+    // 在检查result之前确保任务已完成
+    if (sf.ready()) {
+        EXPECT_NO_THROW(sf.result());
+    }
+
+    EXPECT_TRUE(executed->load());
+
+    sf.wait();
 }
 
 // 测试 futureBase 接口的 waitFor 方法

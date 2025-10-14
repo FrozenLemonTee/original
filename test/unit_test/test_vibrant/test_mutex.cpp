@@ -6,19 +6,19 @@
 using namespace original;
 
 TEST(MutexTest, LockUnlockDoesNotThrow) {
-    pMutex m;
+    mutex m;
     EXPECT_NO_THROW(m.lock());
     EXPECT_NO_THROW(m.unlock());
 }
 
 TEST(MutexTest, TryLockSuccess) {
-    pMutex m;
+    mutex m;
     EXPECT_NO_THROW(m.tryLock());
     EXPECT_NO_THROW(m.unlock());
 }
 
 TEST(MutexTest, TryLockContested) {
-    pMutex m;
+    mutex m;
     std::thread t(
         [&m]
         {
@@ -39,7 +39,7 @@ TEST(MutexTest, PreventsDataRaceWithMultipleThreads) {
     constexpr int thread_count = 10;
     constexpr int iterations = 10000;
     int counter = 0;
-    pMutex m;
+    mutex m;
 
     auto increment = [&]
     {
@@ -64,7 +64,7 @@ TEST(MutexTest, PreventsDataRaceWithMultipleThreads) {
 
 TEST(MutexTest, LockInConstructorAndUnlockInDestructor) {
     {
-        pMutex pm;
+        mutex pm;
         const uniqueLock m(pm);  // 默认锁定
         EXPECT_TRUE(m.isLocked());
     }
@@ -73,7 +73,7 @@ TEST(MutexTest, LockInConstructorAndUnlockInDestructor) {
 
 TEST(MutexTest, TryLockConstructor) {
     {
-        pMutex pm;
+        mutex pm;
         const uniqueLock m(pm, uniqueLock::TRY_LOCK);  // 使用 tryLock
         EXPECT_TRUE(m.isLocked());
     }
@@ -81,22 +81,22 @@ TEST(MutexTest, TryLockConstructor) {
 }
 
 TEST(MutexTest, MutexIsNonCopyable) {
-    EXPECT_FALSE(std::is_copy_constructible_v<pMutex>);
-    EXPECT_FALSE(std::is_copy_assignable_v<pMutex>);
+    EXPECT_FALSE(std::is_copy_constructible_v<mutex>);
+    EXPECT_FALSE(std::is_copy_assignable_v<mutex>);
     EXPECT_FALSE(std::is_copy_constructible_v<uniqueLock>);
     EXPECT_FALSE(std::is_copy_assignable_v<uniqueLock>);
 }
 
 TEST(MutexTest, MutexIsNonMovable) {
-    EXPECT_FALSE(std::is_move_constructible_v<pMutex>);
-    EXPECT_FALSE(std::is_move_assignable_v<pMutex>);
+    EXPECT_FALSE(std::is_move_constructible_v<mutex>);
+    EXPECT_FALSE(std::is_move_assignable_v<mutex>);
     EXPECT_FALSE(std::is_move_constructible_v<uniqueLock>);
     EXPECT_FALSE(std::is_move_assignable_v<uniqueLock>);
 }
 
 // TryLock失败时，uniqueLock::isLocked() 应为 false
 TEST(MutexTest, TryLockFailsIsLockedFalse) {
-    pMutex pm;
+    mutex pm;
     pm.lock();  // 主线程先锁住
 
     const uniqueLock s(pm, uniqueLock::TRY_LOCK);  // 尝试获取失败
@@ -107,7 +107,7 @@ TEST(MutexTest, TryLockFailsIsLockedFalse) {
 
 // scopeLock析构后，mutex可以再次上锁
 TEST(MutexTest, RAIIUnlocksCorrectly) {
-    pMutex pm;
+    mutex pm;
     {
         uniqueLock s(pm);
         EXPECT_TRUE(s.isLocked());
@@ -124,7 +124,7 @@ TEST(MutexTest, UniqueLockProtectsCriticalSection) {
     constexpr int thread_count = 10;
     constexpr int iterations = 10000;
     int counter = 0;
-    pMutex m;
+    mutex m;
 
     auto increment = [&]
     {
@@ -148,7 +148,7 @@ TEST(MutexTest, UniqueLockProtectsCriticalSection) {
 
 // TryLock获取失败时不会 unlock
 TEST(MutexTest, TryLockFailDoesNotUnlock) {
-    pMutex pm;
+    mutex pm;
     pm.lock();
 
     {
@@ -162,7 +162,7 @@ TEST(MutexTest, TryLockFailDoesNotUnlock) {
 
 // TryLock获取成功后，锁应被释放
 TEST(MutexTest, TryLockSuccessUnlocksOnDestruction) {
-    pMutex pm;
+    mutex pm;
     {
         if (const uniqueLock s(pm, uniqueLock::TRY_LOCK); s.isLocked()) {
             SUCCEED();  // 成功加锁
@@ -176,7 +176,7 @@ TEST(MutexTest, TryLockSuccessUnlocksOnDestruction) {
 
 // 测试解锁后可以再次加锁
 TEST(MutexTest, CanRelockAfterUnlock) {
-    pMutex m;
+    mutex m;
     m.lock();
     m.unlock();
     EXPECT_NO_THROW(m.lock());  // 再次加锁不应抛出异常
@@ -185,7 +185,7 @@ TEST(MutexTest, CanRelockAfterUnlock) {
 
 // 测试uniqueLock解锁后可以再次加锁
 TEST(MutexTest, UniqueLockCanRelockAfterUnlock) {
-    pMutex pm;
+    mutex pm;
     {
         uniqueLock lock(pm);
         lock.unlock();
@@ -198,7 +198,7 @@ TEST(MutexTest, UniqueLockCanRelockAfterUnlock) {
 
 // 测试多次加锁解锁循环
 TEST(MutexTest, MultipleLockUnlockCycles) {
-    pMutex m;
+    mutex m;
     for (int i = 0; i < 100; ++i) {
         EXPECT_NO_THROW(m.lock());
         EXPECT_NO_THROW(m.unlock());
@@ -207,7 +207,7 @@ TEST(MutexTest, MultipleLockUnlockCycles) {
 
 // 测试uniqueLock手动锁策略
 TEST(MutexTest, ManualLockPolicy) {
-    pMutex pm;
+    mutex pm;
     {
         uniqueLock lock(pm, uniqueLock::MANUAL_LOCK);
         EXPECT_FALSE(lock.isLocked());
@@ -223,7 +223,7 @@ TEST(MutexTest, ManualLockPolicy) {
 
 // 测试跨线程的加锁解锁顺序
 TEST(MutexTest, CrossThreadLockUnlockSequence) {
-    pMutex m;
+    mutex m;
     std::atomic thread_locked{false};
     std::atomic main_proceed{false};
 
@@ -251,7 +251,7 @@ TEST(MultiLockTest, MultiLockLocksAndUnlocksInReverseOrder) {
     std::vector<ul_integer> unlock_order;
 
     class Trackable {
-        pMutex mutex_;
+        mutex mutex_;
         std::vector<ul_integer>& lock_record_;
         std::vector<ul_integer>& unlock_record_;
     public:
@@ -299,7 +299,7 @@ TEST(MultiLockTest, MultiLockLocksAndUnlocksInReverseOrder) {
 TEST(MultiLockTest, MultiLockProtectsMultipleResources) {
     constexpr int iterations = 1000;
     int x = 0, y = 0;
-    pMutex mx, my;
+    mutex mx, my;
 
     auto worker = [&]() {
         for (int i = 0; i < iterations; ++i) {
@@ -319,7 +319,7 @@ TEST(MultiLockTest, MultiLockProtectsMultipleResources) {
 }
 
 TEST(MutexTest, AdoptLockPolicyAssumesLocked) {
-    pMutex m;
+    mutex m;
     m.lock();  // 手动加锁
 
     {
@@ -334,7 +334,7 @@ TEST(MutexTest, AdoptLockPolicyAssumesLocked) {
 }
 
 TEST(MultiLockTest, AdoptLockSkipsLocking) {
-    pMutex m1, m2;
+    mutex m1, m2;
     m1.lock();
     m2.lock();
 
@@ -352,7 +352,7 @@ TEST(MultiLockTest, AdoptLockSkipsLocking) {
 }
 
 TEST(MultiLockTest, TryLockFailsWhenAnyMutexUnavailable) {
-    pMutex m1, m2;
+    mutex m1, m2;
     m1.lock();  // 抢占一个锁
 
     const multiLock lock(lockGuard::TRY_LOCK, m1, m2);

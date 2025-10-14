@@ -31,8 +31,8 @@ namespace original {
         class asyncWrapper {
             atomic<bool> ready_{makeAtomic(false)};  ///< Atomic flag indicating result readiness
             strongPtr<TYPE> result_;                      ///< Storage of asynchronous computation result
-            mutable pCondition cond_{};                   ///< Condition variable for synchronization
-            mutable pMutex mutex_{};                      ///< Mutex for thread safety
+            mutable condition cond_{};                   ///< Condition variable for synchronization
+            mutable mutex mutex_{};                      ///< Mutex for thread safety
             std::exception_ptr e_{};                      ///< Exception pointer for error handling
 
         public:
@@ -48,7 +48,7 @@ namespace original {
              * @brief Sets an exception and marks as ready
              * @param e Exception pointer to store
              */
-            void setException(std::exception_ptr e);
+            void setException(const std::exception_ptr& e);
 
             /**
              * @brief Checks if the result is ready
@@ -66,7 +66,7 @@ namespace original {
              * @param timeout Maximum time to wait
              * @return True if result is ready within timeout, false otherwise
              */
-            bool waitFor(time::duration timeout) const;
+            [[nodiscard]] bool waitFor(time::duration timeout) const;
 
             /**
              * @brief Retrieves the result value (blocks until ready)
@@ -86,7 +86,7 @@ namespace original {
              * @brief Gets a strong pointer to the result value
              * @return Strong pointer to the result
              */
-            strongPtr<TYPE> getPtr() const;
+            [[nodiscard]] strongPtr<TYPE> getPtr() const;
 
             /**
              * @brief Throws stored exception if present
@@ -487,7 +487,7 @@ namespace original {
      * @return A new future holding the result of the callback
      */
     template<typename T, typename Callback>
-    auto operator|(async::sharedFuture<T> sf, Callback&& c);
+    auto operator|(const async::sharedFuture<T>& sf, Callback&& c);
 
     /**
      * @brief Pipe operator specialization for sharedFuture<void>
@@ -501,7 +501,7 @@ namespace original {
      * @return A new future holding the result of the callback
      */
     template <typename Callback>
-    auto operator|(async::sharedFuture<void> sf, Callback&& c);
+    auto operator|(const async::sharedFuture<void>& sf, Callback&& c);
 
     /**
      * @brief Lazy pipe operator for chaining promise computations
@@ -556,8 +556,8 @@ namespace original {
     class async::asyncWrapper<void> {
         atomic<bool> ready_{makeAtomic(false)};  ///< Atomic flag indicating completion
         alternative<void> result_;                    ///< Mark of asynchronous computation status
-        mutable pCondition cond_{};                   ///< Condition variable for synchronization
-        mutable pMutex mutex_{};                      ///< Mutex for thread safety
+        mutable condition cond_{};                   ///< Condition variable for synchronization
+        mutable mutex mutex_{};                      ///< Mutex for thread safety
         std::exception_ptr e_{};                      ///< Exception pointer for error handling
 
     public:
@@ -572,7 +572,7 @@ namespace original {
          * @brief Sets an exception and marks as completed
          * @param e Exception pointer to store
          */
-        void setException(std::exception_ptr e);
+        void setException(const std::exception_ptr& e);
 
         /**
          * @brief Checks if the computation is completed
@@ -590,7 +590,7 @@ namespace original {
          * @param timeout Maximum time to wait
          * @return True if result is ready within timeout, false otherwise
          */
-        bool waitFor(const time::duration& timeout) const;
+        [[nodiscard]] bool waitFor(const time::duration& timeout) const;
 
         /**
          * @brief Waits for completion and checks for exceptions
@@ -838,11 +838,11 @@ void original::async::asyncWrapper<TYPE>::setValue(TYPE&& v)
 }
 
 template <typename TYPE>
-void original::async::asyncWrapper<TYPE>::setException(std::exception_ptr e)
+void original::async::asyncWrapper<TYPE>::setException(const std::exception_ptr &e)
 {
     {
         uniqueLock lock{this->mutex_};
-        this->e_ = std::move(e);
+        this->e_ = e;
         this->ready_.store(true);
     }
     this->cond_.notifyAll();
@@ -1194,7 +1194,7 @@ auto original::operator|(async::future<void> f, Callback&& c)
 }
 
 template <typename T, typename Callback>
-auto original::operator|(async::sharedFuture<T> sf, Callback&& c)
+auto original::operator|(const async::sharedFuture<T>& sf, Callback&& c)
 {
     using ResultType = std::invoke_result_t<Callback, T>;
     return async::get([sf, c = std::forward<Callback>(c)] mutable -> ResultType {
@@ -1203,7 +1203,7 @@ auto original::operator|(async::sharedFuture<T> sf, Callback&& c)
 }
 
 template <typename Callback>
-auto original::operator|(async::sharedFuture<void> sf, Callback&& c)
+auto original::operator|(const async::sharedFuture<void>& sf, Callback&& c)
 {
     using ResultType = std::invoke_result_t<Callback>;
     return async::get([sf, c = std::forward<Callback>(c)]() mutable -> ResultType {
@@ -1249,11 +1249,11 @@ inline void original::async::asyncWrapper<void>::setValue()
     this->cond_.notifyAll();
 }
 
-inline void original::async::asyncWrapper<void>::setException(std::exception_ptr e)
+inline void original::async::asyncWrapper<void>::setException(const std::exception_ptr& e)
 {
     {
         uniqueLock lock{this->mutex_};
-        this->e_ = std::move(e);
+        this->e_ = e;
         this->ready_.store(true);
     }
     this->cond_.notifyAll();
