@@ -14,7 +14,7 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::couple(@{address(self.val):#x})"
+        return f"original::couple({addr_str(self.val)})"
 
     def children(self):
         yield "[0]", self.val['first_']

@@ -12,9 +12,22 @@ class Printer:
 
     def __init__(self, val):
         self.val = val
+        self.size = 0
+        try:
+            elems = val['elems']
+            current = elems
+            while True:
+                try:
+                    _ = current['cur_elem']
+                    self.size += 1
+                    current = current['next']
+                except gdb.error:
+                    break
+        except gdb.error:
+            self.size = 0
 
     def to_string(self):
-        return f"original::tuple(@{address(self.val):#x})"
+        return f"original::tuple(size={self.size}, {addr_str(self.val)})"
 
     def children(self):
         elems = self.val['elems']

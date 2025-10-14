@@ -32,10 +32,18 @@ class PrinterBase:
 
     def to_string(self):
         ptr = int(call(self.val, "get"))
-        if ptr != 0:
-            return f"{self.class_name()}(@{ptr:#x})"
-        else:
+        if ptr == 0:
             return f"{self.class_name()}(nullptr)"
+        ref_count = self.val['ref_count']
+        loaded_ptr = call(ref_count, "operator*")
+        ref_count_base = loaded_ptr.dereference()
+        strong_refs_atomic = ref_count_base['strong_refs']
+        weak_refs_atomic = ref_count_base['weak_refs']
+        strong_refs = call(strong_refs_atomic, "operator*")
+        weak_refs = call(weak_refs_atomic, "operator*")
+        strong_refs = to_int(strong_refs, U_INTEGER_SIZE)
+        weak_refs = to_int(weak_refs, U_INTEGER_SIZE)
+        return f"{self.class_name()}(strong refs={strong_refs}, weak refs={weak_refs}, {addr_str(ptr)})"
 
     def children(self):
         ptr = call(self.val, "get")

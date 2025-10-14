@@ -15,7 +15,9 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::blocksList(@{address(self.val):#x})"
+        size = int(call(self.val, "size"))
+        capacity = int(call(self.val["map"], "size")) * 16
+        return f"original::blocksList(size={size}, cap={capacity}, {addr_str(self.val)})"
 
     def children(self):
         size = int(call(self.val, "size"))

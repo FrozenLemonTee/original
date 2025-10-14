@@ -15,7 +15,9 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::bitset(@{address(self.val):#x})"
+        size = int(call(self.val, "size"))
+        cnt = int(call(self.val, "count"))
+        return f"original::bitset(count={cnt}, cap={size}, {addr_str(self.val)})"
 
     def children(self):
         size = int(call(self.val, "size"))

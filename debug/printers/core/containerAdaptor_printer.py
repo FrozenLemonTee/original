@@ -17,7 +17,7 @@ class PrinterBase:
         return "original::containerAdaptor"
 
     def to_string(self):
-        return f"{self.class_name()}(@{address(self.val):#x})"
+        return f"{self.class_name()}({addr_str(self.val)})"
 
     def children(self):
         yield "serial", self.val["serial_"]

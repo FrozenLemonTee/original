@@ -15,7 +15,7 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::forwardChain(@{address(self.val):#x})"
+        return f"original::forwardChain({addr_str(self.val)})"
 
     def children(self):
         size = int(call(self.val, "size"))

@@ -15,7 +15,7 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::vector(@{address(self.val):#x})"
+        return f"original::vector({addr_str(self.val)})"
 
     def children(self):
         size = int(call(self.val, "size"))
@@ -25,8 +25,9 @@ class Printer:
             if v.type.code == gdb.TYPE_CODE_REF:
                 v = v.referenced_value()
             yield f"[{i}]", v
-        yield "max size", self.val["max_size"]
-        yield "inner begin", self.val["inner_begin"]
+        if gdb.parameter('print pretty') > 0:
+            yield "max size", self.val["max_size"]
+            yield "inner begin", self.val["inner_begin"]
 
     def display_hint(self):
         return "array"

@@ -15,7 +15,8 @@ class Printer:
         self.val = val
 
     def to_string(self):
-        return f"original::array(@{address(self.val):#x})"
+        size = int(call(self.val, "size"))
+        return f"original::array(cap={size}, {addr_str(self.val)})"
 
     def children(self):
         size = int(call(self.val, "size"))
