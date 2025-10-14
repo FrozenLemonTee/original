@@ -20,11 +20,11 @@ class Printer:
 
     def children(self):
         size = int(call(self.val, "size"))
-        yield "size", size
         p = self.val["begin_"]
         for i in range(0, size):
             node = p.dereference()
             yield f"[{i}]", node["data_"]
             p = node["next"]
-        yield "begin", self.val["begin_"]
-        yield "end", self.val["end_"]
+        if gdb.parameter('print pretty') > 0:
+            yield "begin", self.val["begin_"]
+            yield "end", self.val["end_"]

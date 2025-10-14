@@ -31,21 +31,16 @@ class Printer:
 
     def children(self):
         elems = self.val['elems']
-        elems_list = []
         current = elems
         index = 0
         while True:
             try:
                 elem = current['cur_elem']
-                elems_list.append(elem)
-                current = current['next']
+                yield f"[{index}]", elem
                 index += 1
+                current = current['next']
             except gdb.error:
                 break
 
-        yield "size", index
-        for i, e in enumerate(elems_list):
-            yield f"[{i}]", e
-
     def display_hint(self):
-        return None
+        return "array"

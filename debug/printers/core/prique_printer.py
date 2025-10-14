@@ -12,3 +12,9 @@ class Printer(Base):
 
     def class_name(self):
         return "original::prique"
+
+    def children(self):
+        for _, e in enumerate(super().children()):
+            yield e
+        if gdb.parameter('print pretty') > 0:
+            yield "compare", self.val["compare_"]
