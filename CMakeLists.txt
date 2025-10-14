@@ -78,5 +78,7 @@ add_subdirectory(debug)
 option(BUILD_TESTING "Build the testing directories" ON)
 
 if (BUILD_TESTING)
+    include(CTest)
+    enable_testing()
     add_subdirectory(test)
 endif ()
