@@ -1,3 +1,5 @@
+set unwind-on-signal on
+set pagination off
 python
 import sys
 import os
