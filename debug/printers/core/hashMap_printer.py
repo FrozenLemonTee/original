@@ -9,6 +9,7 @@ class Printer(Base):
 
     def __init__(self, val):
         super().__init__(val)
+        self.display_mode = "map"
 
     def class_name(self):
         return "original::hashMap"
@@ -21,4 +22,4 @@ class Printer(Base):
             yield "buckets", self.val["buckets"]
 
     def display_hint(self):
-        return "map"
+        return self.display_mode

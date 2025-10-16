@@ -13,6 +13,7 @@ class Printer:
 
     def __init__(self, val):
         self.val = val
+        self.display_mode = "array"
 
     def to_string(self):
         size = int(call(self.val, "size"))
@@ -27,4 +28,4 @@ class Printer:
             yield "map", self.val["map"]
 
     def display_hint(self):
-        return "array"
+        return self.display_mode

@@ -13,9 +13,11 @@ class Printer(Base):
 
     def __init__(self, val):
         super().__init__(val)
+        self.name = "original::treeSet"
+        self.display_mode = "array"
 
     def class_name(self):
-        return "original::treeSet"
+        return self.name
 
     def children(self):
         for i, cp in enumerate(self.elem()):
@@ -27,4 +29,4 @@ class Printer(Base):
             yield "compare", f"{addr_cmp}"
 
     def display_hint(self):
-        return "array"
+        return self.display_mode

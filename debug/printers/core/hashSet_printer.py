@@ -9,6 +9,7 @@ class Printer(Base):
 
     def __init__(self, val):
         super().__init__(val)
+        self.display_mode = "array"
 
     def class_name(self):
         return "original::hashSet"
@@ -20,4 +21,4 @@ class Printer(Base):
             yield "buckets", self.val["buckets"]
 
     def display_hint(self):
-        return "array"
+        return self.display_mode

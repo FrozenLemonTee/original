@@ -13,9 +13,11 @@ class Printer(Base):
 
     def __init__(self, val):
         super().__init__(val)
+        self.name = "original::treeMap"
+        self.display_mode = "map"
 
     def class_name(self):
-        return "original::treeMap"
+        return self.name
 
     def children(self):
         for i, cp in enumerate(self.elem()):
@@ -28,4 +30,4 @@ class Printer(Base):
             yield "compare", f"{addr_cmp}"
 
     def display_hint(self):
-        return "map"
+        return self.display_mode

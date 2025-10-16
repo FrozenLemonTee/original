@@ -13,6 +13,7 @@ class Printer:
     def __init__(self, val):
         self.val = val
         self.size = 0
+        self.display_mode = "array"
         try:
             elems = val['elems']
             current = elems
@@ -43,4 +44,4 @@ class Printer:
                 break
 
     def display_hint(self):
-        return "array"
+        return self.display_mode

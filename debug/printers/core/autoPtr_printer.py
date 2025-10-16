@@ -26,9 +26,10 @@ class PrinterBase:
 
     def __init__(self, val):
         self.val = val
+        self.name = "original::autoPtr"
 
     def class_name(self):
-        return "original::autoPtr"
+        return self.name
 
     def to_string(self):
         ptr = int(call(self.val, "get"))

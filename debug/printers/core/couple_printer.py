@@ -12,6 +12,7 @@ class Printer:
 
     def __init__(self, val):
         self.val = val
+        self.display_mode = "array"
 
     def to_string(self):
         return f"original::couple({addr_str(self.val)})"
@@ -21,4 +22,4 @@ class Printer:
         yield "[1]", self.val['second_']
 
     def display_hint(self):
-        return "array"
+        return self.display_mode
