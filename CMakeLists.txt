@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+find_package(Threads REQUIRED)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
         message(FATAL_ERROR "GCC version too old. Minimum required: 13.0. Current: ${CMAKE_CXX_COMPILER_VERSION}")
@@ -56,6 +58,7 @@ file(GLOB ORIGINAL_HEADERS
         "${ORIGINAL_SRC_DIR}/vibrant/*.h"
 )
 add_library(original STATIC ${ORIGINAL_HEADERS} src/original.cpp)
+target_link_libraries(original PUBLIC Threads::Threads)
 
 target_include_directories(original PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
