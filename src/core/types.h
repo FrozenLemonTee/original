@@ -516,23 +516,86 @@ namespace original {
         c.pop_back();
     };
 
+    /**
+     * @class some
+     * @brief Compile-time conditional type selector based on boolean condition
+     * @tparam MATCH Boolean condition determining which type to select
+     * @tparam MATCH_TYPE Type to select when MATCH is true
+     * @tparam OTHER_TYPE Type to select when MATCH is false
+     * @details This template provides compile-time type selection similar to std::conditional,
+     *          but with a more explicit naming convention. It's useful for template metaprogramming
+     *          where type selection needs to be based on compile-time conditions.
+     *
+     * The class contains a single public type alias:
+     * - `type`: MATCH_TYPE when MATCH is true, OTHER_TYPE when MATCH is false
+     *
+     * @code{.cpp}
+     * // Example: Select type based on condition
+     * template<typename T>
+     * using CleanType = some_t<std::is_pointer_v<T>,
+     *                          std::remove_pointer_t<T>, T>;
+     *
+     * static_assert(std::is_same_v<CleanType<int*>, int>);    // true
+     * static_assert(std::is_same_v<CleanType<int>, int>);     // true
+     *
+     * // Example: Conditional member type
+     * template<bool USE_DOUBLE>
+     * class MyClass {
+     *     using ValueType = some_t<USE_DOUBLE, double, float>;
+     *     // ValueType is double when USE_DOUBLE=true, float otherwise
+     * };
+     * @endcode
+     *
+     * @see some_t
+     */
     template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
     class some;
 
+    /**
+     * @class some<true, MATCH_TYPE, OTHER_TYPE>
+     * @brief Specialization for true condition - selects MATCH_TYPE
+     * @tparam MATCH_TYPE Type to select when condition is true
+     * @tparam OTHER_TYPE Type to ignore (not selected)
+     */
     template<typename MATCH_TYPE, typename OTHER_TYPE>
     class some<true, MATCH_TYPE, OTHER_TYPE>
     {
     public:
-        using type = MATCH_TYPE;
+        using type = MATCH_TYPE;  ///< Selected type when condition is true
     };
 
+    /**
+     * @class some<false, MATCH_TYPE, OTHER_TYPE>
+     * @brief Specialization for false condition - selects OTHER_TYPE
+     * @tparam MATCH_TYPE Type to ignore (not selected)
+     * @tparam OTHER_TYPE Type to select when condition is false
+     */
     template<typename MATCH_TYPE, typename OTHER_TYPE>
     class some<false, MATCH_TYPE, OTHER_TYPE>
     {
     public:
-        using type = OTHER_TYPE;
+        using type = OTHER_TYPE;  ///< Selected type when condition is false
     };
 
+    /**
+     * @brief Convenience alias template for some::type
+     * @tparam MATCH Boolean condition determining type selection
+     * @tparam MATCH_TYPE Type to select when MATCH is true
+     * @tparam OTHER_TYPE Type to select when MATCH is false
+     * @details Provides direct access to the selected type without needing to
+     *          explicitly reference the ::type member. This follows the common
+     *          pattern in C++ template metaprogramming utilities.
+     *
+     * @code{.cpp}
+     * // Using some_t directly
+     * template<typename T>
+     * using OptionalRef = some_t<std::is_reference_v<T>, T, T&>;
+     *
+     * // Equivalent to:
+     * // template<typename T>
+     * // using OptionalRef = some<std::is_reference_v<T>, T, T&>::type;
+     * @endcode
+     */
     template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
     using some_t = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
 
