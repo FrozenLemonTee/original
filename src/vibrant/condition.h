@@ -1,6 +1,8 @@
 #ifndef CONDITION_H
 #define CONDITION_H
 
+#include "config.h"
+
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include <pthread.h>
 #elif ORIGINAL_COMPILER_MSVC
@@ -11,7 +13,7 @@
 
 /**
  * @file condition.h
- * @brief Condition variable implementation for thread synchronization
+ * @brief Cross-platform condition variable implementation for thread synchronization
  * @details Provides condition variable functionality for coordinating
  * between threads, including:
  * - Basic wait/notify operations
@@ -19,11 +21,18 @@
  * - Predicate-based waiting
  * - Integration with mutex.h locking mechanisms
  *
+ * Platform Support:
+ * - GCC/Clang: Uses pthread_cond_t for condition variable implementation (pCondition)
+ * - MSVC: Uses CONDITION_VARIABLE for lightweight implementation (wCondition)
+ * - All platforms: High-level condition class with consistent interface
+ *
  * Key features:
- * - POSIX-based implementation (pCondition)
+ * - POSIX-based implementation for GCC/Clang
+ * - Windows CONDITION_VARIABLE implementation for MSVC
  * - Thread-safe condition variable operations
  * - Timeout support using zeit.h duration types
  * - Predicate templates for safe condition checking
+ * - Spurious wakeup protection through predicate loops
  */
 
 namespace original
@@ -127,10 +136,42 @@ namespace original
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pCondition
-     * @brief POSIX condition variable implementation
+     * @brief POSIX condition variable implementation for GCC and Clang compilers
      * @extends conditionBase
      * @details Wrapper around pthread_cond_t with RAII semantics.
      * Provides thread synchronization using POSIX condition variables.
+     *
+     * Platform-Specific Features:
+     * - Uses pthread_cond_init for initialization
+     * - Implements pthread_cond_wait for blocking waits
+     * - Uses pthread_cond_timedwait for timed waits with absolute time
+     * - Provides pthread_cond_signal for single thread notification
+     * - Uses pthread_cond_broadcast for all threads notification
+     * - Calls pthread_cond_destroy for cleanup in destructor
+     *
+     * @note Only available when compiled with GCC or Clang
+     * @note Requires POSIX mutex (pMutex) for proper operation
+     * @note Timed waits use absolute time (CLOCK_REALTIME) for precision
+     *
+     * Example usage:
+     * @code
+     * original::pCondition cond;
+     * original::pMutex mtx;
+     *
+     * // Waiting thread
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     cond.wait(mtx, [&](){ return data_ready; });
+     *     // Process data
+     * }
+     *
+     * // Notifying thread
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     data_ready = true;
+     *     cond.notify();
+     * }
+     * @endcode
      */
     class pCondition final : public conditionBase
     {
@@ -142,16 +183,225 @@ namespace original
         using conditionBase::waitFor;
 
         /**
-         * @brief Constructs and initializes the condition variable
-         * @throws sysError if initialization fails
+         * @brief Constructs and initializes the POSIX condition variable
+         * @throws sysError if pthread_cond_init fails
+         * @note Uses default condition variable attributes
+         * @details Calls pthread_cond_init with nullptr attributes
          */
         explicit pCondition();
 
         /**
          * @brief Waits for notification while holding the mutex
+         * @param mutex Locked mutex to wait on (must be pMutex)
+         * @throws sysError if pthread_cond_wait fails
+         * @throws valueError if mutex is not a pMutex
+         * @note The mutex must be locked by the calling thread
+         * @details Uses static type checking to ensure mutex compatibility
+         */
+        void wait(mutexBase& mutex) override;
+
+        /**
+         * @brief Waits for notification with timeout
+         * @param mutex Locked mutex to wait on (must be pMutex)
+         * @param d Maximum duration to wait
+         * @return true if notified, false if timeout occurred (ETIMEDOUT)
+         * @throws sysError if pthread_cond_timedwait fails
+         * @throws valueError if mutex is not a pMutex
+         * @note Uses absolute time calculation for precise timeout handling
+         * @details Converts duration to timespec for pthread_cond_timedwait
+         */
+        bool waitFor(mutexBase& mutex, time::duration d) override;
+
+        /**
+         * @brief Notifies one waiting thread
+         * @throws sysError if pthread_cond_signal fails
+         * @details Calls pthread_cond_signal
+         */
+        void notify() override;
+
+        /**
+         * @brief Notifies all waiting threads
+         * @throws sysError if pthread_cond_broadcast fails
+         * @details Calls pthread_cond_broadcast
+         */
+        void notifyAll() override;
+
+        /**
+         * @brief Destroys the condition variable
+         * @note Logs warning but doesn't throw if destruction fails
+         * @details Calls pthread_cond_destroy
+         */
+        ~pCondition() override;
+    };
+
+#elif ORIGINAL_COMPILER_MSVC
+    /**
+     * @class wCondition
+     * @brief Windows condition variable implementation for MSVC compiler
+     * @extends conditionBase
+     * @details Wrapper around CONDITION_VARIABLE with RAII semantics.
+     * Provides thread synchronization using Windows condition variables.
+     *
+     * Platform-Specific Features:
+     * - Uses InitializeConditionVariable for initialization
+     * - Implements SleepConditionVariableSRW for blocking waits
+     * - Uses SleepConditionVariableSRW with timeout for timed waits
+     * - Provides WakeConditionVariable for single thread notification
+     * - Uses WakeAllConditionVariable for all threads notification
+     * - No explicit destruction required (Windows manages resources)
+     *
+     * @note Only available when compiled with MSVC
+     * @note Requires SRW lock (wMutex) for proper operation
+     * @note Timed waits use relative time in milliseconds
+     * @note More efficient than POSIX condition variables on Windows
+     *
+     * Example usage:
+     * @code
+     * original::wCondition cond;
+     * original::wMutex mtx;
+     *
+     * // Waiting thread
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     cond.wait(mtx, [&](){ return data_ready; });
+     *     // Process data
+     * }
+     *
+     * // Notifying thread
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     data_ready = true;
+     *     cond.notify();
+     * }
+     * @endcode
+     */
+    class wCondition final : public conditionBase
+    {
+        CONDITION_VARIABLE cond_; ///< Windows condition variable handle
+
+    public:
+        // Inherit template methods from conditionBase
+        using conditionBase::wait;
+        using conditionBase::waitFor;
+
+        /**
+         * @brief Constructs and initializes the Windows condition variable
+         * @implementation Calls InitializeConditionVariable
+         * @note Windows condition variables require no explicit destruction
+         */
+        explicit wCondition();
+
+        /**
+         * @brief Waits for notification while holding the mutex
+         * @param mutex Locked mutex to wait on (must be wMutex)
+         * @throws sysError if SleepConditionVariableSRW fails
+         * @note Uses INFINITE timeout for blocking wait
+         * @implementation Calls SleepConditionVariableSRW with INFINITE timeout
+         */
+        void wait(mutexBase& mutex) override;
+
+        /**
+         * @brief Waits for notification with timeout
+         * @param mutex Locked mutex to wait on (must be wMutex)
+         * @param d Maximum duration to wait
+         * @return true if notified, false if timeout occurred (ERROR_TIMEOUT)
+         * @throws sysError if SleepConditionVariableSRW fails (other than timeout)
+         * @note Converts duration to milliseconds for Windows API
+         * @implementation Uses SleepConditionVariableSRW with millisecond timeout
+         */
+        bool waitFor(mutexBase& mutex, time::duration d) override;
+
+        /**
+         * @brief Notifies one waiting thread
+         * @implementation Calls WakeConditionVariable
+         */
+        void notify() override;
+
+        /**
+         * @brief Notifies all waiting threads
+         * @implementation Calls WakeAllConditionVariable
+         */
+        void notifyAll() override;
+
+        /**
+         * @brief Destructor
+         * @note No explicit cleanup required for Windows condition variables
+         * @implementation Windows automatically manages condition variable resources
+         */
+        ~wCondition() override;
+    };
+#endif
+
+    /**
+     * @class condition
+     * @brief High-level cross-platform condition variable wrapper
+     * @extends conditionBase
+     * @details Provides a unified condition variable interface that automatically
+     * selects the appropriate platform-specific implementation:
+     * - pCondition for GCC/Clang on Linux/macOS (POSIX condition variables)
+     * - wCondition for MSVC on Windows (Windows condition variables)
+     *
+     * Key Features:
+     * - Consistent API across all platforms
+     * - RAII semantics with automatic cleanup
+     * - Exception-safe operations
+     * - Delegates all operations to platform-specific implementation
+     * - Inherits predicate-based waiting templates from conditionBase
+     *
+     * Platform Abstraction:
+     * - GCC/Clang: Delegates to pCondition (pthread_cond_t)
+     * - MSVC: Delegates to wCondition (CONDITION_VARIABLE)
+     * - All platforms: Identical interface and behavior
+     *
+     * Example usage:
+     * @code
+     * original::condition cond;
+     * original::mutex mtx;
+     * bool data_ready = false;
+     *
+     * // Waiting thread - works the same on all platforms
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     cond.wait(lock, [&](){ return data_ready; });
+     *     // Critical section - condition satisfied
+     * }
+     *
+     * // Notifying thread - works the same on all platforms
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     data_ready = true;
+     *     cond.notify(); // or cond.notifyAll() for multiple waiters
+     * }
+     * @endcode
+     *
+     * @see original::pCondition (GCC/Clang implementation)
+     * @see original::wCondition (MSVC implementation)
+     * @see original::conditionBase
+     * @see original::uniqueLock
+     */
+    class condition final : public conditionBase {
+    #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+        pCondition cond_; ///< POSIX condition variable implementation (GCC/Clang)
+    #elif ORIGINAL_COMPILER_MSVC
+        wCondition cond_; ///< Windows condition variable implementation (MSVC)
+    #endif
+
+    public:
+        // Inherit template methods from conditionBase
+        using conditionBase::wait;
+        using conditionBase::waitFor;
+
+        /**
+         * @brief Constructs the platform-specific condition variable
+         * @implementation Delegates to pCondition or wCondition constructor
+         */
+        condition();
+
+        /**
+         * @brief Waits for notification while holding the mutex
          * @param mutex Locked mutex to wait on
          * @throws sysError if wait operation fails
-         * @throws valueError if mutex is not a pMutex
+         * @implementation Delegates to underlying condition implementation
          */
         void wait(mutexBase& mutex) override;
 
@@ -161,70 +411,22 @@ namespace original
          * @param d Maximum duration to wait
          * @return true if notified, false if timeout occurred
          * @throws sysError if wait operation fails
-         * @throws valueError if mutex is not a pMutex
+         * @implementation Delegates to underlying condition implementation
          */
         bool waitFor(mutexBase& mutex, time::duration d) override;
 
         /**
          * @brief Notifies one waiting thread
          * @throws sysError if notification fails
+         * @implementation Delegates to underlying condition implementation
          */
         void notify() override;
 
         /**
          * @brief Notifies all waiting threads
          * @throws sysError if notification fails
+         * @implementation Delegates to underlying condition implementation
          */
-        void notifyAll() override;
-
-        /**
-         * @brief Destroys the condition variable
-         * @note Calls pthread_cond_destroy()
-         */
-        ~pCondition() override;
-    };
-
-#elif ORIGINAL_COMPILER_MSVC
-    class wCondition final : public conditionBase
-    {
-        CONDITION_VARIABLE cond_;
-    public:
-        using conditionBase::wait;
-        using conditionBase::waitFor;
-
-        explicit wCondition();
-
-        void wait(mutexBase& mutex) override;
-
-        bool waitFor(mutexBase& mutex, time::duration d) override;
-
-        void notify() override;
-
-        void notifyAll() override;
-
-        ~wCondition() override;
-    };
-#endif
-
-    class condition final : public conditionBase {
-    #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-        pCondition cond_;
-    #elif ORIGINAL_COMPILER_MSVC
-        wCondition cond_;
-    #endif
-
-    public:
-        using conditionBase::wait;
-        using conditionBase::waitFor;
-
-        condition();
-
-        void wait(mutexBase& mutex) override;
-
-        bool waitFor(mutexBase& mutex, time::duration d) override;
-
-        void notify() override;
-
         void notifyAll() override;
     };
 

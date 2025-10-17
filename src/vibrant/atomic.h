@@ -1,6 +1,28 @@
 #ifndef ORIGINAL_ATOMIC_H
 #define ORIGINAL_ATOMIC_H
 
+/**
+ * @file atomic.h
+ * @brief Cross-platform atomic operations implementation
+ * @details Provides type-safe atomic operations with automatic lock-free detection:
+ * - Lock-free implementation for supported types using hardware atomic instructions
+ * - Mutex-based fallback for non-lock-free types
+ * - Consistent API across different platforms and compilers
+ *
+ * Platform Support:
+ * - GCC/Clang: Uses GCC __atomic builtins for lock-free operations (pMutex for fallback)
+ * - MSVC: Uses Windows Interlocked APIs for lock-free operations (wMutex for fallback)
+ * - All platforms: Automatic selection between lock-free and mutex-based implementations
+ *
+ * Key Features:
+ * - Automatic lock-free detection based on type characteristics
+ * - Full memory ordering support (relaxed, acquire, release, acq_rel, seq_cst)
+ * - Atomic arithmetic operations (add, subtract)
+ * - Compare-and-exchange (CAS) operations
+ * - Type-safe interface with operator overloading
+ * - Factory functions for convenient object creation
+ */
+
 #include "config.h"
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
@@ -299,6 +321,21 @@ namespace original {
         friend auto makeAtomic(T value);
     };
 #elif ORIGINAL_COMPILER_MSVC
+    /**
+     * @enum memOrder
+     * @brief Memory ordering constraints for atomic operations (MSVC implementation)
+     * @details Specifies the memory synchronization behavior of atomic operations:
+     * - RELAXED: No ordering constraints, only atomicity guaranteed
+     * - ACQUIRE: Subsequent reads cannot be reordered before this operation
+     * - RELEASE: Previous writes cannot be reordered after this operation
+     * - ACQ_REL: Combination of ACQUIRE and RELEASE semantics
+     * - SEQ_CST: Sequential consistency (strongest ordering)
+     *
+     * @note MSVC implementation uses different underlying mechanisms than GCC:
+     * - RELAXED/ACQUIRE/RELEASE: Use compiler barriers (_ReadBarrier/_WriteBarrier)
+     * - SEQ_CST: Uses Interlocked APIs for full memory ordering
+     * @note Only available when compiled with MSVC
+     */
     enum class memOrder {
         RELAXED,
         ACQUIRE,
@@ -307,6 +344,15 @@ namespace original {
         SEQ_CST,
     };
 
+    /**
+     * @brief Determines if a type can be implemented lock-free on MSVC
+     * @tparam TYPE The type to check for lock-free support
+     * @return true if type can be implemented lock-free, false otherwise
+     * @details MSVC supports lock-free operations for 4-byte and 8-byte types
+     * using Interlocked APIs. Other sizes require mutex-based implementation.
+     * @implementation Checks if type size is 4 or 8 bytes
+     * @note Only available when compiled with MSVC
+     */
     template<typename TYPE>
     constexpr bool isLockFreeType() noexcept;
 
@@ -316,56 +362,186 @@ namespace original {
     template<typename TYPE>
     using atomic = atomicImpl<TYPE, !isLockFreeType<TYPE>()>;
 
+    /**
+     * @class atomicImpl
+     * @brief Lock-free atomic implementation using MSVC Interlocked APIs
+     * @tparam TYPE The underlying atomic type (must be 4 or 8 bytes)
+     * @details Provides atomic operations using Windows Interlocked functions
+     * for types that support hardware-level atomic operations.
+     *
+     * Platform-Specific Features:
+     * - Uses InterlockedExchange for atomic stores with SEQ_CST ordering
+     * - Uses InterlockedCompareExchange for atomic loads with SEQ_CST ordering
+     * - Uses InterlockedAdd for atomic arithmetic operations
+     * - Uses InterlockedCompareExchange for CAS operations
+     * - Uses compiler barriers (_ReadBarrier/_WriteBarrier) for weaker ordering
+     *
+     * Supported Type Sizes:
+     * - 4-byte types: Uses InterlockedExchange, InterlockedAdd, etc.
+     * - 8-byte types: Uses InterlockedExchange64, InterlockedAdd64, etc.
+     *
+     * @note Only available when compiled with MSVC
+     * @note Only supports 4-byte and 8-byte types (checked by isLockFreeType)
+     * @note For other type sizes, falls back to mutex-based implementation
+     *
+     * Example usage:
+     * @code
+     * // 4-byte integer (lock-free)
+     * original::atomic<int> atomic_int(42);
+     * atomic_int.store(100);
+     * int value = atomic_int.load();
+     *
+     * // 8-byte integer (lock-free)
+     * original::atomic<long long> atomic_ll(123LL);
+     * atomic_ll += 10;
+     * @endcode
+     */
     template<typename TYPE>
     class atomicImpl<TYPE, false>
     {
+        /// @brief Internal value type selection based on size
         using val_type = some_t<sizeof(TYPE) == 4, LONG, LONG64>;
 
+        /// @brief Properly aligned atomic storage
         alignas(TYPE) volatile TYPE data_{};
 
+        /**
+         * @brief Type conversion helper for atomic operations
+         * @tparam From Source type
+         * @tparam To Target type
+         * @param value Value to convert
+         * @return Converted value
+         * @implementation Uses reinterpret_cast for pointers, static_cast for values
+         */
         template<typename From, typename To>
         static To atomicCastTo(From value);
 
+        /**
+         * @brief Reverse type conversion helper
+         * @tparam To Target type
+         * @tparam From Source type
+         * @param value Value to convert back
+         * @return Original type value
+         */
         template<typename To, typename From>
         static To atomicCastBack(From value);
 
+        /**
+         * @brief Default constructor (zero-initializes storage)
+         * @implementation Uses memset for proper initialization
+         */
         atomicImpl();
 
+        /**
+         * @brief Value constructor with memory ordering
+         * @param value Initial value to store
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @implementation Delegates to store() method
+         */
         explicit atomicImpl(TYPE value, memOrder order = SEQ_CST);
+
     public:
+        // Memory ordering constants for convenience
         static constexpr auto RELAXED = memOrder::RELAXED;
         static constexpr auto ACQUIRE = memOrder::ACQUIRE;
         static constexpr auto RELEASE = memOrder::RELEASE;
         static constexpr auto ACQ_REL = memOrder::ACQ_REL;
         static constexpr auto SEQ_CST = memOrder::SEQ_CST;
 
+        // Disable copying and moving
         atomicImpl(const atomicImpl&) = delete;
         atomicImpl(atomicImpl&&) = delete;
         atomicImpl& operator=(const atomicImpl&) = delete;
         atomicImpl& operator=(atomicImpl&&) = delete;
 
+        /**
+         * @brief Checks if the atomic implementation is lock-free
+         * @return Always true for this specialization
+         * @implementation Returns true since this is the lock-free specialization
+         */
         static constexpr bool isLockFree() noexcept;
 
+        /**
+         * @brief Atomically stores a value with specified memory ordering
+         * @param value Value to store
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @implementation MSVC-specific:
+         * - RELAXED: Direct assignment
+         * - RELEASE: _WriteBarrier + direct assignment
+         * - SEQ_CST: InterlockedExchange/InterlockedExchange64
+         * - ACQUIRE/ACQ_REL: Not supported for stores, uses SEQ_CST
+         */
         void store(TYPE value, memOrder order = SEQ_CST);
 
+        /**
+         * @brief Atomically loads the current value with specified memory ordering
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The current atomic value
+         * @implementation MSVC-specific:
+         * - RELAXED: Direct read
+         * - ACQUIRE: Direct read + _ReadBarrier
+         * - SEQ_CST: InterlockedCompareExchange with 0
+         * - RELEASE/ACQ_REL: Not supported for loads, uses SEQ_CST
+         */
         TYPE load(memOrder order = SEQ_CST) const noexcept;
 
+        /**
+         * @brief Dereference operator (loads current value with SEQ_CST ordering)
+         * @return The current atomic value
+         */
         TYPE operator*() const noexcept;
 
+        /**
+         * @brief Conversion operator to underlying type
+         * @return The current atomic value
+         */
         explicit operator TYPE() const noexcept;
 
+        /**
+         * @brief Assignment operator (atomically stores value with SEQ_CST ordering)
+         * @param value Value to store
+         */
         atomicImpl& operator=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomic addition assignment
+         * @param value Value to add
+         * @return Reference to this atomic object
+         * @implementation Uses InterlockedAdd/InterlockedAdd64
+         */
         atomicImpl& operator+=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomic subtraction assignment
+         * @param value Value to subtract
+         * @return Reference to this atomic object
+         * @implementation Implements as addition of negative value
+         */
         atomicImpl& operator-=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomically exchanges value
+         * @param value New value to store
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The previous value
+         * @implementation Uses InterlockedExchange/InterlockedExchange64
+         */
         TYPE exchange(TYPE value, memOrder order = SEQ_CST) noexcept;
 
+        /**
+         * @brief Atomically compares and exchanges value (CAS operation)
+         * @param expected Expected current value (updated if comparison fails)
+         * @param desired Desired new value
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return True if exchange was successful, false otherwise
+         * @implementation Uses InterlockedCompareExchange/InterlockedCompareExchange64
+         */
         bool exchangeCmp(TYPE& expected, TYPE desired, memOrder order = SEQ_CST) noexcept;
 
+        /// @brief Default destructor
         ~atomicImpl() = default;
 
+        // Friend factory functions
         template<typename T>
         friend auto makeAtomic();
 
@@ -373,49 +549,142 @@ namespace original {
         friend auto makeAtomic(T value);
     };
 
+    /**
+     * @class atomicImpl
+     * @brief Mutex-based atomic implementation for non-lock-free types on MSVC
+     * @tparam TYPE The underlying atomic type
+     * @details Provides atomic operations using Windows SRW locks for types that
+     * cannot be handled by hardware atomic operations.
+     *
+     * Platform-Specific Features:
+     * - Uses wMutex (Windows SRW lock) for synchronization
+     * - Provides same API as lock-free implementation but with locking
+     * - Memory ordering parameters are ignored (all operations are sequentially consistent)
+     *
+     * @note Only available when compiled with MSVC
+     * @note Used for types that are not 4 or 8 bytes in size
+     * @note All operations acquire the mutex, providing full sequential consistency
+     *
+     * Example usage:
+     * @code
+     * // Large struct (requires mutex-based implementation)
+     * struct LargeData { char data[128]; };
+     * original::atomic<LargeData> atomic_data;
+     * atomic_data.store(LargeData{});
+     * LargeData value = atomic_data.load();
+     * @endcode
+     */
     template<typename TYPE>
     class atomicImpl<TYPE, true>
     {
-        mutable wMutex mutex_;
-        alternative<TYPE> data_;
+        mutable wMutex mutex_;          ///< Windows SRW lock for synchronization
+        alternative<TYPE> data_;        ///< Optional storage for the value
 
+        /**
+         * @brief Default constructor
+         */
         atomicImpl() = default;
 
+        /**
+         * @brief Value constructor
+         * @param value Initial value to store
+         * @param order Memory ordering (ignored in mutex implementation)
+         */
         explicit atomicImpl(TYPE value, memOrder order = RELEASE);
+
     public:
+        // Memory ordering constants (for API compatibility)
         static constexpr auto RELAXED = memOrder::RELAXED;
         static constexpr auto ACQUIRE = memOrder::ACQUIRE;
         static constexpr auto RELEASE = memOrder::RELEASE;
         static constexpr auto ACQ_REL = memOrder::ACQ_REL;
         static constexpr auto SEQ_CST = memOrder::SEQ_CST;
 
+        // Disable copying and moving
         atomicImpl(const atomicImpl&) = delete;
         atomicImpl(atomicImpl&&) = delete;
         atomicImpl& operator=(const atomicImpl&) = delete;
         atomicImpl& operator=(atomicImpl&&) = delete;
 
+        /**
+         * @brief Checks if the atomic implementation is lock-free
+         * @return Always false for this specialization
+         */
         static constexpr bool isLockFree() noexcept;
 
+        /**
+         * @brief Atomically stores a value
+         * @param value Value to store
+         * @param order Memory ordering (ignored)
+         * @implementation Locks mutex, stores value, unlocks mutex
+         */
         void store(TYPE value, memOrder order = SEQ_CST);
 
+        /**
+         * @brief Atomically loads the current value
+         * @param order Memory ordering (ignored)
+         * @return The current atomic value
+         * @implementation Locks mutex, reads value, unlocks mutex
+         */
         TYPE load(memOrder order = SEQ_CST) const noexcept;
 
+        /**
+         * @brief Dereference operator (loads current value)
+         * @return The current atomic value
+         */
         TYPE operator*() const noexcept;
 
+        /**
+         * @brief Conversion operator to underlying type
+         * @return The current atomic value
+         */
         explicit operator TYPE() const noexcept;
 
+        /**
+         * @brief Assignment operator (atomically stores value)
+         * @param value Value to store
+         */
         atomicImpl& operator=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomic addition assignment
+         * @param value Value to add
+         * @return Reference to this atomic object
+         * @implementation Locks mutex, performs addition, stores result, unlocks mutex
+         */
         atomicImpl& operator+=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomic subtraction assignment
+         * @param value Value to subtract
+         * @return Reference to this atomic object
+         * @implementation Locks mutex, performs subtraction, stores result, unlocks mutex
+         */
         atomicImpl& operator-=(TYPE value) noexcept;
 
+        /**
+         * @brief Atomically exchanges value
+         * @param value New value to store
+         * @param order Memory ordering (ignored)
+         * @return The previous value
+         * @implementation Locks mutex, exchanges values, unlocks mutex
+         */
         TYPE exchange(const TYPE& value, memOrder order = SEQ_CST) noexcept;
 
+        /**
+         * @brief Atomically compares and exchanges value (CAS operation)
+         * @param expected Expected current value (updated if comparison fails)
+         * @param desired Desired new value
+         * @param order Memory ordering (ignored)
+         * @return True if exchange was successful, false otherwise
+         * @implementation Locks mutex, compares values, exchanges if equal, unlocks mutex
+         */
         bool exchangeCmp(TYPE& expected, const TYPE& desired, memOrder order = SEQ_CST) noexcept;
 
+        /// @brief Default destructor
         ~atomicImpl() = default;
 
+        // Friend factory functions
         template<typename T>
         friend auto makeAtomic();
 

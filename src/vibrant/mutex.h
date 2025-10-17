@@ -19,6 +19,18 @@
  * @details
  * This header defines the mutex abstraction and RAII-based locking
  * mechanisms for multithreaded programming within the `original` namespace.
+ *
+ * Platform Support:
+ * - GCC/Clang: Uses pthread_mutex_t for mutex implementation (pMutex)
+ * - MSVC: Uses SRWLOCK for lightweight mutex implementation (wMutex)
+ * - All platforms: High-level mutex class with consistent interface
+ *
+ * Features:
+ * - RAII-based mutex management with automatic cleanup
+ * - Multiple locking policies (automatic, manual, try-lock, adopt)
+ * - Single and multiple mutex locking support
+ * - Deadlock avoidance in multi-lock scenarios
+ * - Exception-safe operations with proper error handling
  */
 
 
@@ -151,11 +163,30 @@ namespace original {
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pMutex
-     * @brief POSIX thread mutex implementation
+     * @brief POSIX thread mutex implementation for GCC and Clang compilers
      * @extends mutexBase
-     * @details Wrapper around pthread_mutex_t with RAII semantics.
-     * Provides basic mutex functionality with proper initialization
-     * and cleanup.
+     * @details Wrapper around pthread_mutex_t with RAII semantics. Provides
+     *          full-featured mutex functionality using POSIX threads API.
+     *
+     * Platform-Specific Features:
+     * - Uses pthread_mutex_init for mutex initialization
+     * - Implements pthread_mutex_lock for blocking acquisition
+     * - Uses pthread_mutex_trylock for non-blocking attempts
+     * - Provides pthread_mutex_unlock for release
+     * - Uses pthread_mutex_destroy for cleanup in destructor
+     *
+     * @note Only available when compiled with GCC or Clang
+     * @note Provides recursive mutex capabilities through POSIX implementation
+     * @note Exception-safe with proper resource cleanup
+     *
+     * Example usage:
+     * @code
+     * original::pMutex mutex;
+     * {
+     *     original::uniqueLock lock(mutex); // Automatically locks
+     *     // Critical section
+     * } // Automatically unlocks
+     * @endcode
      */
     class pMutex final : public mutexBase {
         pthread_mutex_t mutex_{}; ///< Internal POSIX mutex handle
@@ -164,109 +195,259 @@ namespace original {
         using native_handle = pthread_mutex_t;
 
         /**
-         * @brief Constructs and initializes the mutex
-         * @throws sysError if mutex initialization fails
+         * @brief Constructs and initializes the POSIX mutex
+         * @throws sysError if pthread_mutex_init fails
+         * @note Uses default mutex attributes (non-recursive)
+         * @implementation Calls pthread_mutex_init with nullptr attributes
          */
         explicit pMutex();
 
-        /// Deleted move constructor
+        /// Deleted move constructor (mutexes are not movable)
         pMutex(pMutex&&) = delete;
 
-        /// Deleted move assignment operator
+        /// Deleted move assignment operator (mutexes are not movable)
         pMutex& operator=(pMutex&&) = delete;
 
         /**
          * @brief Gets a unique identifier for the mutex
-         * @return Unique identifier based on mutex internal state
+         * @return Unique identifier based on mutex memory address
+         * @implementation Returns reinterpret_cast of mutex address
          */
         [[nodiscard]] ul_integer id() const override;
 
         /**
          * @brief Gets the native mutex handle
          * @return Pointer to the internal pthread_mutex_t
+         * @note Useful for interoperability with POSIX thread functions
          */
         [[nodiscard]] void* nativeHandle() noexcept override;
 
         /**
          * @brief Locks the mutex, blocking if necessary
-         * @throws sysError if the lock operation fails
+         * @throws sysError if pthread_mutex_lock fails
+         * @implementation Calls pthread_mutex_lock and checks return code
          */
         void lock() override;
 
         /**
          * @brief Attempts to lock the mutex without blocking
-         * @return true if lock was acquired, false if mutex is busy
+         * @return true if lock was acquired, false if mutex is busy (EBUSY)
          * @throws sysError if the operation fails (other than EBUSY)
+         * @implementation Calls pthread_mutex_trylock and handles EBUSY
          */
         bool tryLock() override;
 
         /**
          * @brief Unlocks the mutex
-         * @throws sysError if the unlock operation fails
+         * @throws sysError if pthread_mutex_unlock fails
+         * @implementation Calls pthread_mutex_unlock and checks return code
          */
         void unlock() override;
 
         /**
          * @brief Destroys the mutex
          * @note Calls std::terminate() if mutex destruction fails
+         * @implementation Calls pthread_mutex_destroy and terminates on failure
          */
         ~pMutex() override;
     };
 #elif ORIGINAL_COMPILER_MSVC
+    /**
+     * @class wMutex
+     * @brief Windows Slim Reader/Writer (SRW) lock implementation for MSVC
+     * @extends mutexBase
+     * @details Wrapper around SRWLOCK with RAII semantics. Provides
+     *          lightweight exclusive locking using Windows SRW locks.
+     *
+     * Platform-Specific Features:
+     * - Uses InitializeSRWLock for lock initialization
+     * - Implements AcquireSRWLockExclusive for blocking acquisition
+     * - Uses TryAcquireSRWLockExclusive for non-blocking attempts
+     * - Provides ReleaseSRWLockExclusive for release
+     * - No explicit destruction required (Windows manages SRW lock lifecycle)
+     *
+     * @note Only available when compiled with MSVC
+     * @note SRW locks are more efficient than CRITICAL_SECTION for exclusive access
+     * @note Non-recursive lock - attempting to relock from same thread will deadlock
+     *
+     * Example usage:
+     * @code
+     * original::wMutex mutex;
+     * {
+     *     original::uniqueLock lock(mutex); // Automatically locks
+     *     // Critical section
+     * } // Automatically unlocks
+     * @endcode
+     */
     class wMutex final : public mutexBase {
-        SRWLOCK lock_;
+        SRWLOCK lock_; ///< Windows SRW lock handle
     public:
+        /// Native handle type (SRWLOCK)
         using native_handle = SRWLOCK;
 
+        /**
+         * @brief Constructs and initializes the SRW lock
+         * @implementation Calls InitializeSRWLock
+         * @note SRW locks require no explicit destruction in Windows
+         */
         explicit wMutex();
 
+        /// Deleted move constructor (locks are not movable)
         wMutex(wMutex&&) = delete;
 
+        /// Deleted move assignment operator (locks are not movable)
         wMutex& operator=(wMutex&&) = delete;
 
+        /**
+         * @brief Gets a unique identifier for the lock
+         * @return Unique identifier based on lock memory address
+         * @implementation Returns reinterpret_cast of lock address
+         */
         [[nodiscard]] ul_integer id() const override;
 
+        /**
+         * @brief Gets the native lock handle
+         * @return Pointer to the internal SRWLOCK
+         * @note Useful for interoperability with Windows thread functions
+         */
         [[nodiscard]] void* nativeHandle() noexcept override;
 
+        /**
+         * @brief Locks the SRW lock exclusively, blocking if necessary
+         * @implementation Calls AcquireSRWLockExclusive
+         * @note This is an exclusive lock - only one thread can hold it
+         */
         void lock() override;
 
+        /**
+         * @brief Attempts to lock the SRW lock exclusively without blocking
+         * @return true if lock was acquired, false if lock is busy
+         * @implementation Calls TryAcquireSRWLockExclusive
+         */
         bool tryLock() override;
 
+        /**
+         * @brief Unlocks the SRW lock
+         * @implementation Calls ReleaseSRWLockExclusive
+         */
         void unlock() override;
 
+        /**
+         * @brief Destructor
+         * @note SRW locks require no explicit destruction in Windows
+         * @implementation No cleanup needed - Windows manages SRW lock lifecycle
+         */
         ~wMutex() override;
     };
 #endif
 
+    /**
+     * @class mutex
+     * @brief High-level cross-platform mutex wrapper
+     * @extends mutexBase
+     * @details Provides a unified mutex interface that automatically selects
+     *          the appropriate platform-specific implementation:
+     *          - pMutex for GCC/Clang on Linux/macOS (POSIX threads)
+     *          - wMutex for MSVC on Windows (SRW locks)
+     *
+     * Key Features:
+     * - Consistent API across all platforms
+     * - RAII semantics with automatic cleanup
+     * - Exception-safe operations
+     * - Delegates all operations to platform-specific implementation
+     *
+     * Platform Abstraction:
+     * - GCC/Clang: Delegates to pMutex (pthread_mutex_t)
+     * - MSVC: Delegates to wMutex (SRWLOCK)
+     * - All platforms: Identical interface and behavior
+     *
+     * Example usage:
+     * @code
+     * original::mutex mtx;
+     *
+     * // Cross-platform locking - works the same on all platforms
+     * mtx.lock();
+     * try {
+     *     // Critical section
+     *     mtx.unlock();
+     * } catch (...) {
+     *     mtx.unlock();
+     *     throw;
+     * }
+     *
+     * // Or use RAII wrapper for exception safety
+     * {
+     *     original::uniqueLock lock(mtx);
+     *     // Critical section - automatically unlocked
+     * }
+     * @endcode
+     *
+     * @see original::pMutex (GCC/Clang implementation)
+     * @see original::wMutex (MSVC implementation)
+     * @see original::uniqueLock
+     */
     class mutex final : public mutexBase {
     #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-        pMutex mutex_;
+        pMutex mutex_; ///< POSIX mutex implementation (GCC/Clang)
     #elif ORIGINAL_COMPILER_MSVC
-        wMutex mutex_;
+        wMutex mutex_; ///< Windows SRW lock implementation (MSVC)
     #endif
 
     public:
+        /// Native handle type (platform-specific)
         using native_handle =
     #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-            pMutex::native_handle;
+            pMutex::native_handle; ///< pthread_mutex_t on GCC/Clang
     #elif ORIGINAL_COMPILER_MSVC
-            wMutex::native_handle;
+            wMutex::native_handle; ///< SRWLOCK on MSVC
     #endif
 
+        /**
+         * @brief Constructs the platform-specific mutex
+         * @details Delegates to pMutex or wMutex constructor
+         */
         mutex();
 
+        /// Deleted move constructor
         mutex(mutex&&) = delete;
 
+        /// Deleted copy assignment operator
         mutex& operator=(mutex&) = delete;
 
+        /**
+         * @brief Gets a unique identifier for the mutex
+         * @return Platform-specific mutex identifier
+         * @details Delegates to underlying mutex implementation
+         */
         [[nodiscard]] ul_integer id() const override;
 
+        /**
+         * @brief Gets the native mutex handle
+         * @return Platform-specific native handle
+         * @details Delegates to underlying mutex implementation
+         */
         [[nodiscard]] void* nativeHandle() noexcept override;
 
+        /**
+         * @brief Locks the mutex, blocking if necessary
+         * @throws sysError if lock operation fails
+         * @details Delegates to underlying mutex implementation
+         */
         void lock() override;
 
+        /**
+         * @brief Attempts to lock the mutex without blocking
+         * @return true if lock was acquired, false otherwise
+         * @throws sysError if operation fails
+         * @details Delegates to underlying mutex implementation
+         */
         bool tryLock() override;
 
+        /**
+         * @brief Unlocks the mutex
+         * @throws sysError if unlock operation fails
+         * @details Delegates to underlying mutex implementation
+         */
         void unlock() override;
     };
 

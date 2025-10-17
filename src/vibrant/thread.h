@@ -22,10 +22,17 @@
  * @file thread.h
  * @brief Thread management utilities
  * @details Provides a layered threading abstraction with:
- * - Low-level POSIX thread wrapper (pThread)
+ * - Low-level POSIX thread wrapper (pThread) for GCC/Clang
+ * - Low-level Windows thread wrapper (wThread) for MSVC
  * - High-level RAII thread management (thread)
  * - Exception-safe thread operations
  * - Flexible join/detach policies
+ * - Cross-platform thread operations (sleep, ID retrieval)
+ *
+ * Platform Support:
+ * - GCC/Clang: Uses pthread API (pThread implementation)
+ * - MSVC: Uses Windows Thread API (wThread implementation)
+ * - All platforms: High-level thread class with consistent interface
  */
 
 namespace original {
@@ -153,12 +160,27 @@ namespace original {
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     /**
      * @class pThread
-     * @brief POSIX thread implementation
+     * @brief POSIX thread implementation for GCC and Clang compilers
      * @details Wrapper around pthread with RAII semantics. Provides low-level
      *          thread management using POSIX threads API.
      *
+     * Platform-Specific Features:
+     * - Uses pthread_create for thread creation
+     * - Implements pthread_join for thread synchronization
+     * - Uses pthread_detach for resource cleanup
+     * - Provides pthread_t based thread identification
+     *
      * @note This class is not thread-safe for concurrent operations on the same object
      * @note Implements the threadBase interface for POSIX threads
+     * @note Only available when compiled with GCC or Clang
+     *
+     * Example usage:
+     * @code
+     * original::pThread thread([](){
+     *     // Thread work
+     * });
+     * thread.join();
+     * @endcode
      */
     class pThread final : public threadBase<pThread> {
         pthread_t handle; ///< Native thread handle
@@ -243,72 +265,176 @@ namespace original {
         ~pThread() override;
     };
 #elif ORIGINAL_COMPILER_MSVC
+    /**
+     * @class wThread
+     * @brief Windows thread implementation for MSVC compiler
+     * @details Wrapper around Windows Thread API with RAII semantics. Provides
+     *          low-level thread management using Windows threading primitives.
+     *
+     * Platform-Specific Features:
+     * - Uses CreateThread for thread creation
+     * - Implements WaitForSingleObject for thread synchronization
+     * - Uses CloseHandle for resource cleanup
+     * - Provides HANDLE based thread identification
+     *
+     * @note This class is not thread-safe for concurrent operations on the same object
+     * @note Implements the threadBase interface for Windows threads
+     * @note Only available when compiled with MSVC
+     *
+     * Example usage:
+     * @code
+     * original::wThread thread([](){
+     *     // Thread work
+     * });
+     * thread.join();
+     * @endcode
+     */
     class wThread final : public threadBase<wThread> {
-        HANDLE handle;
-        bool is_joinable;
+        HANDLE handle;      ///< Windows thread handle
+        bool is_joinable;   ///< Flag indicating if thread can be joined
 
+        /**
+         * @brief Check if thread is valid
+         * @return true if thread handle is valid (not NULL)
+         * @note Windows-specific validity check
+         */
         [[nodiscard]] bool valid() const override;
+
     public:
+        /**
+         * @brief Construct empty (invalid) thread
+         * @post Creates a thread object not associated with any execution
+         * @note Windows-specific initialization
+         */
         explicit wThread();
 
+        /**
+         * @brief Construct and start Windows thread
+         * @tparam Callback Callback function type
+         * @tparam ARGS Argument types for callback
+         * @param c Callback function to execute in new thread
+         * @param args Arguments to forward to callback
+         * @throw sysError if thread creation fails
+         * @post New thread starts executing the callback with provided arguments
+         * @note Uses CreateThread Windows API internally
+         */
         template<typename Callback, typename... ARGS>
-        explicit wThread(Callback c, ARGS&&... args...);
+        explicit wThread(Callback c, ARGS&&... args);
 
+        /**
+         * @brief Move constructor
+         * @param other Thread to move from
+         * @post Source thread becomes invalid, ownership transferred
+         * @note Windows-specific handle transfer
+         */
         wThread(wThread&& other) noexcept;
 
+        /**
+         * @brief Move assignment
+         * @param other Thread to move from
+         * @return Reference to this object
+         * @post Source thread becomes invalid, ownership transferred
+         * @note Windows-specific handle transfer and cleanup
+         */
         wThread& operator=(wThread&& other) noexcept;
 
+        /**
+         * @brief Get thread identifier
+         * @return Unique identifier for the thread (based on HANDLE)
+         * @note Windows-specific thread identification
+         */
         [[nodiscard]] ul_integer id() const override;
 
+        /**
+         * @brief Check if thread is joinable
+         * @return true if thread is joinable
+         * @note Windows-specific joinable state check
+         */
         [[nodiscard]] bool joinable() const override;
 
+        /**
+         * @brief Compare this thread with another
+         * @param other Thread to compare with
+         * @return Comparison result based on thread IDs
+         * @note Windows-specific thread comparison
+         */
         integer compareTo(const wThread &other) const override;
 
+        /**
+         * @brief Compute hash value for this thread
+         * @return Hash value based on thread handle
+         * @note Windows-specific hash computation
+         */
         u_integer toHash() const noexcept override;
 
+        /**
+         * @brief Get class name
+         * @return "wThread" string
+         */
         std::string className() const override;
 
+        /**
+         * @brief Wait for thread to complete
+         * @throw sysError if wait operation fails
+         * @note Uses WaitForSingleObject with INFINITE timeout
+         * @note Windows-specific thread synchronization
+         */
         void join() override;
 
+        /**
+         * @brief Detach thread (allow it to run independently)
+         * @throw sysError if detach operation fails
+         * @note Uses CloseHandle to release thread resources
+         * @note Windows-specific thread detachment
+         */
         void detach() override;
 
+        /**
+         * @brief Destructor
+         * @note Automatically detaches if thread is still joinable
+         * @note Windows-specific resource cleanup
+         */
         ~wThread() override;
     };
 #endif
 
     /**
      * @class thread
-     * @brief High-level thread wrapper
+     * @brief High-level cross-platform thread wrapper
      * @details Manages thread lifetime with automatic join/detach. Provides
      *          RAII semantics for thread management with configurable join policy.
-     *          Implements threadBase interface while wrapping a pThread instance.
+     *          Automatically selects the appropriate underlying implementation:
+     *          - pThread for GCC/Clang on Linux/macOS
+     *          - wThread for MSVC on Windows
      *
      * Key Features:
-     * - Wraps low-level pThread with automatic cleanup
+     * - Wraps platform-specific thread implementation with unified interface
      * - Configurable join policy (AUTO_JOIN or AUTO_DETACH)
-     * - Implements threadBase interface
-     * - Delegates all thread operations to contained pThread instance
+     * - Cross-platform thread operations (sleep, ID retrieval)
+     * - Automatic cleanup based on join policy
      *
-     * Join Policy:
-     * - joinPolicy::AUTO_JOIN: join the thread in destructor
-     * - joinPolicy::AUTO_DETACH: detach the thread in destructor
+     * Platform Abstraction:
+     * - GCC/Clang: Delegates to pThread (POSIX threads)
+     * - MSVC: Delegates to wThread (Windows threads)
+     * - All platforms: Consistent high-level interface
      *
      * Example usage:
      * @code
+     * // Cross-platform thread creation
      * original::thread t([](){
-     *     // thread work
+     *     // thread work - same on all platforms
      * }, original::thread::AUTO_DETACH);
      * @endcode
      *
-     * @see original::pThread
+     * @see original::pThread (GCC/Clang)
+     * @see original::wThread (MSVC)
      * @see original::threadBase
-     * @see original::thread::joinPolicy
      */
     class thread final : public threadBase<thread> {
         #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-        pThread thread_; ///< Underlying thread implementation
+                pThread thread_; ///< POSIX thread implementation (GCC/Clang)
         #elif ORIGINAL_COMPILER_MSVC
-        wThread thread_;
+                wThread thread_; ///< Windows thread implementation (MSVC)
         #endif
         bool will_join;  ///< Join policy flag
 
@@ -332,17 +458,35 @@ namespace original {
         [[nodiscard]] bool valid() const override;
     public:
 
+        /**
+         * @brief Get the current thread's identifier
+         * @return Unique identifier for the current thread
+         * @details Platform-specific implementation:
+         * - GCC/Clang: Uses pthread_self() and converts to numeric ID
+         * - MSVC: Uses GetCurrentThreadId() and converts to numeric ID
+         * @note The returned ID format is platform-dependent but unique within process
+         * @code
+         * auto my_id = original::thread::thisId(); // Works on all platforms
+         * @endcode
+         */
         static ul_integer thisId();
 
         /**
          * @brief Puts the current thread to sleep for a specified duration
          * @param d Duration to sleep
-         * @note This is a platform-independent sleep function:
-         * - On GCC/Linux uses clock_nanosleep with CLOCK_REALTIME
-         * - On Windows uses Sleep() with millisecond precision
-         * - Handles EINTR interruptions automatically
+         * @details Platform-specific implementation:
+         * - GCC/Clang: Uses clock_nanosleep with CLOCK_REALTIME and handles EINTR
+         * - MSVC: Uses Sleep() with millisecond precision
+         * @note Features:
          * - Negative durations result in no sleep
-         * @throw sysError if sleep operation fails (except on Windows)
+         * - Handles EINTR interruptions automatically (POSIX)
+         * - High precision sleep on POSIX, millisecond precision on Windows
+         * @throw sysError if sleep operation fails on POSIX systems
+         * @note Windows implementation does not throw exceptions for sleep failures
+         * @code
+         * // Sleep for 1 second - works on all platforms
+         * original::thread::sleep(original::seconds(1));
+         * @endcode
          */
         static inline void sleep(const time::duration& d);
 
@@ -389,9 +533,19 @@ namespace original {
          * @param p_thread The POSIX thread wrapper to take ownership of
          * @param policy Join policy (AUTO_JOIN or AUTO_DETACH)
          * @post Takes ownership of the thread and applies the specified join policy
+         * @note Only available when compiled with GCC or Clang
+         * @note Provides interoperability with low-level pThread objects
          */
         explicit thread(pThread p_thread, joinPolicy policy = AUTO_JOIN);
 #elif ORIGINAL_COMPILER_MSVC
+        /**
+         * @brief Construct a thread from an existing wThread with a join policy
+         * @param w_thread The Windows thread wrapper to take ownership of
+         * @param policy Join policy (AUTO_JOIN or AUTO_DETACH)
+         * @post Takes ownership of the thread and applies the specified join policy
+         * @note Only available when compiled with MSVC
+         * @note Provides interoperability with low-level wThread objects
+         */
         explicit thread(wThread w_thread, joinPolicy policy = AUTO_JOIN);
 #endif
 
@@ -628,7 +782,7 @@ inline bool original::wThread::valid() const
 inline original::wThread::wThread() : handle(), is_joinable() {}
 
 template <typename Callback, typename ... ARGS>
-original::wThread::wThread(Callback c, ARGS&&... args, ...) : handle(), is_joinable(true)
+original::wThread::wThread(Callback c, ARGS&&... args) : handle(), is_joinable(true)
 {
     auto bound_lambda =
     [func = std::forward<Callback>(c), ...lambda_args = std::forward<ARGS>(args)]() mutable {
