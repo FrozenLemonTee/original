@@ -66,7 +66,7 @@ namespace original {
          * @brief Get the maximum number of threads required for synchronization
          * @return Maximum number of threads that must arrive
          */
-        u_integer maxArrived() const;
+        [[nodiscard]] u_integer maxArrived() const;
 
         /**
          * @brief Get the current number of arrived threads
@@ -75,7 +75,7 @@ namespace original {
          * This value is reset to 0 when the required number of threads arrive
          * and a new synchronization round begins.
          */
-        u_integer currentArrived() const;
+        [[nodiscard]] u_integer currentArrived() const;
     };
 }
 
