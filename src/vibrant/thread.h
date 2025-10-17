@@ -908,22 +908,17 @@ inline void original::thread::sleep(const time::duration& d)
         return;
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-    const auto deadline = time::point::now() + d;
-    const auto ts = deadline.toTimespec();
-    int ret;
-
-    while (true) {
-        if (ret = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, nullptr)
-            ; ret == 0) break;
-        if (errno == EINTR) continue;
-        if (errno == EINVAL) {
-            if (time::point::now() >= deadline) return;
-        }
-        throw sysError("Failed to sleep thread (clock_nano-sleep returned " + formatString(ret) +
-                      ", errno: " + std::to_string(errno) + ")");
+    const timespec ts = d.toTimespec();
+    errno = 0;
+    int code = clock_nanosleep(CLOCK_REALTIME, 0, &ts, nullptr);
+    if (code != 0 && (errno == EINVAL || code == EINVAL)) {
+        code = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, nullptr);
     }
+    if (code != 0)
+        throw sysError("Failed to sleep thread (clock_nanosleep returned " +
+                       formatString(code) + ", errno: " + formatString(errno) + ").");
 #elif ORIGINAL_COMPILER_MSVC
-    Sleep(d.toDWMilliseconds());
+    Sleep(static_cast<DWORD>(d.value(time::MILLISECOND)));
 #endif
 }
 
