@@ -3,9 +3,10 @@
 
 #include "config.h"
 
-#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#if ORIGINAL_COMPILER_GCC
 #include <ctime>
-#elif ORIGINAL_COMPILER_MSVC
+#endif
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -1476,7 +1477,7 @@ original::time::point::now() {
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
-#elif ORIGINAL_COMPILER_MSVC
+#elif ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
     FILETIME file_time;
     GetSystemTimePreciseAsFileTime(&file_time);
 
@@ -1484,9 +1485,9 @@ original::time::point::now() {
     uli.LowPart = file_time.dwLowDateTime;
     uli.HighPart = file_time.dwHighDateTime;
 
-    constexpr time_val_type WINDOWS_TO_UNIX_EPOCH = 11644473600LL * FACTOR_SECOND;
+    constexpr ul_integer WINDOWS_TO_UNIX_EPOCH = static_cast<ul_integer>(11644473600) * FACTOR_SECOND;
 
-    const time_val_type nanoseconds = uli.QuadPart * 100 - WINDOWS_TO_UNIX_EPOCH;
+    const time_val_type nanoseconds = static_cast<time_val_type>(uli.QuadPart) * 100 - static_cast<time_val_type>(WINDOWS_TO_UNIX_EPOCH);
 
     return point{nanoseconds, NANOSECOND};
 #else
