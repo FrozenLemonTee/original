@@ -34,7 +34,7 @@ Original是一个C++基础工具库,也是本人的第一个正式项目，用�
 
 配置`CMakeLists.txt`：
 ```cmake
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.31)
 project(hello_original)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -73,7 +73,7 @@ cmake -P install.cmake
 
 配置`CMakeLists.txt`：
 ```cmake
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.31)
 project(hello_original)
 
 set(CMAKE_CXX_STANDARD 23)
