@@ -2,6 +2,7 @@
 #define THREAD_H
 
 #include "config.h"
+#include <pthread_time.h>
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
@@ -911,7 +912,20 @@ inline void original::thread::sleep(const time::duration& d)
     const timespec ts = d.toTimespec();
     errno = 0;
 
-#if defined(__linux__)
+    #if ORIGINAL_PLATFORM_MACOS || ORIGINAL_PLATFORM_WINDOWS
+        timespec rem = ts;
+        int code;
+
+        do {
+            code = nanosleep(&rem, &rem);
+        } while (code == -1 && errno == EINTR);
+
+        if (code != 0)
+        throw sysError("Failed to sleep thread (nanosleep returned " +
+                       formatString(code) + ", errno: " + formatString(errno) + ").");
+    #endif
+
+#elif ORIGINAL_PLATFORM_LINUX
     int code = clock_nanosleep(CLOCK_REALTIME, 0, &ts, nullptr);
     if (code != 0 && (errno == EINVAL || errno == ENOSYS)) {
         code = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, nullptr);
@@ -919,10 +933,6 @@ inline void original::thread::sleep(const time::duration& d)
     if (code != 0)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
-#elif defined(__APPLE__)
-    timespec rem = ts;
-    while (nanosleep(&rem, &rem) == -1 && errno == EINTR);
-#endif
 
 #elif ORIGINAL_COMPILER_MSVC
     Sleep(static_cast<DWORD>(d.value(time::MILLISECOND)));
