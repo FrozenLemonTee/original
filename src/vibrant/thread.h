@@ -910,16 +910,24 @@ inline void original::thread::sleep(const time::duration& d)
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
     const timespec ts = d.toTimespec();
     errno = 0;
+
+#if defined(__linux__)
     int code = clock_nanosleep(CLOCK_REALTIME, 0, &ts, nullptr);
-    if (code != 0 && (errno == EINVAL || code == EINVAL)) {
+    if (code != 0 && (errno == EINVAL || errno == ENOSYS)) {
         code = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, nullptr);
     }
     if (code != 0)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
+#elif defined(__APPLE__)
+    timespec rem = ts;
+    while (nanosleep(&rem, &rem) == -1 && errno == EINTR);
+#endif
+
 #elif ORIGINAL_COMPILER_MSVC
     Sleep(static_cast<DWORD>(d.value(time::MILLISECOND)));
 #endif
+
 }
 
 inline original::thread::thread()
