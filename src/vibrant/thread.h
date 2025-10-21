@@ -2,7 +2,6 @@
 #define THREAD_H
 
 #include "config.h"
-#include <pthread_time.h>
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 #include "pthread.h"
