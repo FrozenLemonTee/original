@@ -427,6 +427,24 @@ namespace original {
 
         template<typename F>
         friend auto find(F&& f);
+
+        template<typename TYPE, typename F>
+        friend auto reduce(TYPE init, F&& c);
+
+        template<typename TYPE>
+        friend auto maximum(TYPE init);
+
+        template<typename TYPE>
+        friend auto minimum(TYPE init);
+
+        template<typename TYPE>
+        friend auto summation(TYPE init);
+
+        template<typename TYPE, typename SET>
+        friend auto collect();
+
+        template<template<typename> typename SERIAL>
+        friend auto list();
     };
 
     /**
@@ -618,6 +636,67 @@ namespace original {
      */
     template<typename F>
     auto find(F&& f);
+
+    /**
+     * @brief Creates a reduce pipe operation.
+     * @tparam TYPE The element type.
+     * @tparam Callback The reduction function type.
+     * @param init Initial value for reduction.
+     * @param c Reduction function.
+     * @return A genPipe that reduces the generator.
+     * @details Factory function for creating reduce operations.
+     */
+    template<typename TYPE, typename Callback>
+    auto reduce(TYPE init, Callback&& c);
+
+    /**
+     * @brief Creates a maximum pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial maximum value.
+     * @return A genPipe that finds the maximum element.
+     * @details Factory function for creating maximum operations.
+     */
+    template<typename TYPE>
+    auto maximum(TYPE init);
+
+    /**
+     * @brief Creates a minimum pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial minimum value.
+     * @return A genPipe that finds the minimum element.
+     * @details Factory function for creating minimum operations.
+     */
+    template<typename TYPE>
+    auto minimum(TYPE init);
+
+    /**
+     * @brief Creates a summation pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial sum value.
+     * @return A genPipe that sums all elements.
+     * @details Factory function for creating summation operations.
+     */
+    template<typename TYPE>
+    auto summation(TYPE init);
+
+    /**
+     * @brief Creates a collect pipe operation.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SET The set type to collect into (default: hashSet).
+     * @return A genPipe that collects elements into a set.
+     * @details Factory function for creating collect operations.
+     */
+    template<typename TYPE, typename SET = hashSet<TYPE>>
+    auto collect();
+
+    /**
+     * @brief Creates a list pipe operation.
+     * @tparam SERIAL The list container type.
+     * @return A genPipe that collects elements into a list.
+     * @details Factory function for creating list operations.
+     */
+    template<template<typename> typename SERIAL = vector>
+    auto list();
 
     /**
      * @brief Collects generator elements into a set.
@@ -1047,6 +1126,59 @@ auto original::find(F&& f)
 {
     return genPipe{[c = std::forward<F>(f)]<typename TYPE>(coroutine::generator<TYPE> gen) mutable {
         return find(std::move(gen), std::move(c));
+    }};
+}
+
+template <typename TYPE, typename Callback>
+auto original::reduce(TYPE init, Callback&& c)
+{
+    return genPipe{[c = std::forward<Callback>(c), init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+       return reduce<TYPE>(std::move(gen), std::move(init), std::move(c));
+    }};
+}
+
+template <typename TYPE>
+auto original::maximum(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+       return maximum<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE>
+auto original::minimum(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+        return minimum<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE>
+auto original::summation(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+        return summation<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE, typename SET>
+auto original::collect()
+{
+    return genPipe{[](coroutine::generator<TYPE> gen) mutable
+    {
+       return collect<TYPE, SET>(std::move(gen));
+    }};
+}
+
+template <template <typename> class SERIAL>
+auto original::list()
+{
+    return genPipe{[]<typename TYPE>(coroutine::generator<TYPE> gen) mutable {
+        return list<TYPE, SERIAL>(std::move(gen));
     }};
 }
 
