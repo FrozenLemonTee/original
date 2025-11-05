@@ -21,10 +21,10 @@ protected:
         // 清理资源
     }
 
-    array<int> int_array;
-    vector<std::string> str_vector;
-    vector<int> empty_vector;
-    vector<int> single_element;
+    array<int> int_array{};
+    vector<std::string> str_vector{};
+    vector<int> empty_vector{};
+    vector<int> single_element{};
 };
 
 // 测试 enumerate 函数
@@ -446,4 +446,257 @@ TEST_F(GeneratorsTest, SetGenerator) {
 
     // 由于hashSet无序，我们只检查总和
     EXPECT_EQ(sum, 6);
+}
+
+// 测试 reduce 函数
+TEST_F(GeneratorsTest, ReduceBasic) {
+    auto gen = int_array.generator();
+    const int sum = reduce(std::move(gen), 0, [](const int acc, const int val) {
+        return acc + val;
+    });
+    EXPECT_EQ(sum, 15); // 1+2+3+4+5=15
+}
+
+TEST_F(GeneratorsTest, ReduceProduct) {
+    auto gen = int_array.generator();
+    const int product = reduce(std::move(gen), 1, [](const int acc, const int val) {
+        return acc * val;
+    });
+    EXPECT_EQ(product, 120); // 1*2*3*4*5=120
+}
+
+TEST_F(GeneratorsTest, ReduceString) {
+    auto gen = str_vector.generator();
+    const std::string result = reduce(std::move(gen), std::string(""),
+        [](const std::string& acc, const std::string& val) {
+            return acc.empty() ? val : acc + "," + val;
+        });
+    EXPECT_EQ(result, "apple,banana,cherry,date");
+}
+
+TEST_F(GeneratorsTest, ReduceEmpty) {
+    auto gen = empty_vector.generator();
+    constexpr int init = 0;
+    const int result = reduce(std::move(gen), init, [](const int acc, const int val) {
+        return acc + val;
+    });
+    EXPECT_EQ(result, init); // 空生成器应该返回初始值
+}
+
+TEST_F(GeneratorsTest, ReduceSingleElement) {
+    auto gen = single_element.generator();
+    const int result = reduce(std::move(gen), 0, [](const int acc, const int val) {
+        return acc + val;
+    });
+    EXPECT_EQ(result, 42); // 0 + 42 = 42
+}
+
+// 测试 maximum 函数
+TEST_F(GeneratorsTest, MaximumBasic) {
+    auto gen = int_array.generator();
+    const int max_val = maximum(std::move(gen), 0);
+    EXPECT_EQ(max_val, 5);
+}
+
+TEST_F(GeneratorsTest, MaximumWithNegative) {
+    const vector nums = {-3, -1, -5, -2};
+    auto gen = nums.generator();
+    const int max_val = maximum(std::move(gen), (std::numeric_limits<int>::min()));
+    EXPECT_EQ(max_val, -1);
+}
+
+TEST_F(GeneratorsTest, MaximumEmpty) {
+    auto gen = empty_vector.generator();
+    const int max_val = maximum(std::move(gen), 999);
+    EXPECT_EQ(max_val, 999); // 空生成器应该返回初始值
+}
+
+// 测试 minimum 函数
+TEST_F(GeneratorsTest, MinimumBasic) {
+    auto gen = int_array.generator();
+    const int min_val = minimum(std::move(gen), 100);
+    EXPECT_EQ(min_val, 1);
+}
+
+TEST_F(GeneratorsTest, MinimumWithNegative) {
+    const vector nums = {-3, -1, -5, -2};
+    auto gen = nums.generator();
+    const int min_val = minimum(std::move(gen), 0);
+    EXPECT_EQ(min_val, -5);
+}
+
+TEST_F(GeneratorsTest, MinimumEmpty) {
+    auto gen = empty_vector.generator();
+    const int min_val = minimum(std::move(gen), -999);
+    EXPECT_EQ(min_val, -999); // 空生成器应该返回初始值
+}
+
+// 测试 summation 函数
+TEST_F(GeneratorsTest, SummationBasic) {
+    auto gen = int_array.generator();
+    const int sum = summation(std::move(gen), 0);
+    EXPECT_EQ(sum, 15);
+}
+
+TEST_F(GeneratorsTest, SummationWithInitial) {
+    auto gen = int_array.generator();
+    const int sum = summation(std::move(gen), 10);
+    EXPECT_EQ(sum, 25); // 10 + 15 = 25
+}
+
+TEST_F(GeneratorsTest, SummationEmpty) {
+    auto gen = empty_vector.generator();
+    const int sum = summation(std::move(gen), 100);
+    EXPECT_EQ(sum, 100); // 空生成器应该返回初始值
+}
+
+// 测试 reduce 管道操作
+TEST_F(GeneratorsTest, ReducePipeOperation) {
+    const int result = int_array.generator()
+        | reduce(0, [](const int acc, const int val) { return acc + val; });
+    EXPECT_EQ(result, 15);
+}
+
+TEST_F(GeneratorsTest, MaximumPipeOperation) {
+    const int result = int_array.generator()
+        | maximum(0);
+    EXPECT_EQ(result, 5);
+}
+
+TEST_F(GeneratorsTest, MinimumPipeOperation) {
+    const int result = int_array.generator()
+        | minimum(100);
+    EXPECT_EQ(result, 1);
+}
+
+TEST_F(GeneratorsTest, SummationPipeOperation) {
+    const int result = int_array.generator()
+        | summation(0);
+    EXPECT_EQ(result, 15);
+}
+
+// 测试复杂的 reduce 操作
+TEST_F(GeneratorsTest, ComplexReduce) {
+    struct Stats {
+        int count;
+        int sum;
+        int min_val;
+        int max_val;
+
+        Stats() : count(0), sum(0), min_val(std::numeric_limits<int>::max()),
+                 max_val(std::numeric_limits<int>::min()) {}
+
+        Stats(const int c, const int s, const int min, const int max) : count(c), sum(s), min_val(min), max_val(max) {}
+
+        // 合并两个 Stats 对象
+        Stats operator+(const Stats& other) const {
+            return Stats{
+                this->count + other.count,
+                this->sum + other.sum,
+                std::min(this->min_val, other.min_val),
+                std::max(this->max_val, other.max_val)
+            };
+        }
+    };
+
+    auto gen = int_array.generator();
+
+    // 将每个 int 转换为 Stats
+    auto transformed = transforms(std::move(gen), [](const int val) {
+        return Stats{1, val, val, val}; // 每个元素转换为包含自身统计信息的 Stats
+    });
+
+    const Stats result = reduce(std::move(transformed), Stats{},
+        [](const Stats acc, const Stats val) {
+            return acc + val; // 使用重载的 + 操作符合并 Stats
+        });
+
+    EXPECT_EQ(result.count, 5);
+    EXPECT_EQ(result.sum, 15);
+    EXPECT_EQ(result.min_val, 1);
+    EXPECT_EQ(result.max_val, 5);
+}
+
+// 测试 reduce 的移动语义
+TEST_F(GeneratorsTest, ReduceMoveSemantics) {
+    const vector<std::string> strings = {"a", "b", "c"};
+    auto gen = strings.generator();
+
+    const std::string result = reduce(std::move(gen), std::string(""),
+        [](std::string acc, std::string val) {
+            return std::move(acc) + std::move(val);
+        });
+
+    EXPECT_EQ(result, "abc");
+}
+
+// 测试 reduce 性能
+TEST_F(GeneratorsTest, ReducePerformance) {
+    constexpr u_integer SIZE = 1000;
+    vector<int> large_vector;
+    for (u_integer i = 1; i <= SIZE; i++) {
+        large_vector.pushEnd(static_cast<int>(i));
+    }
+
+    auto gen = large_vector.generator();
+    const int sum = reduce(std::move(gen), 0, [](const int acc, const int val) {
+        return acc + val;
+    });
+
+    constexpr int expected_sum = SIZE * (SIZE + 1) / 2;
+    EXPECT_EQ(sum, expected_sum);
+}
+
+// 测试 reduce 与 transforms 组合
+TEST_F(GeneratorsTest, ReduceWithTransform) {
+    auto gen = int_array.generator();
+    auto transformed = transforms(std::move(gen), [](const int x) { return x * 2; });
+    const int sum = reduce(std::move(transformed), 0, [](const int acc, const int val) {
+        return acc + val;
+    });
+
+    EXPECT_EQ(sum, 30); // (1+2+3+4+5)*2 = 30
+}
+
+// 测试 reduce 与 filters 组合
+TEST_F(GeneratorsTest, ReduceWithFilter) {
+    auto gen = int_array.generator();
+    auto filtered = filters(std::move(gen), [](const int x) { return x % 2 == 0; });
+    const int sum = reduce(std::move(filtered), 0, [](const int acc, const int val) {
+        return acc + val;
+    });
+
+    EXPECT_EQ(sum, 6); // 2+4=6
+}
+
+// 测试管道操作中的 reduce
+TEST_F(GeneratorsTest, PipeWithReduce) {
+    const int result = int_array.generator()
+        | filters([](const int x) { return x > 2; })     // 3,4,5
+        | transforms([](const int x) { return x * 3; })  // 9,12,15
+        | reduce(0, [](const int acc, const int val) { return acc + val; }); // 9+12+15=36
+
+    EXPECT_EQ(result, 36);
+}
+
+// 测试 collect 管道操作
+TEST_F(GeneratorsTest, CollectPipeOperation) {
+    const auto set = int_array.generator()
+        | collect<int, hashSet<int>>();
+
+    EXPECT_EQ(set.size(), 5);
+    for (int i = 1; i <= 5; i++) {
+        EXPECT_TRUE(set.contains(i));
+    }
+}
+
+// 测试 list 管道操作
+TEST_F(GeneratorsTest, ListPipeOperation) {
+    const auto vec = int_array.generator()
+        | list<vector>();
+
+    EXPECT_EQ(vec.size(), 5);
+    for (u_integer i = 0; i < 5; i++) {
+        EXPECT_EQ(vec.get(i), int_array.get(i));
+    }
 }
