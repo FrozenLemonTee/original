@@ -918,7 +918,7 @@ inline void original::thread::sleep(const time::duration& d)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
 #elif ORIGINAL_COMPILER_MSVC
-    Sleep(static_cast<DWORD>(d.value(time::MILLISECOND)));
+    Sleep(d.toDWMilliseconds());
 #endif
 }
 
