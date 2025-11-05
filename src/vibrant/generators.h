@@ -27,15 +27,82 @@ namespace original {
     template<typename TYPE>
     coroutine::generator<couple<u_integer, TYPE>> enumerate(coroutine::generator<TYPE> gen);
 
+    /**
+     * @brief Reduces a generator to a single value using an accumulator function.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam Callback The accumulator function type.
+     * @param gen The generator to reduce.
+     * @param init Initial value for the reduction.
+     * @param c Binary accumulator function that combines the current result with the next element.
+     * @return The final reduced value.
+     * @details Applies the accumulator function sequentially to all elements of the generator,
+     *          starting with the initial value. The accumulator function should have the signature
+     *          `TYPE(TYPE accumulator, TYPE element)`.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{1, 2, 3, 4};
+     * auto gen = vec.generator();
+     * auto sum = reduce(gen, 0, [](int acc, int x) { return acc + x; });  // Returns 10
+     * @endcode
+     */
     template<typename TYPE, typename Callback>
     TYPE reduce(coroutine::generator<TYPE> gen, TYPE init, Callback&& c);
 
+    /**
+     * @brief Finds the maximum element in a generator.
+     * @tparam TYPE The type of elements in the generator.
+     * @param gen The generator to search.
+     * @param init Initial maximum value (typically the smallest possible value).
+     * @return The maximum element found in the generator.
+     * @details Compares all elements using the `maximum` function and returns the largest one.
+     *          If the generator is empty, returns the initial value.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{5, 2, 8, 1};
+     * auto gen = vec.generator();
+     * auto max_val = maximum(gen, 0);  // Returns 8
+     * @endcode
+     */
     template<typename TYPE>
     TYPE maximum(coroutine::generator<TYPE> gen, TYPE init);
 
+    /**
+     * @brief Finds the minimum element in a generator.
+     * @tparam TYPE The type of elements in the generator.
+     * @param gen The generator to search.
+     * @param init Initial minimum value (typically the largest possible value).
+     * @return The minimum element found in the generator.
+     * @details Compares all elements using the `minimum` function and returns the smallest one.
+     *          If the generator is empty, returns the initial value.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{5, 2, 8, 1};
+     * auto gen = vec.generator();
+     * auto min_val = minimum(gen, 100);  // Returns 1
+     * @endcode
+     */
     template<typename TYPE>
     TYPE minimum(coroutine::generator<TYPE> gen, TYPE init);
 
+    /**
+     * @brief Computes the sum of all elements in a generator.
+     * @tparam TYPE The type of elements in the generator.
+     * @param gen The generator to sum.
+     * @param init Initial sum value (typically 0 or identity element for addition).
+     * @return The sum of all elements in the generator.
+     * @details Adds all elements of the generator together using the `+` operator.
+     *          If the generator is empty, returns the initial value.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{1, 2, 3, 4};
+     * auto gen = vec.generator();
+     * auto total = summation(gen, 0);  // Returns 10
+     * @endcode
+     */
     template<typename TYPE>
     TYPE summation(coroutine::generator<TYPE> gen, TYPE init);
 
