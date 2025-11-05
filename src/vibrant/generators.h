@@ -27,6 +27,18 @@ namespace original {
     template<typename TYPE>
     coroutine::generator<couple<u_integer, TYPE>> enumerate(coroutine::generator<TYPE> gen);
 
+    template<typename TYPE, typename Callback>
+    TYPE reduce(coroutine::generator<TYPE> gen, TYPE init, Callback&& c);
+
+    template<typename TYPE>
+    TYPE maximum(coroutine::generator<TYPE> gen, TYPE init);
+
+    template<typename TYPE>
+    TYPE minimum(coroutine::generator<TYPE> gen, TYPE init);
+
+    template<typename TYPE>
+    TYPE summation(coroutine::generator<TYPE> gen, TYPE init);
+
     /**
      * @brief Transforms generator elements using a callable.
      * @tparam TYPE The input element type.
@@ -673,6 +685,35 @@ original::enumerate(coroutine::generator<TYPE> gen)
         co_yield {i, elem};
         i += 1;
     }
+}
+
+template <typename TYPE, typename Callback>
+TYPE original::reduce(coroutine::generator<TYPE> gen, TYPE init, Callback&& c)
+{
+    TYPE result = std::move(init);
+    for (auto elem : gen)
+    {
+        result = c(std::move(result), std::forward<TYPE>(elem));
+    }
+    return result;
+}
+
+template <typename TYPE>
+TYPE original::maximum(coroutine::generator<TYPE> gen, TYPE init)
+{
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE max, TYPE cur) { return maximum(max, cur); });
+}
+
+template <typename TYPE>
+TYPE original::minimum(coroutine::generator<TYPE> gen, TYPE init)
+{
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE min, TYPE cur) { return minimum(min, cur); });
+}
+
+template <typename TYPE>
+TYPE original::summation(coroutine::generator<TYPE> gen, TYPE init)
+{
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE sum, TYPE cur) { return std::move(sum) + std::move(cur); });
 }
 
 template <typename TYPE, typename Callback>
