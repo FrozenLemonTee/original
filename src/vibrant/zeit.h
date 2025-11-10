@@ -10,8 +10,13 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#endif
+#if ORIGINAL_PLATFORM_WINDOWS
 #include <Windows.h>
 #include <sysinfoapi.h>
+#endif
+#if ORIGINAL_PLATFORM_MACOS
+#include <sys/time.h>
 #endif
 
 #include <cmath>
@@ -1484,8 +1489,8 @@ original::time::point::now() {
     timespec ts{};
     clock_gettime(CLOCK_REALTIME, &ts);
     return point{ts};
-#elif ORIGINAL_PLATFORM_APPLE
-    struct timeval tv;
+#elif ORIGINAL_PLATFORM_MACOS
+    timeval tv{};
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
@@ -1676,14 +1681,14 @@ original::time::UTCTime::localZonedOffset() {
 #if ORIGINAL_PLATFORM_WINDOWS
     localtime_s(&local_tm, &t);
 #else
-    localtime_r(&t, &local_tm);
+    localtime_r(reinterpret_cast<const time_t*>(&t), &local_tm);
 #endif
 
     tm utc_tm{};
 #if ORIGINAL_PLATFORM_WINDOWS
     gmtime_s(&utc_tm, &t);
 #else
-    gmtime_r(&t, &utc_tm);
+    gmtime_r(reinterpret_cast<const time_t*>(&t), &utc_tm);
 #endif
 
     offset_seconds = static_cast<integer>(difftime(mktime(&local_tm), mktime(&utc_tm)));

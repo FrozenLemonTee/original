@@ -7,7 +7,9 @@ install/
 out/
 original/
 **/__pycache__/
+.cache/
 
 test.exe
 original.zip
 original.rar
+src/.DS_Store
