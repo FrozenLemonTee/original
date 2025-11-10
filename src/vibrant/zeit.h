@@ -10,8 +10,13 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#endif
+#if ORIGINAL_PLATFORM_WINDOWS
 #include <Windows.h>
 #include <sysinfoapi.h>
+#endif
+#if ORIGINAL_PLATFORM_MACOS
+#include <sys/time.h>
 #endif
 
 #include <cmath>
@@ -1484,8 +1489,8 @@ original::time::point::now() {
     timespec ts{};
     clock_gettime(CLOCK_REALTIME, &ts);
     return point{ts};
-#elif ORIGINAL_PLATFORM_APPLE
-    struct timeval tv;
+#elif ORIGINAL_PLATFORM_MACOS
+    timeval tv{};
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
