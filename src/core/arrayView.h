@@ -224,6 +224,29 @@ namespace original {
         arrayView subview(u_integer start, u_integer count) const;
 
         /**
+         * @brief Creates a slice of this view from start to end index
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return New arrayView covering the specified range [start, end)
+         * @throws outOfBoundError if start or end is out of bounds [0, count()]
+         *
+         * @details The slice method creates a new arrayView that represents a contiguous
+         *          subsequence of the original view. The range includes the element at
+         *          the start index and excludes the element at the end index, following
+         *          the common [start, end) half-open interval convention.
+         *
+         *          If start >= end, an empty arrayView is returned.
+         *          If start or end exceeds the view's bounds, an outOfBoundError is thrown.
+         *
+         * @example
+         * arrayView<int> view = ...; // view with elements [0, 1, 2, 3, 4]
+         * auto slice1 = view.slice(1, 4); // contains [1, 2, 3]
+         * auto slice2 = view.slice(2, 2); // empty view
+         * auto slice3 = view.slice(0, 5); // entire view
+         */
+        arrayView slice(u_integer start, u_integer end) const;
+
+        /**
          * @brief Destructor (default)
          */
         ~arrayView() = default;
@@ -371,14 +394,23 @@ original::arrayView<TYPE>::iterator original::arrayView<TYPE>::end()
 }
 
 template <typename TYPE>
-original::arrayView<TYPE> original::arrayView<TYPE>::subview(u_integer start, u_integer count) const
+original::arrayView<TYPE> original::arrayView<TYPE>::subview(const u_integer start, const u_integer count) const
 {
-    if (start + count > this->count_)
-        throw outOfBoundError(printable::formatStrings("Subview range [", start,
-                              ", ", start + count,
-                              "] out of bounds [0, ", this->count_, "]."));
+    return this->slice(start, start + count);
+}
 
-    return arrayView{const_cast<TYPE*>(this->data()) + start, count};
+template <typename TYPE>
+original::arrayView<TYPE> original::arrayView<TYPE>::slice(const u_integer start, const u_integer end) const
+{
+    if (start > this->count() || end > this->count())
+        throw outOfBoundError(
+            printable::formatStrings("Slice range [", start, ":", end,
+                                     "] out of bounds [0:", this->count(), "]."));
+
+    if (start >= end)
+        return arrayView{};
+
+    return arrayView{this->data_ + start, end - start};
 }
 
 #endif //ORIGINAL_ARRAYVIEW_H
