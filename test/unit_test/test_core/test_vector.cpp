@@ -629,7 +629,7 @@ TEST_F(VectorTest, SliceIterationFromVector) {
 
     // 测试范围for循环
     sum = 0;
-    for (int value : slice) {
+    for (const int& value : slice) {
         sum += value;
     }
     EXPECT_EQ(sum, 100);
