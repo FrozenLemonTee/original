@@ -207,6 +207,9 @@ public:
     template<typename TYPE>
     static std::string formatEnum(const TYPE& t);
 
+    template<typename... Args>
+    static std::string formatStrings(Args&&... args);
+
     friend std::ostream& operator<<(std::ostream& os, const printable& p);
 };
 
@@ -363,6 +366,14 @@ auto original::printable::formatEnum(const TYPE& t) -> std::string
     const std::string enum_name = typeid(t).name();
     const int enum_value = static_cast<std::underlying_type_t<TYPE>>(t);
     return enum_name + "(" + std::to_string(enum_value) + ")";
+}
+
+template <typename ... Args>
+std::string original::printable::formatStrings(Args&&... args)
+{
+    std::stringstream ss;
+    (ss << ... << formatString(std::forward<Args>(args)));
+    return ss.str();
 }
 
 template<>
