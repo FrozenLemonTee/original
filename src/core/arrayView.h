@@ -99,6 +99,13 @@ namespace original {
             iterator operator+(difference_type offset) const;
 
             /**
+             * @brief Subtraction operator
+             * @param offset Number of elements to retreat
+             * @return New iterator at the retreated position
+             */
+            iterator operator-(difference_type offset) const;
+
+            /**
              * @brief Difference operator
              * @param other Iterator to subtract from this one
              * @return Number of elements between the two iterators
@@ -311,6 +318,15 @@ original::arrayView<TYPE>::iterator::operator+(difference_type offset) const
     auto front = *this;
     front += offset;
     return front;
+}
+
+template <typename TYPE>
+original::arrayView<TYPE>::iterator
+original::arrayView<TYPE>::iterator::operator-(difference_type offset) const
+{
+    auto back = *this;
+    back -= offset;
+    return back;
 }
 
 template <typename TYPE>
