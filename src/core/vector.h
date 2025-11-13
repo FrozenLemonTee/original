@@ -276,6 +276,15 @@ namespace original {
          */
         vector(const std::initializer_list<TYPE>& list);
 
+        /**
+         * @brief Constructs a vector from an arrayView
+         * @param view The arrayView to copy elements from
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates a vector by copying elements from an arrayView.
+         *          The size of the created vector will be equal to the count of the arrayView,
+         *          and all elements will be copied from the view.
+         *          This allows seamless conversion between arrayView and vector types.
+         */
         explicit vector(arrayView<TYPE> view, ALLOC alloc = ALLOC{});
 
         /**
@@ -309,6 +318,12 @@ namespace original {
          */
         ~vector() override;
 
+        /**
+         * @brief Swaps the contents of two vectors
+         * @param other Vector to swap with
+         * @details Exchanges the size, capacity, internal buffer, and optionally the allocator between two vectors.
+         *          This operation is noexcept and provides strong exception guarantee.
+         */
         void swap(vector& other) noexcept;
 
         // ==================== Capacity Methods ====================
@@ -333,12 +348,39 @@ namespace original {
          */
         TYPE& data() const;
 
+        /**
+         * @brief Returns a view over the entire vector
+         * @return arrayView providing access to the vector elements
+         * @details The returned view provides a lightweight, non-owning interface
+         *          to the vector's elements. Changes to the vector may invalidate
+         *          the view if reallocation occurs.
+         */
         arrayView<TYPE> view();
 
+        /**
+         * @brief Returns a slice view of the vector
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         * @details The returned view provides access to elements in the range [start, end).
+         *          If start >= end, returns an empty view.
+         */
         arrayView<TYPE> slice(u_integer start, u_integer end);
 
+        /**
+         * @brief Returns a const view over the entire vector
+         * @return const arrayView providing read-only access to the vector elements
+         */
         arrayView<const TYPE> view() const;
 
+        /**
+         * @brief Returns a const slice view of the vector
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return const arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
         arrayView<const TYPE> slice(u_integer start, u_integer end) const;
 
         /**

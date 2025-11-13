@@ -161,16 +161,57 @@ namespace original {
          */
         array(const std::initializer_list<TYPE>& lst);
 
+        /**
+         * @brief Constructs an array from a built-in array (non-const version)
+         * @tparam N Size of the built-in array
+         * @param arr Reference to the built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from a built-in array.
+         *          The size of the created array will be N, and all elements will be copied from the source array.
+         */
         template<u_integer N>
         explicit constexpr array(TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
 
+        /**
+         * @brief Constructs an empty array from a zero-sized built-in array (non-const version)
+         * @param arr Reference to the zero-sized built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an empty array from a zero-sized built-in array.
+         *          The resulting array will have size 0.
+         */
         explicit constexpr array(TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
 
+        /**
+         * @brief Constructs an array from a built-in array (const version)
+         * @tparam N Size of the built-in array
+         * @param arr Reference to the const built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from a const built-in array.
+         *          The size of the created array will be N, and all elements will be copied from the source array.
+         *          This version allows construction from const arrays.
+         */
         template<u_integer N>
         explicit constexpr array(const TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
 
+        /**
+         * @brief Constructs an empty array from a zero-sized built-in array (const version)
+         * @param arr Reference to the const zero-sized built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an empty array from a const zero-sized built-in array.
+         *          The resulting array will have size 0.
+         *          This version allows construction from const arrays.
+         */
         explicit constexpr array(const TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
 
+        /**
+         * @brief Constructs an array from an arrayView
+         * @param view The arrayView to copy elements from
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from an arrayView.
+         *          The size of the created array will be equal to the count of the arrayView,
+         *          and all elements will be copied from the view.
+         *          This allows seamless conversion between arrayView and array types.
+         */
         explicit array(arrayView<TYPE> view, ALLOC alloc = ALLOC{});
 
         /**
@@ -229,12 +270,34 @@ namespace original {
          */
         TYPE& data() const;
 
+        /**
+         * @brief Returns a view over the entire array
+         * @return arrayView providing access to the array elements
+         */
         arrayView<TYPE> view();
 
+        /**
+         * @brief Returns a slice view of the array
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
         arrayView<TYPE> slice(u_integer start, u_integer end);
 
+        /**
+         * @brief Returns a const view over the entire array
+         * @return const arrayView providing read-only access to the array elements
+         */
         arrayView<const TYPE> view() const;
 
+        /**
+         * @brief Returns a const slice view of the array
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return const arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
         arrayView<const TYPE> slice(u_integer start, u_integer end) const;
 
         /**
