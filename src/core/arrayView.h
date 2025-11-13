@@ -103,7 +103,7 @@ namespace original {
              * @param other Iterator to subtract from this one
              * @return Number of elements between the two iterators
              */
-            std::size_t operator-(const iterator& other) const;
+            difference_type operator-(const iterator& other) const;
         };
 
         /**
@@ -314,10 +314,10 @@ original::arrayView<TYPE>::iterator::operator+(difference_type offset) const
 }
 
 template <typename TYPE>
-std::size_t
+original::arrayView<TYPE>::iterator::difference_type
 original::arrayView<TYPE>::iterator::operator-(const iterator& other) const
 {
-    return static_cast<std::size_t>(this->data_ - other.data_);
+    return static_cast<difference_type>(this->data_ - other.data_);
 }
 
 template <typename TYPE>
