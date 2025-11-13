@@ -412,7 +412,7 @@ inline std::ostream& original::operator<<(std::ostream& os, const printable& p){
 
 template<typename T>
 requires original::ExtendsOf<original::printable, T>
-std::string std::to_string(const T& t)
+std::string std::to_string(const T& t) // NOLINT
 {
     return original::printable::formatString(t);
 }
