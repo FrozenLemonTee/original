@@ -713,7 +713,7 @@ TEST_F(VectorTest, ComplexTypeWithArrayView) {
 
 TEST_F(VectorTest, PerformanceTestWithArrayView) {
     // 性能测试：使用arrayView进行批量操作
-    constexpr original::u_integer dataSize = 10000;
+    constexpr original::u_integer dataSize = 100000;
     original::vector<int> vec;
 
     // 填充数据
