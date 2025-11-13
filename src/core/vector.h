@@ -276,6 +276,8 @@ namespace original {
          */
         vector(const std::initializer_list<TYPE>& list);
 
+        explicit vector(arrayView<TYPE> view, ALLOC alloc = ALLOC{});
+
         /**
          * @brief Constructs a vector from an array.
          * @param arr The array to construct the vector from.
@@ -330,6 +332,14 @@ namespace original {
          * @return A reference to the first element.
          */
         TYPE& data() const;
+
+        arrayView<TYPE> view();
+
+        arrayView<TYPE> slice(u_integer start, u_integer end);
+
+        arrayView<const TYPE> view() const;
+
+        arrayView<const TYPE> slice(u_integer start, u_integer end) const;
 
         /**
          * @brief Gets an element at the specified index.
@@ -634,21 +644,20 @@ namespace std {
         this->vectorInit();
     }
 
-template<typename TYPE, typename ALLOC>
-template<typename... ARGS>
-original::vector<TYPE, ALLOC>::vector(u_integer size, ALLOC alloc, ARGS&&... args)
+    template<typename TYPE, typename ALLOC>
+    template<typename... ARGS>
+    original::vector<TYPE, ALLOC>::vector(u_integer size, ALLOC alloc, ARGS&&... args)
     : vector(size, std::move(alloc)) {
-    this->body = this->allocate(this->max_size);
-    for (u_integer i = 0; i < this->size_; ++i) {
-        this->construct(&this->body[this->toInnerIdx(i)], std::forward<ARGS>(args)...);
+        for (u_integer i = 0; i < this->size_; ++i) {
+            this->construct(&this->body[this->toInnerIdx(i)], std::forward<ARGS>(args)...);
+        }
     }
-}
 
-template<typename TYPE, typename ALLOC>
+    template<typename TYPE, typename ALLOC>
     original::vector<TYPE, ALLOC>::vector(const u_integer size, ALLOC alloc)
-    : baseList<TYPE, ALLOC>(std::move(alloc)), size_(size),
-      max_size(size * 4 / 3), inner_begin(size / 3 >= 1 ? size / 3 - 1 : 0), body(nullptr) {
-}
+        : baseList<TYPE, ALLOC>(std::move(alloc)), size_(size),
+        max_size(size * 4 / 3), inner_begin(size / 3 >= 1 ? size / 3 - 1 : 0), body(this->allocate(this->max_size)) {
+    }
 
     template <typename TYPE, typename ALLOC>
     original::vector<TYPE, ALLOC>::vector(const vector& other) : vector(){
@@ -663,6 +672,14 @@ template<typename TYPE, typename ALLOC>
         {
             this->setElem(this->inner_begin + this->size(), e);
             this->size_ += 1;
+        }
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::vector<TYPE, ALLOC>::vector(arrayView<TYPE> view, ALLOC alloc) : vector(view.count(), std::move(alloc))
+    {
+        for (u_integer i = 0; i < this->size(); ++i) {
+            this->construct(&this->body[this->toInnerIdx(i)], view[i]);
         }
     }
 
@@ -739,6 +756,47 @@ template<typename TYPE, typename ALLOC>
     template <typename TYPE, typename ALLOC>
     auto original::vector<TYPE, ALLOC>::data() const -> TYPE& {
         return this->body[this->toInnerIdx(0)];
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE> original::vector<TYPE, ALLOC>::view()
+    {
+        return arrayView<TYPE>{&this->data(), this->size()};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE> original::vector<TYPE, ALLOC>::slice(u_integer start, u_integer end)
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<TYPE>{};
+
+        return arrayView<TYPE>{&this->data() + start, end - start};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE> original::vector<TYPE, ALLOC>::view() const
+    {
+        return arrayView<const TYPE>{&this->data(), this->size()};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE>
+    original::vector<TYPE, ALLOC>::slice(u_integer start, u_integer end) const
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<const TYPE>{};
+
+        return arrayView<const TYPE>{&this->data() + start, end - start};
     }
 
     template <typename TYPE, typename ALLOC>
