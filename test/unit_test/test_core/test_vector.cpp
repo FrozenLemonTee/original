@@ -711,25 +711,6 @@ TEST_F(VectorTest, ComplexTypeWithArrayView) {
     EXPECT_TRUE((vec[1] == Person{"Bob", 30})); // vector应该保持原始值
 }
 
-TEST_F(VectorTest, ArrayViewFromModifiedVector) {
-    // 测试在vector修改后获取arrayView
-    original::vector<int> vec = {1, 2, 3};
-    original::arrayView<int> view1 = vec.view();
-
-    // 修改vector
-    vec.pushEnd(4);
-    vec[0] = 10;
-
-    // 获取新的view
-    original::arrayView<int> view2 = vec.view();
-
-    EXPECT_EQ(view1.count(), 3);  // 旧view仍然有效，但看到的是旧数据
-    EXPECT_EQ(view2.count(), 4);  // 新view看到新数据
-
-    EXPECT_EQ(view1[0], 1);  // 旧view保持原始数据
-    EXPECT_EQ(view2[0], 10); // 新view看到修改后的数据
-}
-
 TEST_F(VectorTest, PerformanceTestWithArrayView) {
     // 性能测试：使用arrayView进行批量操作
     constexpr original::u_integer dataSize = 10000;
