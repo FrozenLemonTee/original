@@ -648,8 +648,11 @@ namespace std {
     template<typename... ARGS>
     original::vector<TYPE, ALLOC>::vector(u_integer size, ALLOC alloc, ARGS&&... args)
     : vector(size, std::move(alloc)) {
-        for (u_integer i = 0; i < this->size_; ++i) {
-            this->construct(&this->body[this->toInnerIdx(i)], std::forward<ARGS>(args)...);
+        for (u_integer i = 0; i < this->max_size; ++i) {
+            if (i >= this->inner_begin && i < this->inner_begin + this->size())
+                this->construct(&this->body[i], std::forward<ARGS>(args)...);
+            else
+                this->construct(&this->body[i], TYPE{});
         }
     }
 
@@ -678,8 +681,11 @@ namespace std {
     template <typename TYPE, typename ALLOC>
     original::vector<TYPE, ALLOC>::vector(arrayView<TYPE> view, ALLOC alloc) : vector(view.count(), std::move(alloc))
     {
-        for (u_integer i = 0; i < this->size(); ++i) {
-            this->construct(&this->body[this->toInnerIdx(i)], view[i]);
+        for (u_integer i = 0; i < this->max_size; ++i) {
+            if (i >= this->inner_begin && i < this->inner_begin + this->size())
+                this->construct(&this->body[i], view[i - this->inner_begin]);
+            else
+                this->construct(&this->body[i], TYPE{});
         }
     }
 
