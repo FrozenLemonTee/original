@@ -467,7 +467,7 @@ TEST_F(VectorTest, ConstructFromArrayViewWithAllocator) {
     // 测试从arrayView构造vector并指定分配器
     std::string strings[3] = {"hello", "world", "test"};
     const original::arrayView view(strings, 3);
-    original::vector vec(view);
+    original::vector<std::string, original::objPoolAllocator<std::string>> vec(view);
 
     EXPECT_EQ(vec.size(), 3);
     for (int i = 0; i < 3; ++i) {
