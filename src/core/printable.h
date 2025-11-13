@@ -207,6 +207,9 @@ public:
     template<typename TYPE>
     static std::string formatEnum(const TYPE& t);
 
+    template<typename... Args>
+    static std::string formatStrings(Args&&... args);
+
     friend std::ostream& operator<<(std::ostream& os, const printable& p);
 };
 
@@ -365,6 +368,14 @@ auto original::printable::formatEnum(const TYPE& t) -> std::string
     return enum_name + "(" + std::to_string(enum_value) + ")";
 }
 
+template <typename ... Args>
+std::string original::printable::formatStrings(Args&&... args)
+{
+    std::stringstream ss;
+    (ss << ... << formatString(std::forward<Args>(args)));
+    return ss.str();
+}
+
 template<>
 inline auto original::printable::formatString<std::nullptr_t>(const std::nullptr_t&) -> std::string
 {
@@ -412,7 +423,7 @@ inline std::ostream& original::operator<<(std::ostream& os, const printable& p){
 
 template<typename T>
 requires original::ExtendsOf<original::printable, T>
-std::string std::to_string(const T& t)
+std::string std::to_string(const T& t) // NOLINT
 {
     return original::printable::formatString(t);
 }

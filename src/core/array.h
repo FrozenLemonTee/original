@@ -4,6 +4,7 @@
 
 #include <initializer_list>
 #include "allocator.h"
+#include "arrayView.h"
 #include "config.h"
 #include "baseArray.h"
 #include "iterationStream.h"
@@ -161,6 +162,59 @@ namespace original {
         array(const std::initializer_list<TYPE>& lst);
 
         /**
+         * @brief Constructs an array from a built-in array (non-const version)
+         * @tparam N Size of the built-in array
+         * @param arr Reference to the built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from a built-in array.
+         *          The size of the created array will be N, and all elements will be copied from the source array.
+         */
+        template<u_integer N>
+        explicit constexpr array(TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
+
+        /**
+         * @brief Constructs an empty array from a zero-sized built-in array (non-const version)
+         * @param arr Reference to the zero-sized built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an empty array from a zero-sized built-in array.
+         *          The resulting array will have size 0.
+         */
+        explicit constexpr array(TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
+
+        /**
+         * @brief Constructs an array from a built-in array (const version)
+         * @tparam N Size of the built-in array
+         * @param arr Reference to the const built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from a const built-in array.
+         *          The size of the created array will be N, and all elements will be copied from the source array.
+         *          This version allows construction from const arrays.
+         */
+        template<u_integer N>
+        explicit constexpr array(const TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
+
+        /**
+         * @brief Constructs an empty array from a zero-sized built-in array (const version)
+         * @param arr Reference to the const zero-sized built-in array
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an empty array from a const zero-sized built-in array.
+         *          The resulting array will have size 0.
+         *          This version allows construction from const arrays.
+         */
+        explicit constexpr array(const TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
+
+        /**
+         * @brief Constructs an array from an arrayView
+         * @param view The arrayView to copy elements from
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates an array by copying elements from an arrayView.
+         *          The size of the created array will be equal to the count of the arrayView,
+         *          and all elements will be copied from the view.
+         *          This allows seamless conversion between arrayView and array types.
+         */
+        explicit array(arrayView<TYPE> view, ALLOC alloc = ALLOC{});
+
+        /**
          * @brief Copy constructor.
          * @param other The array to copy from.
          * @details Initializes the array by copying the elements from another array.
@@ -215,6 +269,36 @@ namespace original {
          * @throws outOfBoundError If the array is empty.
          */
         TYPE& data() const;
+
+        /**
+         * @brief Returns a view over the entire array
+         * @return arrayView providing access to the array elements
+         */
+        arrayView<TYPE> view();
+
+        /**
+         * @brief Returns a slice view of the array
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
+        arrayView<TYPE> slice(u_integer start, u_integer end);
+
+        /**
+         * @brief Returns a const view over the entire array
+         * @return const arrayView providing read-only access to the array elements
+         */
+        arrayView<const TYPE> view() const;
+
+        /**
+         * @brief Returns a const slice view of the array
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return const arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
+        arrayView<const TYPE> slice(u_integer start, u_integer end) const;
 
         /**
          * @brief Retrieves an element at a specified index.
@@ -399,6 +483,41 @@ namespace std {
         }
     }
 
+    template <typename TYPE, typename ALLOC>
+    template <original::u_integer N>
+    constexpr original::array<TYPE, ALLOC>::array(TYPE(& arr)[N], ALLOC alloc) noexcept : array(N, std::move(alloc))
+    {
+        for (u_integer i = 0; i < N; ++i)
+        {
+            this->setElem(i, arr[i]);
+        }
+    }
+
+    template <typename TYPE, typename ALLOC>
+    constexpr original::array<TYPE, ALLOC>::array(TYPE(&)[0], ALLOC alloc) noexcept : array(0, std::move(alloc)) {}
+
+    template <typename TYPE, typename ALLOC>
+    template <original::u_integer N>
+    constexpr original::array<TYPE, ALLOC>::array(const TYPE(& arr)[N], ALLOC alloc) noexcept : array(N, std::move(alloc))
+    {
+        for (u_integer i = 0; i < N; ++i)
+        {
+            this->setElem(i, arr[i]);
+        }
+    }
+
+    template <typename TYPE, typename ALLOC>
+    constexpr original::array<TYPE, ALLOC>::array(const TYPE(&)[0], ALLOC alloc) noexcept : array(0, std::move(alloc)) {}
+
+    template <typename TYPE, typename ALLOC>
+    original::array<TYPE, ALLOC>::array(arrayView<TYPE> view, ALLOC alloc) : array(view.count(), std::move(alloc))
+    {
+        for (u_integer i = 0; i < view.count(); ++i)
+        {
+            this->setElem(i, view[i]);
+        }
+    }
+
     template<typename TYPE, typename ALLOC>
     original::array<TYPE, ALLOC>::array(const array& other)
         : array(other.size()) {
@@ -470,6 +589,48 @@ namespace std {
     template<typename TYPE, typename ALLOC>
     TYPE& original::array<TYPE, ALLOC>::data() const {
         return this->body[0];
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE> original::array<TYPE, ALLOC>::view()
+    {
+        return arrayView<TYPE>{this->body, this->size_};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE>
+    original::array<TYPE, ALLOC>::slice(u_integer start, u_integer end)
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<TYPE>{};
+
+        return arrayView<TYPE>{this->body + start, end - start};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE> original::array<TYPE, ALLOC>::view() const
+    {
+        return arrayView<const TYPE>{this->body, this->size_};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE>
+    original::array<TYPE, ALLOC>::slice(u_integer start, u_integer end) const
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<const TYPE>{};
+
+        return arrayView<const TYPE>{this->body + start, end - start};
     }
 
     template<typename TYPE, typename ALLOC>

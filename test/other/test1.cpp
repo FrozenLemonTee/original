@@ -210,5 +210,12 @@ int main(){
     std::cout << "------" << std::endl;
     std::cout << p.toHash() << std::endl;
     std::cout << hash2(p) << std::endl;
+    int raw[0] = {};
+    original::arrayView<int> view{raw};
+    std::cout << original::printable::formatStrings("Empty view: ", view.empty()) << std::endl;
+    std::cout << original::printable::formatStrings("Letters: ", 'a', 'b', 'c', 'd', "......") << std::endl;
+    std::cout << original::printable::formatStrings("Slice range [", 6,
+                              ", ", 6 + 1,
+                              "] out of bounds [0, 5].") << std::endl;
     return 0;
 }
