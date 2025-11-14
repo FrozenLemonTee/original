@@ -116,7 +116,7 @@ array("hello world!")
 
 ##### 容器接口：
 
-格式化输出接口 printable，元素比较接口 comparable，堆对象深拷贝接口 cloneable，可迭代接口 iterable
+格式化输出接口 printable，元素比较接口 comparable，堆对象深拷贝接口 cloneable，可迭代接口 iterable，数组视图 arrayView
 
 ##### 算法库：
 
