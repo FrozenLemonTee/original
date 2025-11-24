@@ -907,36 +907,37 @@ inline void original::thread::sleep(const time::duration& d)
     if (d.value() < 0)
         return;
 
-#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
+#if defined(ORIGINAL_PLATFORM_LINUX)
     const timespec ts = d.toTimespec();
-    errno = 0;
-
-    #if ORIGINAL_PLATFORM_MACOS || ORIGINAL_PLATFORM_WINDOWS
-        timespec rem = ts;
-        int code;
-
-        do {
-            code = nanosleep(&rem, &rem);
-        } while (code == -1 && errno == EINTR);
-
-        if (code != 0)
-        throw sysError("Failed to sleep thread (nanosleep returned " +
-                       formatString(code) + ", errno: " + formatString(errno) + ").");
-    #endif
-
-#elif ORIGINAL_PLATFORM_LINUX
     int code = clock_nanosleep(CLOCK_REALTIME, 0, &ts, nullptr);
+
     if (code != 0 && (errno == EINVAL || errno == ENOSYS)) {
         code = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, nullptr);
     }
+
     if (code != 0)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
+#elif defined(ORIGINAL_PLATFORM_MACOS)
+    const timespec ts = d.toTimespec();
+    timespec rem = ts;
+    int code;
 
-#elif ORIGINAL_COMPILER_MSVC
+    do {
+        errno = 0;
+        code = nanosleep(&rem, &rem);
+    } while (code == -1 && errno == EINTR);
+
+    if (code != 0)
+        throw sysError("Failed to sleep thread (nanosleep returned " +
+                       formatString(code) + ", errno: " + formatString(errno) + ").");
+#elif defined(ORIGINAL_PLATFORM_WINDOWS)
+
     Sleep(d.toDWMilliseconds());
-#endif
 
+#else
+    #error Unsupported platform
+#endif
 }
 
 inline original::thread::thread()
