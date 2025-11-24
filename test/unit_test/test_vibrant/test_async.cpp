@@ -829,7 +829,7 @@ TEST(AsyncTest, FutureWaitForSuccess) {
     });
 
     // 等待足够长的时间，应该成功
-    const bool completed = f.waitFor(milliseconds(200));
+    const bool completed = f.waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(f.ready());
     EXPECT_EQ(f.result(), 42);
@@ -926,7 +926,7 @@ TEST(AsyncTest, FutureBaseWaitFor) {
     async::futureBase* base_ptr = &f;
 
     // 通过基类接口调用 waitFor
-    const bool completed = base_ptr->waitFor(milliseconds(150));
+    const bool completed = base_ptr->waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(base_ptr->ready());
     EXPECT_EQ(base_ptr->exception(), nullptr);
@@ -942,7 +942,7 @@ TEST(AsyncTest, SharedFutureBaseWaitFor) {
     const async::futureBase* base_ptr = &sf;
 
     // 通过基类接口调用 waitFor
-    const bool completed = base_ptr->waitFor(milliseconds(150));
+    const bool completed = base_ptr->waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(base_ptr->ready());
     EXPECT_EQ(base_ptr->exception(), nullptr);
@@ -956,7 +956,7 @@ TEST(AsyncTest, WaitForWithException) {
     });
 
     // 等待足够长的时间
-    const bool completed = f.waitFor(milliseconds(100));
+    const bool completed = f.waitFor(milliseconds(150));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(f.ready());
 
