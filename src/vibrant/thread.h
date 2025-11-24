@@ -907,7 +907,7 @@ inline void original::thread::sleep(const time::duration& d)
     if (d.value() < 0)
         return;
 
-#if defined(ORIGINAL_PLATFORM_LINUX)
+#if ORIGINAL_PLATFORM_LINUX
     const timespec ts = d.toTimespec();
     int code = clock_nanosleep(CLOCK_REALTIME, 0, &ts, nullptr);
 
@@ -918,7 +918,7 @@ inline void original::thread::sleep(const time::duration& d)
     if (code != 0)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
-#elif defined(ORIGINAL_PLATFORM_MACOS)
+#elif ORIGINAL_PLATFORM_MACOS
     const timespec ts = d.toTimespec();
     timespec rem = ts;
     int code;
@@ -931,7 +931,7 @@ inline void original::thread::sleep(const time::duration& d)
     if (code != 0)
         throw sysError("Failed to sleep thread (nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
-#elif defined(ORIGINAL_PLATFORM_WINDOWS)
+#elif ORIGINAL_PLATFORM_WINDOWS
 
     Sleep(d.toDWMilliseconds());
 
