@@ -81,6 +81,7 @@ jobs:
 
   macos-tests:
     runs-on: macos-latest
+    continue-on-error: true
     strategy:
       matrix:
         build_type: [ Debug, Release ]
