@@ -57,6 +57,7 @@
 #include "algorithms.h"
 #include "allocator.h"
 #include "array.h"
+#include "arrayView.h"
 #include "autoPtr.h"
 #include "baseArray.h"
 #include "baseList.h"

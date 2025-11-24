@@ -47,8 +47,8 @@ namespace original {
     template<u_integer MAX_CNT = 1>
     class semaphore {
         u_integer count_;           ///< Current semaphore count
-        pMutex mutex_;              ///< Mutex for synchronization
-        pCondition condition_;      ///< Condition variable for waiting
+        mutex mutex_;              ///< Mutex for synchronization
+        condition condition_;      ///< Condition variable for waiting
 
     public:
         /**
@@ -128,8 +128,8 @@ namespace original {
     template<>
     class semaphore<0> {
         u_integer count_;           ///< Current semaphore count (unbounded)
-        pMutex mutex_;              ///< Mutex for synchronization
-        pCondition condition_;      ///< Condition variable for waiting
+        mutex mutex_;              ///< Mutex for synchronization
+        condition condition_;      ///< Condition variable for waiting
 
     public:
         /**

@@ -11,7 +11,7 @@ int main(){
     std::printf("%s", arr1.toString(true).c_str());
     original::array arr2 = {1, 4, 5, 3, 8};
     std::printf("%s", arr2.toString(true).c_str());
-    std::printf("max(5,3):%d\n", original::max(5, 3));
+    std::printf("maximum(5,3):%d\n", original::maximum<int>(5, 3));
     auto arr3 = arr2;
     std::printf("arr3:%p, arr2:%p\n", &arr3, &arr2);
     std::printf("arr3:%s\narr2:%s\n", arr3.toString(false).c_str(), arr2.toString(false).c_str());
@@ -210,5 +210,12 @@ int main(){
     std::cout << "------" << std::endl;
     std::cout << p.toHash() << std::endl;
     std::cout << hash2(p) << std::endl;
+    int raw[0] = {};
+    original::arrayView<int> view{raw};
+    std::cout << original::printable::formatStrings("Empty view: ", view.empty()) << std::endl;
+    std::cout << original::printable::formatStrings("Letters: ", 'a', 'b', 'c', 'd', "......") << std::endl;
+    std::cout << original::printable::formatStrings("Slice range [", 6,
+                              ", ", 6 + 1,
+                              "] out of bounds [0, 5].") << std::endl;
     return 0;
 }

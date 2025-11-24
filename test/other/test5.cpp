@@ -153,5 +153,14 @@ int main(){
         ts1.remove(i);
     }
     std::cout << ts1 << std::endl;
+    auto jm = original::JMap<std::string, int>{};
+    auto vec = original::vector<std::string> {"foo", "baz", "cak", "baz", "baz", "ee", "m", "baz", "foo"};
+    for (const auto& e: vec) {
+        if (jm.containsKey(e)){
+            jm[e] += 1;
+        } else {
+            jm.add(e, 1);
+        }
+    }
     return 0;
 }

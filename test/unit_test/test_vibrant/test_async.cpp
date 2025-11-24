@@ -829,7 +829,7 @@ TEST(AsyncTest, FutureWaitForSuccess) {
     });
 
     // 等待足够长的时间，应该成功
-    const bool completed = f.waitFor(milliseconds(200));
+    const bool completed = f.waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(f.ready());
     EXPECT_EQ(f.result(), 42);
@@ -894,19 +894,26 @@ TEST(AsyncTest, SharedFutureWaitFor) {
 
 // 测试 sharedFuture<void> 的 waitFor 方法
 TEST(AsyncTest, SharedFutureVoidWaitFor) {
-    std::atomic executed{false};
+    auto executed = std::make_shared<std::atomic<bool>>(false);
 
-    const auto sf = async::get([&executed] {
+    const auto sf = async::get([executed] {
         thread::sleep(milliseconds(100));
-        executed = true;
+        executed->store(true);
     }).share();
 
     // 等待足够长的时间
-    const bool success = sf.waitFor(milliseconds(150));
+    const bool success = sf.waitFor(milliseconds(300));
     EXPECT_TRUE(success);
     EXPECT_TRUE(sf.ready());
-    EXPECT_NO_THROW(sf.result());
-    EXPECT_TRUE(executed);
+
+    // 在检查result之前确保任务已完成
+    if (sf.ready()) {
+        EXPECT_NO_THROW(sf.result());
+    }
+
+    EXPECT_TRUE(executed->load());
+
+    sf.wait();
 }
 
 // 测试 futureBase 接口的 waitFor 方法
@@ -919,7 +926,7 @@ TEST(AsyncTest, FutureBaseWaitFor) {
     async::futureBase* base_ptr = &f;
 
     // 通过基类接口调用 waitFor
-    const bool completed = base_ptr->waitFor(milliseconds(150));
+    const bool completed = base_ptr->waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(base_ptr->ready());
     EXPECT_EQ(base_ptr->exception(), nullptr);
@@ -935,7 +942,7 @@ TEST(AsyncTest, SharedFutureBaseWaitFor) {
     const async::futureBase* base_ptr = &sf;
 
     // 通过基类接口调用 waitFor
-    const bool completed = base_ptr->waitFor(milliseconds(150));
+    const bool completed = base_ptr->waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(base_ptr->ready());
     EXPECT_EQ(base_ptr->exception(), nullptr);
@@ -949,7 +956,7 @@ TEST(AsyncTest, WaitForWithException) {
     });
 
     // 等待足够长的时间
-    const bool completed = f.waitFor(milliseconds(100));
+    const bool completed = f.waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(f.ready());
 

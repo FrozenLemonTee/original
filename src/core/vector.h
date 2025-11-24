@@ -277,6 +277,17 @@ namespace original {
         vector(const std::initializer_list<TYPE>& list);
 
         /**
+         * @brief Constructs a vector from an arrayView
+         * @param view The arrayView to copy elements from
+         * @param alloc Allocator instance to use for memory management
+         * @details This constructor creates a vector by copying elements from an arrayView.
+         *          The size of the created vector will be equal to the count of the arrayView,
+         *          and all elements will be copied from the view.
+         *          This allows seamless conversion between arrayView and vector types.
+         */
+        explicit vector(arrayView<TYPE> view, ALLOC alloc = ALLOC{});
+
+        /**
          * @brief Constructs a vector from an array.
          * @param arr The array to construct the vector from.
          */
@@ -307,6 +318,12 @@ namespace original {
          */
         ~vector() override;
 
+        /**
+         * @brief Swaps the contents of two vectors
+         * @param other Vector to swap with
+         * @details Exchanges the size, capacity, internal buffer, and optionally the allocator between two vectors.
+         *          This operation is noexcept and provides strong exception guarantee.
+         */
         void swap(vector& other) noexcept;
 
         // ==================== Capacity Methods ====================
@@ -330,6 +347,41 @@ namespace original {
          * @return A reference to the first element.
          */
         TYPE& data() const;
+
+        /**
+         * @brief Returns a view over the entire vector
+         * @return arrayView providing access to the vector elements
+         * @details The returned view provides a lightweight, non-owning interface
+         *          to the vector's elements. Changes to the vector may invalidate
+         *          the view if reallocation occurs.
+         */
+        arrayView<TYPE> view();
+
+        /**
+         * @brief Returns a slice view of the vector
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         * @details The returned view provides access to elements in the range [start, end).
+         *          If start >= end, returns an empty view.
+         */
+        arrayView<TYPE> slice(u_integer start, u_integer end);
+
+        /**
+         * @brief Returns a const view over the entire vector
+         * @return const arrayView providing read-only access to the vector elements
+         */
+        arrayView<const TYPE> view() const;
+
+        /**
+         * @brief Returns a const slice view of the vector
+         * @param start Starting index of the slice (inclusive)
+         * @param end Ending index of the slice (exclusive)
+         * @return const arrayView covering the specified range
+         * @throws outOfBoundError if the range is invalid
+         */
+        arrayView<const TYPE> slice(u_integer start, u_integer end) const;
 
         /**
          * @brief Gets an element at the specified index.
@@ -634,21 +686,23 @@ namespace std {
         this->vectorInit();
     }
 
-template<typename TYPE, typename ALLOC>
-template<typename... ARGS>
-original::vector<TYPE, ALLOC>::vector(u_integer size, ALLOC alloc, ARGS&&... args)
+    template<typename TYPE, typename ALLOC>
+    template<typename... ARGS>
+    original::vector<TYPE, ALLOC>::vector(u_integer size, ALLOC alloc, ARGS&&... args)
     : vector(size, std::move(alloc)) {
-    this->body = this->allocate(this->max_size);
-    for (u_integer i = 0; i < this->size_; ++i) {
-        this->construct(&this->body[this->toInnerIdx(i)], std::forward<ARGS>(args)...);
+        for (u_integer i = 0; i < this->max_size; ++i) {
+            if (i >= this->inner_begin && i < this->inner_begin + this->size())
+                this->construct(&this->body[i], std::forward<ARGS>(args)...);
+            else
+                this->construct(&this->body[i], TYPE{});
+        }
     }
-}
 
-template<typename TYPE, typename ALLOC>
+    template<typename TYPE, typename ALLOC>
     original::vector<TYPE, ALLOC>::vector(const u_integer size, ALLOC alloc)
-    : baseList<TYPE, ALLOC>(std::move(alloc)), size_(size),
-      max_size(size * 4 / 3), inner_begin(size / 3 >= 1 ? size / 3 - 1 : 0), body(nullptr) {
-}
+        : baseList<TYPE, ALLOC>(std::move(alloc)), size_(size),
+        max_size(size * 4 / 3), inner_begin(size / 3 >= 1 ? size / 3 - 1 : 0), body(this->allocate(this->max_size)) {
+    }
 
     template <typename TYPE, typename ALLOC>
     original::vector<TYPE, ALLOC>::vector(const vector& other) : vector(){
@@ -663,6 +717,17 @@ template<typename TYPE, typename ALLOC>
         {
             this->setElem(this->inner_begin + this->size(), e);
             this->size_ += 1;
+        }
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::vector<TYPE, ALLOC>::vector(arrayView<TYPE> view, ALLOC alloc) : vector(view.count(), std::move(alloc))
+    {
+        for (u_integer i = 0; i < this->max_size; ++i) {
+            if (i >= this->inner_begin && i < this->inner_begin + this->size())
+                this->construct(&this->body[i], view[i - this->inner_begin]);
+            else
+                this->construct(&this->body[i], TYPE{});
         }
     }
 
@@ -739,6 +804,47 @@ template<typename TYPE, typename ALLOC>
     template <typename TYPE, typename ALLOC>
     auto original::vector<TYPE, ALLOC>::data() const -> TYPE& {
         return this->body[this->toInnerIdx(0)];
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE> original::vector<TYPE, ALLOC>::view()
+    {
+        return arrayView<TYPE>{&this->data(), this->size()};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<TYPE> original::vector<TYPE, ALLOC>::slice(u_integer start, u_integer end)
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<TYPE>{};
+
+        return arrayView<TYPE>{&this->data() + start, end - start};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE> original::vector<TYPE, ALLOC>::view() const
+    {
+        return arrayView<const TYPE>{&this->data(), this->size()};
+    }
+
+    template <typename TYPE, typename ALLOC>
+    original::arrayView<const TYPE>
+    original::vector<TYPE, ALLOC>::slice(u_integer start, u_integer end) const
+    {
+        if (start > this->size() || end > this->size())
+            throw outOfBoundError(
+                printable::formatStrings("Slice range [", start, ":", end,
+                                         "] out of bounds [0:", this->size(), "]."));
+
+        if (start >= end)
+            return arrayView<const TYPE>{};
+
+        return arrayView<const TYPE>{&this->data() + start, end - start};
     }
 
     template <typename TYPE, typename ALLOC>

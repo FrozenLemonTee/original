@@ -199,7 +199,7 @@ namespace original
             s->next();
         }
         if (e->isValid()){
-            dis = std::numeric_limits<integer>::max();
+            dis = (std::numeric_limits<integer>::max)();
         }
         return dis;
     }
@@ -302,15 +302,15 @@ namespace original
         auto* other_it = dynamic_cast<const stepIterator*>(&other);
         if (other_it == nullptr)
             return this > &other ?
-                std::numeric_limits<integer>::max() :
-                std::numeric_limits<integer>::min();
+                (std::numeric_limits<integer>::max)() :
+                (std::numeric_limits<integer>::min)();
         if (const integer pos_dis = ptrDistance(other_it, this);
-            pos_dis != std::numeric_limits<integer>::max()) return pos_dis;
+            pos_dis != (std::numeric_limits<integer>::max)()) return pos_dis;
         if (const integer neg_dis = ptrDistance(this, other_it);
-            neg_dis != std::numeric_limits<integer>::max()) return -neg_dis;
+            neg_dis != (std::numeric_limits<integer>::max)()) return -neg_dis;
         return this->_ptr > other_it->_ptr ?
-            std::numeric_limits<integer>::max() :
-            std::numeric_limits<integer>::min();
+            (std::numeric_limits<integer>::max)() :
+            (std::numeric_limits<integer>::min)();
     }
 
     template <typename TYPE>

@@ -5,9 +5,12 @@ name: Deploy Documentation - Stable
 on:
   push:
     branches: [ master ]
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'FrozenLemonTee/original'
     runs-on: ubuntu-latest
 
     steps:

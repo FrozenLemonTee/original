@@ -3,12 +3,13 @@
 #include "async.h"
 #include "singleton.h"
 #include "tasks.h"
+#include "maths.h"
 #include "coroutines.h"
 #include "generators.h"
 
 original::array<int> matrixAdd(const original::array<int>& a, const original::array<int>& b)
 {
-    const auto len = original::max(a.size(), b.size());
+    const auto len = original::maximum(a.size(), b.size());
     original::array<int> result(len);
     for (original::integer i = 0; i < len; i++) {
         if (i < a.size())

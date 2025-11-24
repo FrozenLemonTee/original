@@ -3,6 +3,7 @@
 #include "coroutines.h"
 #include "couple.h"
 #include "sets.h"
+#include "vector.h"
 
 
 namespace original {
@@ -27,43 +28,83 @@ namespace original {
     coroutine::generator<couple<u_integer, TYPE>> enumerate(coroutine::generator<TYPE> gen);
 
     /**
-     * @brief Collects generator elements into a set.
+     * @brief Reduces a generator to a single value using an accumulator function.
      * @tparam TYPE The type of elements in the generator.
-     * @tparam SET The set type to collect into (default: hashSet).
-     * @param gen The generator to collect from.
-     * @return A set containing all unique elements from the generator.
-     * @details Transforms a generator sequence into a set container, removing duplicates
-     *          and providing fast lookup capabilities.
+     * @tparam Callback The accumulator function type.
+     * @param gen The generator to reduce.
+     * @param init Initial value for the reduction.
+     * @param c Binary accumulator function that combines the current result with the next element.
+     * @return The final reduced value.
+     * @details Applies the accumulator function sequentially to all elements of the generator,
+     *          starting with the initial value. The accumulator function should have the signature
+     *          `TYPE(TYPE accumulator, TYPE element)`.
      *
      * Example:
      * @code
-     * auto vec = vector{1, 2, 2, 3, 3, 3};
+     * auto vec = vector{1, 2, 3, 4};
      * auto gen = vec.generator();
-     * auto set = collect<int>(gen);  // {1, 2, 3}
+     * auto sum = reduce(gen, 0, [](int acc, int x) { return acc + x; });  // Returns 10
      * @endcode
      */
-    template<typename TYPE, typename SET = hashSet<TYPE>>
-    requires ExtendsOf<set<TYPE, allocator<couple<const TYPE, const bool>>>, SET>
-    SET collect(coroutine::generator<TYPE> gen);
+    template<typename TYPE, typename Callback>
+    TYPE reduce(coroutine::generator<TYPE> gen, TYPE init, Callback&& c);
 
     /**
-     * @brief Collects generator elements into a list container.
+     * @brief Finds the maximum element in a generator.
      * @tparam TYPE The type of elements in the generator.
-     * @tparam SERIAL The list container type (default: vector).
-     * @param gen The generator to collect from.
-     * @return A list container with all generator elements in order.
-     * @details Converts a generator sequence into a concrete list container,
-     *          preserving element order and allowing random access.
+     * @param gen The generator to search.
+     * @param init Initial maximum value (typically the smallest possible value).
+     * @return The maximum element found in the generator.
+     * @details Compares all elements using the `maximum` function and returns the largest one.
+     *          If the generator is empty, returns the initial value.
      *
      * Example:
      * @code
-     * auto gen = someContainer.generator();
-     * auto vec = list<int>(gen);  // Creates vector<int> with all elements
+     * auto vec = vector{5, 2, 8, 1};
+     * auto gen = vec.generator();
+     * auto max_val = maximum(gen, 0);  // Returns 8
      * @endcode
      */
-    template<typename TYPE, template <typename> typename SERIAL = vector>
-    requires ExtendsOf<baseList<TYPE, allocator<TYPE>>, SERIAL<TYPE>>
-    SERIAL<TYPE> list(coroutine::generator<TYPE> gen);
+    template<typename TYPE>
+    TYPE maximum(coroutine::generator<TYPE> gen, TYPE init);
+
+    /**
+     * @brief Finds the minimum element in a generator.
+     * @tparam TYPE The type of elements in the generator.
+     * @param gen The generator to search.
+     * @param init Initial minimum value (typically the largest possible value).
+     * @return The minimum element found in the generator.
+     * @details Compares all elements using the `minimum` function and returns the smallest one.
+     *          If the generator is empty, returns the initial value.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{5, 2, 8, 1};
+     * auto gen = vec.generator();
+     * auto min_val = minimum(gen, 100);  // Returns 1
+     * @endcode
+     */
+    template<typename TYPE>
+    TYPE minimum(coroutine::generator<TYPE> gen, TYPE init);
+
+    /**
+     * @brief Computes the sum of all elements in a generator.
+     * @tparam TYPE The type of elements in the generator.
+     * @param gen The generator to sum.
+     * @param init Initial sum value (typically 0 or identity element for addition).
+     * @return The sum of all elements in the generator.
+     * @details Adds all elements of the generator together using the `+` operator.
+     *          If the generator is empty, returns the initial value.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{1, 2, 3, 4};
+     * auto gen = vec.generator();
+     * auto total = summation(gen, 0);  // Returns 10
+     * @endcode
+     */
+    template<typename TYPE>
+    TYPE summation(coroutine::generator<TYPE> gen, TYPE init);
 
     /**
      * @brief Transforms generator elements using a callable.
@@ -453,6 +494,24 @@ namespace original {
 
         template<typename F>
         friend auto find(F&& f);
+
+        template<typename TYPE, typename F>
+        friend auto reduce(TYPE init, F&& c);
+
+        template<typename TYPE>
+        friend auto maximum(TYPE init);
+
+        template<typename TYPE>
+        friend auto minimum(TYPE init);
+
+        template<typename TYPE>
+        friend auto summation(TYPE init);
+
+        template<typename TYPE, typename SET>
+        friend auto collect();
+
+        template<template<typename> typename SERIAL>
+        friend auto list();
     };
 
     /**
@@ -644,6 +703,122 @@ namespace original {
      */
     template<typename F>
     auto find(F&& f);
+
+    /**
+     * @brief Creates a reduce pipe operation.
+     * @tparam TYPE The element type.
+     * @tparam Callback The reduction function type.
+     * @param init Initial value for reduction.
+     * @param c Reduction function.
+     * @return A genPipe that reduces the generator.
+     * @details Factory function for creating reduce operations.
+     */
+    template<typename TYPE, typename Callback>
+    auto reduce(TYPE init, Callback&& c);
+
+    /**
+     * @brief Creates a maximum pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial maximum value.
+     * @return A genPipe that finds the maximum element.
+     * @details Factory function for creating maximum operations.
+     */
+    template<typename TYPE>
+    auto maximum(TYPE init);
+
+    /**
+     * @brief Creates a minimum pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial minimum value.
+     * @return A genPipe that finds the minimum element.
+     * @details Factory function for creating minimum operations.
+     */
+    template<typename TYPE>
+    auto minimum(TYPE init);
+
+    /**
+     * @brief Creates a summation pipe operation.
+     * @tparam TYPE The element type.
+     * @param init Initial sum value.
+     * @return A genPipe that sums all elements.
+     * @details Factory function for creating summation operations.
+     */
+    template<typename TYPE>
+    auto summation(TYPE init);
+
+    /**
+     * @brief Creates a collect pipe operation.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SET The set type to collect into (default: hashSet).
+     * @return A genPipe that collects elements into a set.
+     * @details Factory function for creating collect operations.
+     */
+    template<typename TYPE, typename SET = hashSet<TYPE>>
+    auto collect();
+
+    /**
+     * @brief Creates a list pipe operation.
+     * @tparam SERIAL The list container type.
+     * @return A genPipe that collects elements into a list.
+     * @details Factory function for creating list operations.
+     */
+    template<template<typename> typename SERIAL = vector>
+    auto list();
+
+    /**
+     * @brief Collects generator elements into a set.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SET The set type to collect into (default: hashSet).
+     * @param gen The generator to collect from.
+     * @return A set containing all unique elements from the generator.
+     * @details Transforms a generator sequence into a set container, removing duplicates
+     *          and providing fast lookup capabilities.
+     *
+     * Example:
+     * @code
+     * auto vec = vector{1, 2, 2, 3, 3, 3};
+     * auto gen = vec.generator();
+     * auto set = collect<int>(gen);  // {1, 2, 3}
+     * @endcode
+     */
+    template<typename TYPE, typename SET = hashSet<TYPE>>
+    requires original::ExtendsOf<set<TYPE, allocator<couple<const TYPE, const bool>>>, SET>
+    SET collect(coroutine::generator<TYPE> gen)
+    {
+        SET set;
+        for (auto elem : gen)
+        {
+            set.add(elem);
+        }
+        return set;
+    }
+
+    /**
+     * @brief Collects generator elements into a list container.
+     * @tparam TYPE The type of elements in the generator.
+     * @tparam SERIAL The list container type (default: vector).
+     * @param gen The generator to collect from.
+     * @return A list container with all generator elements in order.
+     * @details Converts a generator sequence into a concrete list container,
+     *          preserving element order and allowing random access.
+     *
+     * Example:
+     * @code
+     * auto gen = someContainer.generator();
+     * auto vec = list<int>(gen);  // Creates vector<int> with all elements
+     * @endcode
+     */
+    template <typename TYPE, template <typename> typename SERIAL = vector>
+    requires original::ExtendsOf<baseList<TYPE, allocator<TYPE>>, SERIAL<TYPE>>
+    SERIAL<TYPE> list(coroutine::generator<TYPE> gen)
+    {
+        SERIAL<TYPE> list;
+        for (auto elem : gen)
+        {
+            list.pushEnd(elem);
+        }
+        return list;
+    }
 }
 
 template <typename TYPE>
@@ -658,28 +833,33 @@ original::enumerate(coroutine::generator<TYPE> gen)
     }
 }
 
-template<typename TYPE, typename SET>
-requires original::ExtendsOf<original::set<TYPE, original::allocator<original::couple<const TYPE, const bool>>>, SET>
-SET original::collect(coroutine::generator<TYPE> gen)
+template <typename TYPE, typename Callback>
+TYPE original::reduce(coroutine::generator<TYPE> gen, TYPE init, Callback&& c)
 {
-    SET set;
+    TYPE result = std::move(init);
     for (auto elem : gen)
     {
-        set.add(elem);
+        result = c(std::move(result), std::forward<TYPE>(elem));
     }
-    return set;
+    return result;
 }
 
-template <typename TYPE, template <typename> class SERIAL>
-requires original::ExtendsOf<original::baseList<TYPE, original::allocator<TYPE>>, SERIAL<TYPE>>
-SERIAL<TYPE> original::list(coroutine::generator<TYPE> gen)
+template <typename TYPE>
+TYPE original::maximum(coroutine::generator<TYPE> gen, TYPE init)
 {
-    SERIAL<TYPE> list;
-    for (auto elem : gen)
-    {
-        list.pushEnd(elem);
-    }
-    return list;
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE max, TYPE cur) { return maximum(max, cur); });
+}
+
+template <typename TYPE>
+TYPE original::minimum(coroutine::generator<TYPE> gen, TYPE init)
+{
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE min, TYPE cur) { return minimum(min, cur); });
+}
+
+template <typename TYPE>
+TYPE original::summation(coroutine::generator<TYPE> gen, TYPE init)
+{
+    return reduce<TYPE>(std::move(gen), std::move(init), [](TYPE sum, TYPE cur) { return std::move(sum) + std::move(cur); });
 }
 
 template <typename TYPE, typename Callback>
@@ -1013,6 +1193,59 @@ auto original::find(F&& f)
 {
     return genPipe{[c = std::forward<F>(f)]<typename TYPE>(coroutine::generator<TYPE> gen) mutable {
         return find(std::move(gen), std::move(c));
+    }};
+}
+
+template <typename TYPE, typename Callback>
+auto original::reduce(TYPE init, Callback&& c)
+{
+    return genPipe{[c = std::forward<Callback>(c), init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+       return reduce<TYPE>(std::move(gen), std::move(init), std::move(c));
+    }};
+}
+
+template <typename TYPE>
+auto original::maximum(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+       return maximum<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE>
+auto original::minimum(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+        return minimum<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE>
+auto original::summation(TYPE init)
+{
+    return genPipe{[init = std::move(init)](coroutine::generator<TYPE> gen) mutable
+    {
+        return summation<TYPE>(std::move(gen), std::move(init));
+    }};
+}
+
+template <typename TYPE, typename SET>
+auto original::collect()
+{
+    return genPipe{[](coroutine::generator<TYPE> gen) mutable
+    {
+       return collect<TYPE, SET>(std::move(gen));
+    }};
+}
+
+template <template <typename> class SERIAL>
+auto original::list()
+{
+    return genPipe{[]<typename TYPE>(coroutine::generator<TYPE> gen) mutable {
+        return list<TYPE, SERIAL>(std::move(gen));
     }};
 }
 

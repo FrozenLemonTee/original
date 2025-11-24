@@ -26,14 +26,15 @@ namespace original{
     template<typename TYPE>
     class filterStream
     {
+    public:
+        /// @internal Operator types for postfix conversion
+        enum class opts{AND = 1, OR = 0, NOT = 2, LEFT_BRACKET = 3, RIGHT_BRACKET = 4};
+    private:
         ///< Null filter instance used as operator placeholder in stream processing
         static const strongPtr<filter<TYPE>> nullFilter;
 
-        /// @internal Operator types for postfix conversion
-        enum class opts{AND = 1, OR = 0, NOT = 2, LEFT_BRACKET = 3, RIGHT_BRACKET = 4};
-
-        mutable chain<strongPtr<filter<TYPE>>> stream; ///< Filter operand chain
-        mutable chain<opts> ops; ///< Operator sequence storage
+        mutable chain<strongPtr<filter<TYPE>>> stream{}; ///< Filter operand chain
+        mutable chain<opts> ops{}; ///< Operator sequence storage
         mutable bool flag; ///< Postfix conversion status flag
 
     protected:

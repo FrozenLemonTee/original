@@ -488,15 +488,15 @@ original::objPoolAllocator<TYPE>& original::objPoolAllocator<TYPE>::operator+=(o
     if (this == &other)
         return *this;
 
-    auto size_class_count_max = max(this->size_class_count, other.size_class_count);
-    auto chunk_count_init_max = max(this->chunk_count_init, other.chunk_count_init);
+    auto size_class_count_max = maximum(this->size_class_count, other.size_class_count);
+    auto chunk_count_init_max = maximum(this->chunk_count_init, other.chunk_count_init);
     auto chunk_count_max = allocators::malloc<u_integer>(size_class_count_max);
     auto free_list_head_max = allocators::malloc<freeChunk*>(size_class_count_max);
     auto chunks_available_max = allocators::malloc<u_integer>(size_class_count_max);
 
     for (u_integer i = 0; i < size_class_count_max; i++) {
         if (i < this->size_class_count && i < other.size_class_count) {
-            chunk_count_max[i] = max(this->chunk_count[i], other.chunk_count[i]);
+            chunk_count_max[i] = maximum(this->chunk_count[i], other.chunk_count[i]);
             chunks_available_max[i] = this->chunks_available[i] + other.chunks_available[i];
             auto cur_list_head_i = other.free_list_head[i];
             if (cur_list_head_i) {
@@ -597,7 +597,7 @@ TYPE* original::objPoolAllocator<TYPE>::allocate(const u_integer size)
     }
 
     if (!this->free_list_head[index] || this->chunks_available[index] * (static_cast<u_integer>(1) << index) < size) {
-        this->chunkAllocate(max<u_integer>(1, this->chunk_count[index]), index);
+        this->chunkAllocate(maximum<u_integer>(1, this->chunk_count[index]), index);
     }
 
     auto cur_ptr = this->free_list_head[index];

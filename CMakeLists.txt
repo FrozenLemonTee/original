@@ -1,10 +1,53 @@
 # CMakeLists.txt Main
 
-cmake_minimum_required(VERSION 3.31)
+set(CMAKE_VERSION_MINIMUM 3.31)
+cmake_minimum_required(VERSION ${CMAKE_VERSION_MINIMUM})
+message(STATUS "Cmake version: ${CMAKE_VERSION} (>= ${CMAKE_VERSION_MINIMUM} ✓)")
+if(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR MATCHES "Ninja Multi-Config")
+    set(CMAKE_GENERATOR_PLATFORM x64 CACHE STRING "Platform" FORCE)
+endif()
 project(original LANGUAGES CXX)
-set(ORIGINAL_VERSION 0.1.5)
+set(ORIGINAL_VERSION 0.1.6)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_package(Threads REQUIRED)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(COMPILER_GCC_VERSION_MINIMUM 13.0)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${COMPILER_GCC_VERSION_MINIMUM})
+        message(FATAL_ERROR "GCC version too old. Minimum required: ${COMPILER_GCC_VERSION_MINIMUM}. Current: ${CMAKE_CXX_COMPILER_VERSION}")
+    else()
+        message(STATUS "GCC version: ${CMAKE_CXX_COMPILER_VERSION} (>= ${COMPILER_GCC_VERSION_MINIMUM} ✓)")
+    endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(COMPILER_CLANG_VERSION_MINIMUM 20.0)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${COMPILER_CLANG_VERSION_MINIMUM})
+        message(FATAL_ERROR "Clang version too old. Minimum required: ${COMPILER_CLANG_VERSION_MINIMUM}. Current: ${CMAKE_CXX_COMPILER_VERSION}")
+    else()
+        message(STATUS "Clang version: ${CMAKE_CXX_COMPILER_VERSION} (>= ${COMPILER_CLANG_VERSION_MINIMUM} ✓)")
+    endif()
+endif()
+if(MSVC)
+    set(COMPILER_MSVC_VERSION_MINIMUM 1944)
+    if(MSVC_VERSION LESS ${COMPILER_MSVC_VERSION_MINIMUM})
+        message(FATAL_ERROR "MSVC version too old. Minimum required: ${COMPILER_MSVC_VERSION_MINIMUM}. Current: ${MSVC_VERSION}")
+    else()
+        message(STATUS "MSVC version: ${MSVC_VERSION} (>= ${COMPILER_MSVC_VERSION_MINIMUM} ✓)")
+    endif()
+    set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "10.0" CACHE STRING "Windows Target Platform Version")
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag("-std=c++23" HAS_CXX23_FLAG)
+    if(NOT HAS_CXX23_FLAG)
+        message(WARNING "Compiler may not fully support C++23 standard")
+    endif()
+endif()
+
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (default Release)" FORCE)
 endif()
@@ -20,6 +63,7 @@ file(GLOB ORIGINAL_HEADERS
         "${ORIGINAL_SRC_DIR}/vibrant/*.h"
 )
 add_library(original STATIC ${ORIGINAL_HEADERS} src/original.cpp)
+target_link_libraries(original PUBLIC Threads::Threads)
 
 target_include_directories(original PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
@@ -69,24 +113,12 @@ install(FILES
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/original
 )
 
+add_subdirectory(debug)
+
 option(BUILD_TESTING "Build the testing directories" ON)
 
 if (BUILD_TESTING)
     include(CTest)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Zi")
-    else()
-        if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g")
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -g")
-        else()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
-        endif()
-    endif()
-
-    # test cases
-    add_subdirectory(test/other)
-    add_subdirectory(test/unit_test)
+    enable_testing()
+    add_subdirectory(test)
 endif ()

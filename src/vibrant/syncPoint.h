@@ -25,8 +25,8 @@ namespace original {
         const u_integer max_arrived_;   ///< Maximum number of threads required for synchronization
         u_integer arrived_;             ///< Current number of arrived threads
         u_integer round_;               ///< Current synchronization round
-        mutable pMutex mutex_;          ///< Mutex for thread synchronization
-        mutable pCondition condition_;  ///< Condition variable for thread waiting
+        mutable mutex mutex_;          ///< Mutex for thread synchronization
+        mutable condition condition_;  ///< Condition variable for thread waiting
         std::function<void()> complete_func_; ///< Completion function called by last thread
         std::exception_ptr e_;          ///< Exception pointer for propagating completion function errors
 
@@ -66,7 +66,7 @@ namespace original {
          * @brief Get the maximum number of threads required for synchronization
          * @return Maximum number of threads that must arrive
          */
-        u_integer maxArrived() const;
+        [[nodiscard]] u_integer maxArrived() const;
 
         /**
          * @brief Get the current number of arrived threads
@@ -75,7 +75,7 @@ namespace original {
          * This value is reset to 0 when the required number of threads arrive
          * and a new synchronization round begins.
          */
-        u_integer currentArrived() const;
+        [[nodiscard]] u_integer currentArrived() const;
     };
 }
 
@@ -111,7 +111,7 @@ inline void original::syncPoint::arrive() {
             lock.unlock();
             this->condition_.notifyAll();
             if (this->e_) {
-                throw this->e_;
+                std::rethrow_exception(this->e_);
             }
         }
     }

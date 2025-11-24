@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <algorithm> // std algorithm
+#include <array>
 #include "array.h"
 #include "vector.h"
 #include "algorithms.h" // original algorithm

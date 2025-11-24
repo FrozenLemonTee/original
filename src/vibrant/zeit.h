@@ -1,15 +1,30 @@
 #ifndef ORIGINAL_ZEIT_H
 #define ORIGINAL_ZEIT_H
-#include <cmath>
+
 #include "config.h"
+
+#if ORIGINAL_COMPILER_GCC
+#include <ctime>
+#endif
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#endif
+#if ORIGINAL_PLATFORM_WINDOWS
+#include <Windows.h>
+#include <sysinfoapi.h>
+#endif
+#if ORIGINAL_PLATFORM_MACOS
+#include <sys/time.h>
+#endif
+
+#include <cmath>
 #include "comparable.h"
 #include "hash.h"
 #include "printable.h"
 #include "error.h"
 #include <iomanip>
-#if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
-#include <ctime>
-#endif
 
 /**
  * @file zeit.h
@@ -20,12 +35,14 @@
  * - Time points representing moments in time
  * - UTC date/time with calendar operations
  * - Literals for time durations
+ * - Platform-specific time handling (POSIX timespec on GCC/Clang, Windows FILETIME on MSVC)
  *
  * Key features:
  * - High precision time representation (nanoseconds)
  * - Calendar calculations (leap years, days in month, etc.)
  * - Platform-independent time operations
  * - Comparable, hashable, and printable interfaces
+ * - Cross-platform support (GCC/Clang on POSIX systems, MSVC/Windows API on Windows)
  */
 
 
@@ -126,7 +143,10 @@ namespace original {
          * @extends hashable
          * @extends printable
          * @details Supports arithmetic operations and conversions between
-         * different time units.
+         * different time units. Provides platform-specific constructors and
+         * conversion methods for:
+         * - POSIX timespec (GCC/Clang)
+         * - Windows DWORD milliseconds (MSVC)
          */
         class duration final
                       : public comparable<duration>,
@@ -151,11 +171,29 @@ namespace original {
             /**
              * @brief Constructs a duration from a POSIX timespec structure
              * @param ts timespec structure containing seconds and nanoseconds
-             * @note Only available when compiled with GCC
+             * @note Only available when compiled with GCC or Clang on POSIX systems
              * @details Converts the timespec's tv_sec (seconds) and tv_nsec (nanoseconds)
              *          into a unified duration value in nanoseconds.
+             * @code
+             * timespec ts{10, 500000000}; // 10.5 seconds
+             * time::duration d(ts);       // Creates 10.5 second duration
+             * @endcode
              */
             explicit duration(const timespec& ts);
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+            /**
+             * @brief Constructs a duration from Windows DWORD milliseconds
+             * @param milliseconds Time value in milliseconds
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @details Creates a duration object from Windows API millisecond values.
+             * @code
+             * DWORD ms = 1500;           // 1500 milliseconds
+             * time::duration d(ms);      // Creates 1.5 second duration
+             * @endcode
+             */
+            explicit duration(DWORD milliseconds);
 #endif
 
             /// Default copy constructor
@@ -214,11 +252,38 @@ namespace original {
             /**
              * @brief Converts duration to timespec (POSIX time structure)
              * @return timespec structure containing seconds and nanoseconds
-             * @note Only available when compiled with GCC
+             * @note Only available when compiled with GCC or Clang on POSIX systems
+             * @details Converts the internal nanosecond representation to POSIX timespec format.
+             * The conversion may lose precision if the duration is not nanosecond-aligned.
              */
             explicit operator timespec() const;
 
+            /**
+             * @brief Explicit conversion to POSIX timespec structure
+             * @return timespec structure representing this duration
+             * @note Only available when compiled with GCC or Clang on POSIX systems
+             * @see operator timespec()
+             */
             timespec toTimespec() const;
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+            /**
+             * @brief Converts duration to Windows DWORD milliseconds
+             * @return Time value in milliseconds
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @details Converts the internal nanosecond representation to Windows millisecond format.
+             * Precision may be lost as milliseconds have lower resolution than nanoseconds.
+             */
+            explicit operator DWORD() const;
+
+            /**
+             * @brief Explicit conversion to Windows DWORD milliseconds
+             * @return Time value in milliseconds
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @see operator DWORD()
+             */
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -379,7 +444,16 @@ namespace original {
 
             /**
              * @brief Gets current time point
-             * @return Current time point
+             * @return Current time point with nanosecond precision
+             * @details Uses platform-specific high-resolution time sources:
+             * - Linux (GCC/Clang): clock_gettime(CLOCK_REALTIME)
+             * - macOS (GCC/Clang): gettimeofday()
+             * - Windows (MSVC/Windows API): GetSystemTimePreciseAsFileTime()
+             * @note The implementation automatically selects the appropriate method
+             * based on the target platform and compiler.
+             * @code
+             * auto now = time::point::now();  // Gets current time on any platform
+             * @endcode
              */
             static point now();
 
@@ -398,11 +472,30 @@ namespace original {
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
             /**
-             * @brief Constructs a time point from a POSIX timespec structure.
-             * @param ts The timespec structure containing seconds and nanoseconds since the epoch.
-             * @note The conversion computes the total nanoseconds from ts.tv_sec and ts.tv_nsec.
+             * @brief Constructs a time point from a POSIX timespec structure
+             * @param ts The timespec structure containing seconds and nanoseconds since the epoch
+             * @note Only available when compiled with GCC or Clang on POSIX systems
+             * @details The conversion computes the total nanoseconds from ts.tv_sec and ts.tv_nsec.
+             * @code
+             * timespec ts{1633046400, 0}; // 2021-10-01 00:00:00 UTC
+             * time::point p(ts);          // Creates time point for that instant
+             * @endcode
              */
             explicit point(const timespec& ts);
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+            /**
+             * @brief Constructs a time point from Windows DWORD milliseconds since epoch
+             * @param milliseconds Milliseconds since 1970-01-01 00:00:00 UTC
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @details Creates a time point from Windows-style millisecond timestamps.
+             * @code
+             * DWORD ms = 1633046400000;   // 2021-10-01 00:00:00 UTC in ms
+             * time::point p(ms);          // Creates corresponding time point
+             * @endcode
+             */
+            explicit point(DWORD milliseconds);
 #endif
 
             /**
@@ -440,13 +533,38 @@ namespace original {
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
             /**
-             * @brief Converts this time point to a POSIX timespec structure.
-             * @return A timespec representing this time point with seconds and nanoseconds since the epoch.
-             * @note Nanoseconds are truncated if the internal value is not aligned to nanosecond precision.
+             * @brief Converts this time point to a POSIX timespec structure
+             * @return A timespec representing this time point with seconds and nanoseconds since the epoch
+             * @note Only available when compiled with GCC or Clang on POSIX systems
+             * @details Nanoseconds are truncated if the internal value is not aligned to nanosecond precision.
              */
             explicit operator timespec() const;
 
+            /**
+             * @brief Explicit conversion to POSIX timespec structure
+             * @note Only available when compiled with GCC or Clang on POSIX systems
+             * @note Only available when compiled with GCC or Clang
+             * @see operator timespec()
+             */
             timespec toTimespec() const;
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+            /**
+             * @brief Converts this time point to Windows DWORD milliseconds since epoch
+             * @return Milliseconds since 1970-01-01 00:00:00 UTC
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @details Precision is reduced to milliseconds from the internal nanosecond representation.
+             */
+            explicit operator DWORD() const;
+
+            /**
+             * @brief Explicit conversion to Windows DWORD milliseconds
+             * @return Milliseconds since epoch
+             * @note Only available when compiled with MSVC or on Windows platforms
+             * @see operator DWORD()
+             */
+            DWORD toDWMilliseconds() const;
 #endif
 
             /**
@@ -822,7 +940,7 @@ namespace original {
              * @warning When converting back to time::point, the time point will only
              * have second-level precision (sub-second components will be zero)
              */
-            explicit operator point() const;
+            explicit operator original::time::point() const;
 
             point toPoint() const;
 
@@ -1109,6 +1227,11 @@ inline original::time::duration::duration(const timespec& ts)
     : nano_seconds_(ts.tv_sec * FACTOR_SECOND + ts.tv_nsec) {}
 #endif
 
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+inline original::time::duration::duration(const DWORD milliseconds)
+    : nano_seconds_(static_cast<time_val_type>(milliseconds) * FACTOR_MILLISECOND) {}
+#endif
+
 inline original::time::duration::duration(duration&& other) noexcept : duration() {
     this->operator=(std::move(other));
 }
@@ -1190,6 +1313,18 @@ inline original::time::duration::operator timespec() const
 inline timespec original::time::duration::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+inline original::time::duration::operator DWORD() const
+{
+    return static_cast<DWORD>(this->value());
+}
+
+inline DWORD original::time::duration::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
@@ -1354,14 +1489,26 @@ original::time::point::now() {
     timespec ts{};
     clock_gettime(CLOCK_REALTIME, &ts);
     return point{ts};
-#elif ORIGINAL_PLATFORM_APPLE
-    struct timeval tv;
+#elif ORIGINAL_PLATFORM_MACOS
+    timeval tv{};
     gettimeofday(&tv, nullptr);
     time_val_type ns = tv.tv_sec * FACTOR_SECOND + tv.tv_usec * FACTOR_MICROSECOND;
     return point(ns, NANOSECOND);
+#elif ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+    FILETIME file_time;
+    GetSystemTimePreciseAsFileTime(&file_time);
+
+    ULARGE_INTEGER uli;
+    uli.LowPart = file_time.dwLowDateTime;
+    uli.HighPart = file_time.dwHighDateTime;
+
+    constexpr ul_integer WINDOWS_TO_UNIX_EPOCH = static_cast<ul_integer>(11644473600) * FACTOR_SECOND;
+
+    const time_val_type nanoseconds = static_cast<time_val_type>(uli.QuadPart) * 100 - static_cast<time_val_type>(WINDOWS_TO_UNIX_EPOCH);
+
+    return point{nanoseconds, NANOSECOND};
 #else
-    // Other implements not complete
-    return point();
+    return point{};
 #endif
 }
 
@@ -1374,6 +1521,11 @@ inline original::time::point::point(duration d)
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
 inline original::time::point::point(const timespec& ts)
     : nano_since_epoch_(ts) {}
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+inline original::time::point::point(const DWORD milliseconds)
+    : nano_since_epoch_(milliseconds) {}
 #endif
 
 inline original::time::time_val_type
@@ -1413,6 +1565,18 @@ inline original::time::point::operator timespec() const
 inline timespec original::time::point::toTimespec() const
 {
     return static_cast<timespec>(*this);
+}
+#endif
+
+#if ORIGINAL_COMPILER_MSVC || ORIGINAL_PLATFORM_WINDOWS
+inline original::time::point::operator DWORD() const
+{
+    return static_cast<DWORD>(this->nano_since_epoch_);
+}
+
+inline DWORD original::time::point::toDWMilliseconds() const
+{
+    return static_cast<DWORD>(*this);
 }
 #endif
 
@@ -1517,14 +1681,14 @@ original::time::UTCTime::localZonedOffset() {
 #if ORIGINAL_PLATFORM_WINDOWS
     localtime_s(&local_tm, &t);
 #else
-    localtime_r(&t, &local_tm);
+    localtime_r(reinterpret_cast<const time_t*>(&t), &local_tm);
 #endif
 
     tm utc_tm{};
 #if ORIGINAL_PLATFORM_WINDOWS
     gmtime_s(&utc_tm, &t);
 #else
-    gmtime_r(&t, &utc_tm);
+    gmtime_r(reinterpret_cast<const time_t*>(&t), &utc_tm);
 #endif
 
     offset_seconds = static_cast<integer>(difftime(mktime(&local_tm), mktime(&utc_tm)));
@@ -1726,7 +1890,7 @@ original::time::UTCTime::value(const calendar calendar) const {
     }
 }
 
-inline original::time::UTCTime::operator point() const {
+inline original::time::UTCTime::operator original::time::point() const {
     time_val_type total_days = 0;
 
     for (integer year = EPOCH_YEAR; year < this->year_; ++year) {

@@ -230,15 +230,19 @@ TEST_F(TreeMapTest, MoveAssignment) {
     EXPECT_EQ(intMap->size(), 0); // NOLINT(bugprone-use-after-move)
 }
 
-// Custom Comparator Test
-TEST(TreeMapCustomCompareTest, CustomCompareFunction) {
+namespace
+{
+    template<typename>
     struct CustomCompare {
         bool operator()(const int a, const int b) const {
             return a > b; // Reverse order
         }
     };
+}
 
-    treeMap<int, int, CustomCompare> customMap;
+// Custom Comparator Test
+TEST(TreeMapCustomCompareTest, CustomCompareFunction) {
+    treeMap<int, int, CustomCompare<int>> customMap;
     customMap.add(1, 10);
     customMap.add(2, 20);
     customMap.add(3, 30);

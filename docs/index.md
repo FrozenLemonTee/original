@@ -35,6 +35,19 @@ Original是一个C++基础工具库,也是本人的第一个正式项目，用�
 ---
 
 
+## 环境要求
+
+为了编译和使用 Original，请确保开发环境满足以下最低版本要求：
+
+- **C++ 标准**: C++23
+- **CMake**: 3.31 或更高版本
+- **编译器**（任选其一）：
+    - **GCC**: 13.0 或更高版本
+    - **Clang**: 20.0 或更高版本
+    - **MSVC**（Visual Studio 2022）：17.10 (版本 14.44.35207) 或更高版本
+
+> 注意：如果使用 GCC 或 Clang，请确保支持 `-std=c++23` 标志。
+
 ## 🚀 快速开始
 
 这里以项目`hello_original`为例：
@@ -47,7 +60,7 @@ Original是一个C++基础工具库,也是本人的第一个正式项目，用�
 
 配置`CMakeLists.txt`：
 ```cmake
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.31)
 project(hello_original)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -86,7 +99,7 @@ cmake -P install.cmake
 
 配置`CMakeLists.txt`：
 ```cmake
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.31)
 project(hello_original)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -129,7 +142,7 @@ array("hello world!")
 
 ##### 容器接口：
 
-格式化输出接口 printable，元素比较接口 comparable，堆对象深拷贝接口 cloneable，可迭代接口 iterable
+格式化输出接口 printable，元素比较接口 comparable，堆对象深拷贝接口 cloneable，可迭代接口 iterable，数组视图 arrayView
 
 ##### 算法库：
 
@@ -191,6 +204,10 @@ array("hello world!")
 ##### 任务调度：
 
 任务包装类 taskBase/task，任务委派器 taskDelegator
+
+##### 协程：
+
+生成器 coroutine::generator
 
 #### matrix
 

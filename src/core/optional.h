@@ -8,7 +8,7 @@
  * @file optional.h
  * @brief Type-safe optional value container
  * @details Provides an alternative<TYPE> class that can either contain a value of type 'TYPE'
- * or be in an empty state (represented by original::none from types.h). This implementation
+ * or be in an empty state (represented by original::null from types.h). This implementation
  * provides:
  * - Value semantics with proper construction/destruction
  * - Safe access operations with error checking
@@ -20,7 +20,7 @@
  * Key features:
  * - Type-safe alternative to raw pointers for optional values
  * - No dynamic memory allocation (uses union storage)
- * - Explicit empty state handling with original::none
+ * - Explicit empty state handling with original::null
  * - Exception-safe operations
  * - STL-compatible interface
  */
@@ -33,7 +33,7 @@ namespace original {
      * @tparam TYPE The type of value to store
      * @details This class provides a way to represent optional values without
      * using pointers. It can either contain a value of type TYPE or be empty.
-     * The empty state is represented using original::none from types.h.
+     * The empty state is represented using original::null from types.h.
      *
      * The implementation uses a union for storage to avoid dynamic allocation
      * and ensure optimal performance. All operations provide strong exception
@@ -62,18 +62,18 @@ namespace original {
     class alternative {
         /**
          * @union storage
-         * @brief Internal storage for either TYPE or none
-         * @details Uses a union to store either the value type or none,
+         * @brief Internal storage for either TYPE or null
+         * @details Uses a union to store either the value type or null,
          * with proper construction/destruction handling. The union ensures
          * that only one member is active at any time, managed by the
-         * non_none_type_ flag.
+         * non_null_type_ flag.
          */
         union storage {
             TYPE type_;     ///< Storage for the contained value
-            none none_;     ///< Storage for empty state (from types.h)
+            null null_;     ///< Storage for empty state (from types.h)
 
             /**
-             * @brief Default constructor (initializes to none)
+             * @brief Default constructor (initializes to null)
              */
             storage() noexcept;
 
@@ -87,14 +87,14 @@ namespace original {
             ~storage();
         };
 
-        bool non_none_type_; ///< Flag indicating whether value is present (true = TYPE, false = none)
+        bool non_null_type_; ///< Flag indicating whether value is present (true = TYPE, false = null)
         storage val_;       ///< The actual storage union
 
         /**
          * @brief Safely destroys the current contents
          * @note Properly calls destructor based on current state
-         * @details If non_none_type_ is true, calls TYPE destructor,
-         * otherwise calls none destructor. Ensures RAII compliance.
+         * @details If non_null_type_ is true, calls TYPE destructor,
+         * otherwise calls null destructor. Ensures RAII compliance.
          */
         void destroy() noexcept;
 
@@ -286,11 +286,11 @@ namespace original {
         explicit alternative();
 
         /**
-         * @brief Constructs from none (empty state)
-         * @param n none value indicating empty state
+         * @brief Constructs from null (empty state)
+         * @param n null value indicating empty state
          * @post hasValue() == false
          */
-        explicit alternative(none n);
+        explicit alternative(null n);
 
         /**
          * @brief Constructs with value present
@@ -331,19 +331,19 @@ namespace original {
         alternative& operator=(std::in_place_t t) noexcept;
 
         /**
-         * @brief Assignment from none to reset to empty state
-         * @param n none value indicating empty state
+         * @brief Assignment from null to reset to empty state
+         * @param n null value indicating empty state
          * @return Reference to this alternative
          * @post hasValue() == false
          * @details Resets the alternative<void> to the empty state. This operation
          * is equivalent to calling reset() but provides a more expressive syntax
-         * when working with none values. The assignment clears the "present" state
+         * when working with null values. The assignment clears the "present" state
          * and ensures the alternative is empty.
          *
          * Example usage:
          * @code
          * alternative<void> flag(std::in_place);  // Present state
-         * flag = original::none;                  // Now empty
+         * flag = original::null;                  // Now empty
          *
          * if (!flag) {
          *     // This will execute since flag is now empty
@@ -352,14 +352,14 @@ namespace original {
          * // In generic code:
          * template<typename T>
          * void clearAlternative(alternative<T>& opt) {
-         *     opt = original::none;  // Works for both alternative<T> and alternative<void>
+         *     opt = original::null;  // Works for both alternative<T> and alternative<void>
          * }
          * @endcode
          *
          * @note This operation is noexcept and always succeeds.
          * @see reset()
          */
-        alternative& operator=(none n) noexcept;
+        alternative& operator=(null n) noexcept;
 
         /**
          * @brief Resets to empty state
@@ -422,7 +422,7 @@ namespace std {
 template<typename TYPE>
 original::alternative<TYPE>::storage::storage() noexcept
 {
-    new(&this->none_) none{};
+    new(&this->null_) null;
 }
 
 template<typename TYPE>
@@ -430,33 +430,33 @@ original::alternative<TYPE>::storage::~storage() {}
 
 template<typename TYPE>
 void original::alternative<TYPE>::destroy() noexcept {
-    if (this->non_none_type_){
+    if (this->non_null_type_){
         this->val_.type_.~TYPE();
-        this->non_none_type_ = false;
+        this->non_null_type_ = false;
     } else {
-        this->val_.none_.~none();
-        this->non_none_type_ = true;
+        this->val_.null_.~null();
+        this->non_null_type_ = true;
     }
 }
 
 template<typename TYPE>
 original::alternative<TYPE>::alternative()
-    : non_none_type_(false), val_() {}
+    : non_null_type_(false), val_() {}
 
 template<typename TYPE>
 template<typename... Args>
 original::alternative<TYPE>::alternative(Args &&... args)
-    : non_none_type_(true), val_() {
+    : non_null_type_(true), val_() {
     new (&this->val_.type_) TYPE{ std::forward<Args>(args)... };
 }
 
 template<typename TYPE>
 original::alternative<TYPE>::alternative(const alternative& other) {
-    this->non_none_type_ = other.non_none_type_;
-    if (other.non_none_type_) {
+    this->non_null_type_ = other.non_null_type_;
+    if (other.non_null_type_) {
         new (&val_.type_) TYPE{ other.val_.type_ };
     } else {
-        new (&val_.none_) none{};
+        new (&val_.null_) null;
     }
 }
 
@@ -467,22 +467,22 @@ original::alternative<TYPE>::operator=(const alternative& other) {
         return *this;
 
     this->destroy();
-    this->non_none_type_ = other.non_none_type_;
-    if (other.non_none_type_) {
+    this->non_null_type_ = other.non_null_type_;
+    if (other.non_null_type_) {
         new (&val_.type_) TYPE{ other.val_.type_ };
     } else {
-        new (&val_.none_) none{};
+        new (&val_.null_) null;
     }
     return *this;
 }
 
 template<typename TYPE>
 original::alternative<TYPE>::alternative(alternative&& other) noexcept {
-    this->non_none_type_ = other.non_none_type_;
-    if (this->non_none_type_){
+    this->non_null_type_ = other.non_null_type_;
+    if (this->non_null_type_){
         new (&val_.type_) TYPE{ std::move(other.val_.type_) };
     } else{
-        new (&val_.none_) none{};
+        new (&val_.null_) null;
     }
 }
 
@@ -493,11 +493,11 @@ original::alternative<TYPE>::operator=(alternative&& other)  noexcept {
         return *this;
 
     this->destroy();
-    this->non_none_type_ = other.non_none_type_;
-    if (this->non_none_type_){
+    this->non_null_type_ = other.non_null_type_;
+    if (this->non_null_type_){
         new (&val_.type_) TYPE{ std::move(other.val_.type_) };
     } else{
-        new (&val_.none_) none{};
+        new (&val_.null_) null;
     }
     return *this;
 }
@@ -508,15 +508,15 @@ void original::alternative<TYPE>::swap(alternative& other) noexcept
     if (this == &other)
         return;
 
-    std::swap(this->non_none_type_, other.non_none_type_);
+    std::swap(this->non_null_type_, other.non_null_type_);
     std::swap(this->val_, other.val_);
 }
 
 template<typename TYPE>
 const TYPE&
 original::alternative<TYPE>::operator*() const {
-    if (!this->non_none_type_)
-        throw valueError("Dereferencing a original::none value");
+    if (!this->non_null_type_)
+        throw valueError("Dereferencing a original::null value");
 
     return this->val_.type_;
 }
@@ -524,8 +524,8 @@ original::alternative<TYPE>::operator*() const {
 template<typename TYPE>
 TYPE&
 original::alternative<TYPE>::operator*() {
-    if (!this->non_none_type_)
-        throw valueError("Dereferencing a original::none value");
+    if (!this->non_null_type_)
+        throw valueError("Dereferencing a original::null value");
 
     return this->val_.type_;
 }
@@ -533,8 +533,8 @@ original::alternative<TYPE>::operator*() {
 template<typename TYPE>
 const TYPE*
 original::alternative<TYPE>::operator->() const {
-    if (!this->non_none_type_)
-        throw valueError("Accessing member of a original::none value");
+    if (!this->non_null_type_)
+        throw valueError("Accessing member of a original::null value");
 
     return &this->val_.type_;
 }
@@ -542,20 +542,20 @@ original::alternative<TYPE>::operator->() const {
 template<typename TYPE>
 TYPE*
 original::alternative<TYPE>::operator->() {
-    if (!this->non_none_type_)
-        throw valueError("Accessing member of a original::none value");
+    if (!this->non_null_type_)
+        throw valueError("Accessing member of a original::null value");
 
     return &this->val_.type_;
 }
 
 template<typename TYPE>
 const TYPE* original::alternative<TYPE>::get() const {
-    return this->non_none_type_ ? &this->val_.type_ : nullptr;
+    return this->non_null_type_ ? &this->val_.type_ : nullptr;
 }
 
 template<typename TYPE>
 TYPE* original::alternative<TYPE>::get() {
-    return this->non_none_type_ ? &this->val_.type_ : nullptr;
+    return this->non_null_type_ ? &this->val_.type_ : nullptr;
 }
 
 template<typename TYPE>
@@ -567,14 +567,14 @@ template<typename TYPE>
 template<typename... Args>
 void original::alternative<TYPE>::emplace(Args &&... args) {
     this->destroy();
-    this->non_none_type_ = true;
+    this->non_null_type_ = true;
     new (&val_.type_) TYPE{ std::forward<Args>(args)... };
 }
 
 template<typename TYPE>
 void original::alternative<TYPE>::set(const TYPE &t) {
     this->destroy();
-    this->non_none_type_ = true;
+    this->non_null_type_ = true;
     new (&val_.type_) TYPE{ t };
 }
 
@@ -588,7 +588,7 @@ original::alternative<TYPE>::operator=(const TYPE& t)
 
 template<typename TYPE>
 original::alternative<TYPE>::operator bool() const {
-    return this->non_none_type_;
+    return this->non_null_type_;
 }
 
 template <typename TYPE>
@@ -604,7 +604,7 @@ original::alternative<TYPE>::~alternative() {
 
 inline original::alternative<void>::alternative() = default;
 
-inline original::alternative<void>::alternative(none) {}
+inline original::alternative<void>::alternative(null) {}
 
 inline original::alternative<void>::alternative(std::in_place_t) : has_value_(true) {}
 
@@ -621,7 +621,7 @@ original::alternative<void>::operator=(std::in_place_t) noexcept
 }
 
 inline original::alternative<void>&
-original::alternative<void>::operator=(none) noexcept
+original::alternative<void>::operator=(null) noexcept
 {
     this->reset();
     return *this;

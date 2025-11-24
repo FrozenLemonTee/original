@@ -55,6 +55,14 @@ namespace original {
          */
         template<typename TYPE>
         class generator {
+        public:
+            struct promise_type;
+        private:
+            using handle = std::coroutine_handle<promise_type>;  ///< Coroutine handle type
+
+            handle handle_;  ///< Underlying coroutine handle
+
+        public:
             /**
              * @struct promise_type
              * @brief Implements the coroutine promise interface for generator
@@ -167,14 +175,6 @@ namespace original {
                  */
                 bool operator==(const iterator& other) const;
             };
-
-            using handle = std::coroutine_handle<promise_type>;  ///< Coroutine handle type
-
-            handle handle_;  ///< Underlying coroutine handle
-
-        public:
-            using promise_type = promise_type;  ///< Promise type for coroutine protocol
-            using iterator = iterator;          ///< Iterator type for range operations
 
             generator(const generator&) = delete;            ///< Copy constructor deleted
             generator& operator=(const generator&) = delete; ///< Copy assignment deleted
