@@ -919,18 +919,37 @@ inline void original::thread::sleep(const time::duration& d)
         throw sysError("Failed to sleep thread (clock_nanosleep returned " +
                        formatString(code) + ", errno: " + formatString(errno) + ").");
 #elif ORIGINAL_PLATFORM_MACOS
-    const timespec ts = d.toTimespec();
-    timespec rem = ts;
-    int code;
+    timespec ts = d.toTimespec();
+    const integer total_ns = static_cast<integer>(ts.tv_sec) * static_cast<integer>(1000000000) + ts.tv_nsec;
+    timespec start {};
+    timespec now {};
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-    do {
-        errno = 0;
-        code = nanosleep(&rem, &rem);
-    } while (code == -1 && errno == EINTR);
+    integer target_ns = static_cast<integer>(start.tv_sec) * static_cast<integer>(1000000000) +
+                          static_cast<integer>(start.tv_nsec) + total_ns;
+    while (true)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &now);
 
-    if (code != 0)
-        throw sysError("Failed to sleep thread (nanosleep returned " +
-                       formatString(code) + ", errno: " + formatString(errno) + ").");
+        integer now_ns = static_cast<integer>(now.tv_sec) * static_cast<integer>(1000000000) +
+                           static_cast<integer>(now.tv_nsec);
+
+        if (now_ns >= target_ns)
+            return;
+
+        integer remaining = target_ns - now_ns;
+
+        timespec req;
+        req.tv_sec  = remaining / static_cast<integer>(1000000000);
+        req.tv_nsec = remaining % static_cast<integer>(1000000000);
+
+        int ret = nanosleep(&req, nullptr);
+
+        if (ret == 0)
+            return;
+        if (errno != EINTR)
+            return;
+    }
 #elif ORIGINAL_PLATFORM_WINDOWS
 
     Sleep(d.toDWMilliseconds());
