@@ -5,8 +5,6 @@ name: Master Branch CI - Full Tests
 on:
   pull_request:
     branches: [ master ]
-  push:
-    branches: [ test-mactest ]
 
 jobs:
   linux-tests:
