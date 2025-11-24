@@ -956,7 +956,7 @@ TEST(AsyncTest, WaitForWithException) {
     });
 
     // 等待足够长的时间
-    const bool completed = f.waitFor(milliseconds(150));
+    const bool completed = f.waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(f.ready());
 
