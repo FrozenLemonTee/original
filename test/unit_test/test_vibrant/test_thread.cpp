@@ -373,6 +373,7 @@ TEST_F(ThreadTest, SleepInMultipleThreads) {
     };
 
     std::vector<thread> threads;
+    threads.reserve(num_threads);
     for (int i = 0; i < num_threads; ++i) {
         // Each thread sleeps for (i+1)*100 milliseconds
         threads.emplace_back(worker, i, (i+1)*100_ms);
