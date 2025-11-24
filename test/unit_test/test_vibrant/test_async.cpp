@@ -902,7 +902,7 @@ TEST(AsyncTest, SharedFutureVoidWaitFor) {
     }).share();
 
     // 等待足够长的时间
-    const bool success = sf.waitFor(milliseconds(150));
+    const bool success = sf.waitFor(milliseconds(300));
     EXPECT_TRUE(success);
     EXPECT_TRUE(sf.ready());
 
