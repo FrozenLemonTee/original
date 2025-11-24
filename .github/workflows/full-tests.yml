@@ -5,6 +5,8 @@ name: Master Branch CI - Full Tests
 on:
   pull_request:
     branches: [ master ]
+  push:
+    branches: [ test-mactest ]
 
 jobs:
   linux-tests:
@@ -76,3 +78,30 @@ jobs:
       - name: Run tests
         run: |
           cd build && ctest --verbose -C ${{ matrix.build_type }} --output-on-failure
+
+  macos-tests:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        build_type: [ Debug, Release ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install cmake ninja
+
+      - name: Configure and Build
+        run: |
+          export CC=clang
+          export CXX=clang++
+
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -G Ninja
+          cmake --build build --config ${{ matrix.build_type }}
+
+      - name: Run tests
+        run: |
+          cd build && ctest --verbose --output-on-failure
