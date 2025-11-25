@@ -259,7 +259,7 @@ namespace original {
 
             explicit awaitable(handle h);
 
-            bool await_ready() const noexcept;
+            [[nodiscard]] bool await_ready() const noexcept;
 
             void await_suspend(std::coroutine_handle<> handle) noexcept;
 
@@ -314,7 +314,7 @@ namespace original {
 
             future& operator=(future&& other) noexcept;
 
-            bool ready() const noexcept;
+            [[nodiscard]] bool ready() const noexcept;
 
             TYPE get();
 
