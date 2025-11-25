@@ -6,6 +6,7 @@
 #include "condition.h"
 #include "coroutines.h"
 #include "generators.h"
+#include "lockedQueue.h"
 #include "mutex.h"
 #include "semaphores.h"
 #include "syncPoint.h"
