@@ -7,6 +7,7 @@
 #include "coroutines.h"
 #include "generators.h"
 #include "lockedQueue.h"
+#include "lockedPrique.h"
 #include "mutex.h"
 #include "semaphores.h"
 #include "syncPoint.h"
