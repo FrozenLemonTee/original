@@ -174,9 +174,9 @@ namespace original {
         queue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks
         mutable condition condition_;       ///< Synchronization
         mutable mutex mutex_;               ///< Mutex for thread safety
-        bool stopped_;                       ///< Stop flag
-        u_integer active_threads_;           ///< Count of active threads
-        u_integer idle_threads_;             ///< Count of idle threads
+        atomic<bool> stopped_;                       ///< Stop flag
+        atomic<u_integer> active_threads_;           ///< Count of active threads
+        atomic<u_integer> idle_threads_;             ///< Count of idle threads
 
         /**
          * @brief Submits a pre-created task with specified priority
@@ -341,9 +341,9 @@ bool original::taskDelegator::taskComparator<COUPLE>::operator()(const COUPLE& l
 
 inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
     : threads_(thread_cnt),
-      stopped_(false),
-      active_threads_(0),
-      idle_threads_(0) {
+      stopped_(makeAtomic(false)),
+      active_threads_(makeAtomic<u_integer>(0)),
+      idle_threads_(makeAtomic<u_integer>(0)) {
     for (auto& thread_ : this->threads_) {
         thread_ = thread {
             [this]{
@@ -371,15 +371,9 @@ inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
                         this->idle_threads_ -= 1;
                     }
 
-                    {
-                        uniqueLock lock(this->mutex_);
-                        this->active_threads_ += 1;
-                    }
+                    this->active_threads_ += 1;
                     task->run();
-                    {
-                        uniqueLock lock(this->mutex_);
-                        this->active_threads_ -= 1;
-                    }
+                    this->active_threads_ -= 1;
                 }
             }
         };
@@ -418,7 +412,7 @@ auto original::taskDelegator::submit(time::duration timeout, Callback&& c, Args&
             throw sysError("taskDelegator already stopped");
         }
         const bool success = this->condition_.waitFor(this->mutex_, timeout, [this]{
-            return this->idle_threads_ > 0;
+            return *this->idle_threads_ > 0;
         });
         if (!success) {
             throw sysError("No idle threads available within timeout");
@@ -453,7 +447,7 @@ original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>>& 
         }
         switch (priority) {
         case priority::IMMEDIATE:
-            if (this->idle_threads_ == 0) {
+            if (*this->idle_threads_ == 0) {
                 throw sysError("No idle threads now");
             }
             this->task_immediate_.push(std::move(t.template dynamicCastTo<taskBase>()));
@@ -549,14 +543,12 @@ inline void original::taskDelegator::stop(const stopMode mode)
 
 inline original::u_integer original::taskDelegator::activeThreads() const noexcept
 {
-    uniqueLock lock(this->mutex_);
-    return this->active_threads_;
+    return *this->active_threads_;
 }
 
 inline original::u_integer original::taskDelegator::idleThreads() const noexcept
 {
-    uniqueLock lock(this->mutex_);
-    return this->idle_threads_;
+    return *this->idle_threads_;
 }
 
 inline original::taskDelegator::~taskDelegator()
