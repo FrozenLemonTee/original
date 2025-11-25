@@ -502,7 +502,7 @@ TEST_F(GeneratorsTest, MaximumBasic) {
 TEST_F(GeneratorsTest, MaximumWithNegative) {
     const vector nums = {-3, -1, -5, -2};
     auto gen = nums.generator();
-    const int max_val = maximum(std::move(gen), (std::numeric_limits<int>::min()));
+    const int max_val = maximum(std::move(gen), (std::numeric_limits<int>::min)());
     EXPECT_EQ(max_val, -1);
 }
 
@@ -584,8 +584,8 @@ TEST_F(GeneratorsTest, ComplexReduce) {
         int min_val;
         int max_val;
 
-        Stats() : count(0), sum(0), min_val(std::numeric_limits<int>::max()),
-                 max_val(std::numeric_limits<int>::min()) {}
+        Stats() : count(0), sum(0), min_val((std::numeric_limits<int>::max)()),
+                 max_val((std::numeric_limits<int>::min)()) {}
 
         Stats(const int c, const int s, const int min, const int max) : count(c), sum(s), min_val(min), max_val(max) {}
 
@@ -594,8 +594,8 @@ TEST_F(GeneratorsTest, ComplexReduce) {
             return Stats{
                 this->count + other.count,
                 this->sum + other.sum,
-                std::min(this->min_val, other.min_val),
-                std::max(this->max_val, other.max_val)
+                minimum(this->min_val, other.min_val),
+                maximum(this->max_val, other.max_val)
             };
         }
     };
