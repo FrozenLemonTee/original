@@ -1080,9 +1080,9 @@ namespace original
     {
         auto it_1 = strongPtr(it1.clone());
         auto it_2 = strongPtr(it2.clone());
-        TYPE tmp = it_2->get();
-        it_2->set(it_1->get());
-        it_1->set(tmp);
+        TYPE tmp = std::move(it_2->get());
+        it_2->set(std::move(it_1->get()));
+        it_1->set(std::move(tmp));
     }
 
     template <typename TYPE>
@@ -1138,7 +1138,8 @@ namespace original
     auto original::algorithms::compare(const iterator<TYPE>& it1, const iterator<TYPE>& it2,
                                        const Callback& compares) -> bool
     {
-        return compares(it1.get(), it2.get());
+        return compares(const_cast<iterator<TYPE>&>(it1).get(),
+                        const_cast<iterator<TYPE>&>(it2).get());
     }
 
     template <typename TYPE, typename Callback>
