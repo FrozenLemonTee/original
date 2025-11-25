@@ -4,6 +4,7 @@
 #include "vector.h"
 #include "sets.h"
 #include <string>
+#include <numeric>
 
 using namespace original;
 
