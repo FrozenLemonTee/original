@@ -623,7 +623,7 @@ TEST_F(GeneratorsTest, ReduceMoveSemantics) {
     auto gen = strings.generator();
 
     const std::string result = reduce(std::move(gen), std::string(""),
-        [](std::string acc, std::string val) {
+        [](const std::string& acc, const std::string& val) {
             return std::move(acc) + std::move(val);
         });
 
