@@ -41,6 +41,8 @@ namespace original {
 
         alternative<TYPE> tryPop();
 
+        strongPtr<TYPE> tryPop2();
+
         alternative<TYPE> popFor(time::duration timeout);
 
         void clear() noexcept;
@@ -117,7 +119,7 @@ TYPE original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::pop()
     });
     TYPE e = std::move(this->prique_.pop());
     this->size_ -= 1;
-    return std::move(e);
+    return e;
 }
 
 template <typename TYPE,
@@ -134,6 +136,21 @@ original::alternative<TYPE> original::lockedPrique<TYPE, Callback, SERIAL, ALLOC
     TYPE e = std::move(this->prique_.pop());
     this->size_ -= 1;
     return alternative<TYPE>{std::move(e)};
+}
+template <typename TYPE,
+        template <typename> typename Callback,
+        template <typename, typename> typename SERIAL,
+        template <typename> typename ALLOC>
+requires original::Compare<Callback<TYPE>, TYPE>
+original::strongPtr<TYPE>
+original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::tryPop2() {
+    uniqueLock lock{this->mutex_};
+    if (this->empty()) {
+        return original::strongPtr<TYPE>{};
+    }
+    TYPE e = std::move(this->prique_.pop());
+    this->size_ -= 1;
+    return makeStrongPtr<TYPE>(std::move(e));
 }
 
 template <typename TYPE,
