@@ -637,7 +637,7 @@ TEST(TaskDelegatorTest, SubmitWithTimeoutFailure) {
 
     // 提交一个长时间运行的任务占用线程
     auto long_task = delegator.submit([]{
-        thread::sleep(seconds(2));
+        thread::sleep(seconds(1));
         return 100;
     });
 
