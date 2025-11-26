@@ -28,10 +28,10 @@
 
 #include "async.h"
 #include "atomic.h"
-#include "queue.h"
+#include "lockedQueue.h"
 #include "refCntPtr.h"
 #include "array.h"
-#include "prique.h"
+#include "lockedPrique.h"
 #include "vector.h"
 
 namespace original {
@@ -166,14 +166,14 @@ namespace original {
             bool operator()(const COUPLE& lhs, const COUPLE& rhs) const;
         };
 
-        using priorityTaskQueue = prique<priorityTask, taskComparator, vector>;  ///< Priority queue
+        using priorityTaskQueue = lockedPrique<priorityTask, taskComparator, vector>;  ///< Priority queue
 
         array<thread> threads_;              ///< Worker threads
         priorityTaskQueue tasks_waiting_;    ///< Waiting tasks
-        queue<strongPtr<taskBase>> task_immediate_;  ///< Immediate tasks
-        queue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks
+        lockedQueue<strongPtr<taskBase>> task_immediate_;  ///< Immediate tasks
+        lockedQueue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks
         mutable condition condition_;       ///< Synchronization
-        mutable mutex mutex_;               ///< Mutex for thread safety
+        mutable mutex mutex_wait_;               ///< Mutex for thread safety
         atomic<bool> stopped_;                       ///< Stop flag
         atomic<u_integer> active_threads_;           ///< Count of active threads
         atomic<u_integer> idle_threads_;             ///< Count of idle threads
@@ -186,8 +186,9 @@ namespace original {
          * @return Future for the task result
          */
         template<typename TYPE>
-        async::future<TYPE> submit(priority priority, strongPtr<task<TYPE>>& t);
+        async::future<TYPE> submit(priority priority, strongPtr<task<TYPE>> t);
 
+        void workingThread();
     public:
         taskDelegator(const taskDelegator&) = delete;               ///< Disable copy constructor
         taskDelegator& operator=(const taskDelegator&) = delete;    ///< Disable copy assignment
@@ -339,44 +340,51 @@ bool original::taskDelegator::taskComparator<COUPLE>::operator()(const COUPLE& l
     return static_cast<u_integer>(lhs.second()) < static_cast<u_integer>(rhs.second());
 }
 
+void original::taskDelegator::workingThread() {
+    while (true) {
+        strongPtr<taskBase> task;
+
+        if (auto opt = this->task_immediate_.tryPop2()) {
+            task = std::move(*opt);
+        } else if (auto opt = this->tasks_waiting_.tryPop2()) {
+            task = std::move((*opt).first());
+        } else {
+            uniqueLock lock{this->mutex_wait_};
+            this->idle_threads_ += 1;
+            this->condition_.wait(this->mutex_wait_, [this]{
+                return (bool)this->stopped_ || !this->task_immediate_.empty()
+                       || !this->tasks_waiting_.empty() || !this->tasks_deferred_.empty();
+            });
+            this->idle_threads_ -= 1;
+
+            if (this->stopped_ && this->task_immediate_.empty()
+                && this->tasks_waiting_.empty() && this->tasks_deferred_.empty()) {
+                return;
+            }
+            continue;
+        }
+
+        if (task) {
+            this->active_threads_ += 1;
+            auto* p = task.get();
+            fprintf(stderr, "%p\n", p);
+            fprintf(stderr, "[debug workThread] thread id:%d\n", thread::thisId());
+            task->run();
+            fprintf(stderr, "[debug workThread] thread id:%d\n", thread::thisId());
+            this->active_threads_ -= 1;
+        }
+    }
+}
+
 inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
     : threads_(thread_cnt),
       stopped_(makeAtomic(false)),
       active_threads_(makeAtomic<u_integer>(0)),
       idle_threads_(makeAtomic<u_integer>(0)) {
     for (auto& thread_ : this->threads_) {
-        thread_ = thread {
-            [this]{
-                while (true) {
-                    strongPtr<taskBase> task;
-                    {
-                        uniqueLock lock(this->mutex_);
-                        this->idle_threads_ += 1;
-                        this->condition_.wait(this->mutex_, [this] {
-                            return this->stopped_ || !this->tasks_waiting_.empty() || !this->task_immediate_.empty();
-                        });
-
-                        if (this->stopped_ &&
-                            this->tasks_waiting_.empty() &&
-                            this->task_immediate_.empty()) {
-                                this->idle_threads_ -= 1;
-                                return;
-                        }
-
-                        if (!this->task_immediate_.empty()) {
-                            task = std::move(this->task_immediate_.pop());
-                        } else {
-                            task = std::move(this->tasks_waiting_.pop().first());
-                        }
-                        this->idle_threads_ -= 1;
-                    }
-
-                    this->active_threads_ += 1;
-                    task->run();
-                    this->active_threads_ -= 1;
-                }
-            }
-        };
+        thread_ = std::move(thread {
+        [this]{ this->workingThread(); }
+        });
     }
 }
 
@@ -406,46 +414,39 @@ auto original::taskDelegator::submit(time::duration timeout, Callback&& c, Args&
         std::forward<Args>(args)...
     );
     auto f = new_task->getFuture();
-    {
-        uniqueLock lock(this->mutex_);
-        if (this->stopped_) {
-            throw sysError("taskDelegator already stopped");
-        }
-        const bool success = this->condition_.waitFor(this->mutex_, timeout, [this]{
-            return *this->idle_threads_ > 0;
-        });
-        if (!success) {
-            throw sysError("No idle threads available within timeout");
-        }
-        this->task_immediate_.push(std::move(new_task.template dynamicCastTo<taskBase>()));
+    if (this->stopped_) {
+        throw sysError("taskDelegator already stopped");
     }
+    const bool success = this->condition_.waitFor(this->mutex_wait_, timeout, [this]{
+        return *this->idle_threads_ > 0;
+    });
+    if (!success) {
+        throw sysError("No idle threads available within timeout");
+    }
+    this->task_immediate_.push(std::move(new_task.template dynamicCastTo<taskBase>()));
     this->condition_.notify();
     return f;
 }
 
 inline original::u_integer original::taskDelegator::waitingCnt() const noexcept
 {
-    uniqueLock lock(this->mutex_);
     return this->tasks_waiting_.size();
 }
 
 inline original::u_integer original::taskDelegator::immediateCnt() const noexcept
 {
-    uniqueLock lock(this->mutex_);
     return this->task_immediate_.size();
 }
 
 template <typename TYPE>
 original::async::future<TYPE>
-original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>>& t)
+original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>> t)
 {
     auto f = t->getFuture();
-    {
-        uniqueLock lock(this->mutex_);
-        if (this->stopped_) {
-            throw sysError("taskDelegator already stopped");
-        }
-        switch (priority) {
+    if (this->stopped_) {
+        throw sysError("taskDelegator already stopped");
+    }
+    switch (priority) {
         case priority::IMMEDIATE:
             if (*this->idle_threads_ == 0) {
                 throw sysError("No idle threads now");
@@ -462,7 +463,6 @@ original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>>& 
             return f;
         default:
             throw sysError("Unknown priority");
-        }
     }
     this->condition_.notify();
     return f;
@@ -470,34 +470,27 @@ original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>>& 
 
 inline void original::taskDelegator::runDeferred()
 {
-    {
-        uniqueLock lock(this->mutex_);
-        if (!this->tasks_deferred_.empty()) {
-            this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
-        } else {
-            return;
-        }
+    if (!this->tasks_deferred_.empty()) {
+        this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
+    } else {
+        return;
     }
     this->condition_.notify();
 }
 
 inline void original::taskDelegator::runAllDeferred()
 {
-    {
-        uniqueLock lock(this->mutex_);
-        if (this->tasks_deferred_.empty()) {
-            return;
-        }
-        while (!this->tasks_deferred_.empty()) {
-            this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
-        }
+    if (this->tasks_deferred_.empty()) {
+        return;
+    }
+    while (!this->tasks_deferred_.empty()) {
+        this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
     }
     this->condition_.notifyAll();
 }
 
 inline original::u_integer original::taskDelegator::discardDeferred()
 {
-    uniqueLock lock(this->mutex_);
     if (!this->tasks_deferred_.empty()) {
         this->tasks_deferred_.pop();
     }
@@ -506,7 +499,6 @@ inline original::u_integer original::taskDelegator::discardDeferred()
 
 inline void original::taskDelegator::discardAllDeferred()
 {
-    uniqueLock lock(this->mutex_);
     if (!this->tasks_deferred_.empty()) {
         this->tasks_deferred_.clear();
     }
@@ -514,15 +506,12 @@ inline void original::taskDelegator::discardAllDeferred()
 
 inline original::u_integer original::taskDelegator::deferredCnt() const noexcept
 {
-    uniqueLock lock(this->mutex_);
     return this->tasks_deferred_.size();
 }
 
 inline void original::taskDelegator::stop(const stopMode mode)
 {
-    {
-        uniqueLock lock(this->mutex_);
-        switch (mode) {
+    switch (mode) {
         case RUN_DEFERRED:
             while (!this->tasks_deferred_.empty()) {
                 this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), DEFERRED});
@@ -535,9 +524,8 @@ inline void original::taskDelegator::stop(const stopMode mode)
             break;
         default:
             throw sysError("Unknown stop mode");
-        }
-        this->stopped_ = true;
     }
+    this->stopped_ = true;
     this->condition_.notifyAll();
 }
 
