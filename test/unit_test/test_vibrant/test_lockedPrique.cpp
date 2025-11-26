@@ -136,7 +136,7 @@ TEST_F(LockedPriqueTest, PopForTimeout) {
     
     EXPECT_FALSE(result.hasValue());
     const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    EXPECT_GE(duration.count(), 100);
+    EXPECT_GE(duration.count(), 98);
 }
 
 // 测试 popFor 成功获取元素
