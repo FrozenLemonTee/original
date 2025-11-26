@@ -340,19 +340,19 @@ bool original::taskDelegator::taskComparator<COUPLE>::operator()(const COUPLE& l
     return static_cast<u_integer>(lhs.second()) < static_cast<u_integer>(rhs.second());
 }
 
-void original::taskDelegator::workingThread() {
+inline void original::taskDelegator::workingThread() {
     while (true) {
         strongPtr<taskBase> task;
 
-        if (auto opt = this->task_immediate_.tryPop2()) {
+        if (auto opt = this->task_immediate_.tryPop()) {
             task = std::move(*opt);
-        } else if (auto opt = this->tasks_waiting_.tryPop2()) {
-            task = std::move((*opt).first());
+        } else if (auto opt2 = this->tasks_waiting_.tryPop()) {
+            task = std::move(opt2->first());
         } else {
             uniqueLock lock{this->mutex_wait_};
             this->idle_threads_ += 1;
             this->condition_.wait(this->mutex_wait_, [this]{
-                return (bool)this->stopped_ || !this->task_immediate_.empty()
+                return this->stopped_ || !this->task_immediate_.empty()
                        || !this->tasks_waiting_.empty() || !this->tasks_deferred_.empty();
             });
             this->idle_threads_ -= 1;
