@@ -681,7 +681,8 @@ TEST_F(VectorTest, MoveSemanticsWithArrayView) {
     EXPECT_EQ(vec2[1], 200);
 }
 
-TEST_F(VectorTest, ComplexTypeWithArrayView) {
+namespace
+{
     // 测试复杂类型的arrayView互转
     struct Person {
         std::string name;
@@ -690,7 +691,9 @@ TEST_F(VectorTest, ComplexTypeWithArrayView) {
             return name == other.name && age == other.age;
         }
     };
+}
 
+TEST_F(VectorTest, ComplexTypeWithArrayView) {
     Person people[3] = {
         {"Alice", 25},
         {"Bob", 30},
