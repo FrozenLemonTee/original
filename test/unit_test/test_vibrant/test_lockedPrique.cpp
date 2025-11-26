@@ -313,10 +313,10 @@ namespace
 
 // 测试移动语义
 TEST_F(LockedPriqueTest, MoveSemantics) {
-    lockedPrique<ownerPtr<int>, ptrComparator> p1;
+    lockedPrique<strongPtr<int>, ptrComparator> p1;
     
-    auto ptr1 = makeOwnerPtr<int>(42);
-    auto ptr2 = makeOwnerPtr<int>(24);
+    auto ptr1 = makeStrongPtr<int>(42);
+    auto ptr2 = makeStrongPtr<int>(24);
 
     EXPECT_EQ(*ptr1, 42);
     EXPECT_EQ(*ptr2, 24);
