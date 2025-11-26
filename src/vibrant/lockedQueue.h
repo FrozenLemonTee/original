@@ -6,7 +6,6 @@
 #include "atomic.h"
 #include "mutex.h"
 #include "condition.h"
-#include "refCntPtr.h"
 
 namespace original {
     template<typename TYPE,
@@ -39,8 +38,6 @@ namespace original {
         TYPE pop();
 
         alternative<TYPE> tryPop();
-
-        strongPtr<TYPE> tryPop2();
 
         alternative<TYPE> popFor(time::duration timeout);
 
@@ -132,19 +129,6 @@ original::alternative<TYPE> original::lockedQueue<TYPE, SERIAL, ALLOC>::tryPop()
     TYPE e = std::move(this->queue_.pop());
     this->size_ -= 1;
     return alternative<TYPE>{std::move(e)};
-}
-
-template <typename TYPE,
-        template <typename, typename> typename SERIAL,
-        template <typename> typename ALLOC>
-original::strongPtr<TYPE> original::lockedQueue<TYPE, SERIAL, ALLOC>::tryPop2() {
-    uniqueLock lock{this->mutex_};
-    if (this->empty()) {
-        return original::strongPtr<TYPE>{};
-    }
-    TYPE e = std::move(this->queue_.pop());
-    this->size_ -= 1;
-    return makeStrongPtr<TYPE>(std::move(e));
 }
 
 template <typename TYPE,
