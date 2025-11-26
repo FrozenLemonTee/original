@@ -413,13 +413,16 @@ auto original::taskDelegator::submit(time::duration timeout, Callback&& c, Args&
     if (this->stopped_) {
         throw sysError("taskDelegator already stopped");
     }
-    const bool success = this->condition_.waitFor(this->mutex_wait_, timeout, [this]{
-        return *this->idle_threads_ > 0;
-    });
-    if (!success) {
-        throw sysError("No idle threads available within timeout");
+    {
+        uniqueLock lock{this->mutex_wait_};
+        const bool success = this->condition_.waitFor(this->mutex_wait_, timeout, [this]{
+            return *this->idle_threads_ > 0;
+        });
+        if (!success) {
+            throw sysError("No idle threads available within timeout");
+        }
+        this->task_immediate_.push(std::move(new_task.template dynamicCastTo<taskBase>()));
     }
-    this->task_immediate_.push(std::move(new_task.template dynamicCastTo<taskBase>()));
     this->condition_.notify();
     return f;
 }
