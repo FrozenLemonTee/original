@@ -16,15 +16,15 @@ int sub_func(const int a, const int b) {
 }
 
 TEST(TaskDelegatorTest, SubmitNormalTasks) {
-    taskDelegator delegator(1);
+    taskDelegator delegator(4);
 
     auto f1 = delegator.submit(add_func, 2, 3);
-//    auto f2 = delegator.submit(sub_func, 10, 4);
+    auto f2 = delegator.submit(sub_func, 10, 4);
 
     thread::sleep(seconds(1));
 
-//    EXPECT_EQ(f1.result(), 5);
-//    EXPECT_EQ(f2.result(), 6);
+    EXPECT_EQ(f1.result(), 5);
+    EXPECT_EQ(f2.result(), 6);
 }
 
 TEST(TaskDelegatorTest, SubmitHighPriority) {
