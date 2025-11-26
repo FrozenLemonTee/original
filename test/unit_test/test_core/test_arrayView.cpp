@@ -181,16 +181,6 @@ TEST_F(ArrayViewTest, ConstView) {
     EXPECT_EQ(view.count(), 10);
     EXPECT_FALSE(view.empty());
     EXPECT_EQ(view.data(), testData);
-    
-    // 测试常量迭代器（需要添加const迭代器支持）
-    // 目前代码中没有const迭代器，这里注释掉
-    /*
-    int sum = 0;
-    for (auto it = view.begin(); it != view.end(); ++it) {
-        sum += *it;
-    }
-    EXPECT_EQ(sum, 55);
-    */
 }
 
 // 测试移动和拷贝语义
