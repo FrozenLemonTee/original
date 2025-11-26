@@ -166,17 +166,17 @@ namespace original {
             bool operator()(const COUPLE& lhs, const COUPLE& rhs) const;
         };
 
-        using priorityTaskQueue = lockedPrique<priorityTask, taskComparator>;  ///< Priority queue
+        using priorityTaskQueue = lockedPrique<priorityTask, taskComparator>;  ///< Priority queue with built-in locking
 
         array<thread> threads_;              ///< Worker threads
-        priorityTaskQueue tasks_waiting_;    ///< Waiting tasks
-        lockedQueue<strongPtr<taskBase>> task_immediate_;  ///< Immediate tasks
-        lockedQueue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks
-        mutable condition condition_;       ///< Synchronization
-        mutable mutex mutex_wait_;               ///< Mutex for thread safety
-        atomic<bool> stopped_;                       ///< Stop flag
-        atomic<u_integer> active_threads_;           ///< Count of active threads
-        atomic<u_integer> idle_threads_;             ///< Count of idle threads
+        priorityTaskQueue tasks_waiting_;    ///< Waiting tasks (thread-safe)
+        lockedQueue<strongPtr<taskBase>> task_immediate_;  ///< Immediate tasks (thread-safe)
+        lockedQueue<strongPtr<taskBase>> tasks_deferred_;  ///< Deferred tasks (thread-safe)
+        mutable condition condition_;       ///< Synchronization condition
+        mutable mutex mutex_wait_;          ///< Mutex for thread waiting synchronization
+        atomic<bool> stopped_;              ///< Stop flag (lock-free)
+        atomic<u_integer> active_threads_;  ///< Count of active threads (lock-free)
+        atomic<u_integer> idle_threads_;    ///< Count of idle threads (lock-free)
 
         /**
          * @brief Submits a pre-created task with specified priority
@@ -188,6 +188,17 @@ namespace original {
         template<typename TYPE>
         async::future<TYPE> submit(priority priority, strongPtr<task<TYPE>> t);
 
+        /**
+         * @brief Worker thread main loop
+         * @details
+         * Each worker thread continuously:
+         * 1. Checks for immediate tasks first (lock-free pop)
+         * 2. Then checks for prioritized waiting tasks (lock-free pop)
+         * 3. If no tasks available, waits on condition variable with mutex_wait_
+         * 4. Updates idle_threads_ count atomically when waiting/awakening
+         * 5. Updates active_threads_ count atomically when executing tasks
+         * 6. Exits when stopped and all queues are empty
+         */
         void workingThread();
     public:
         taskDelegator(const taskDelegator&) = delete;               ///< Disable copy constructor
