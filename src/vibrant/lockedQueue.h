@@ -8,39 +8,107 @@
 #include "condition.h"
 
 namespace original {
+
+    /**
+     * @class lockedQueue
+     * @brief Thread-safe FIFO queue with locking mechanism
+     * @tparam TYPE Element type stored in the queue
+     * @tparam SERIAL Underlying container type (default: vector)
+     * @tparam ALLOC Allocator type (default: allocator)
+     * @details
+     * Provides a thread-safe wrapper around a FIFO queue with support for:
+     * - Blocking and non-blocking operations
+     * - Timeout-based operations
+     * - Condition variable synchronization
+     * - Atomic size tracking
+     * - Head and tail access
+     *
+     * All operations are thread-safe and protected by internal mutex.
+     * Size is maintained atomically for efficient empty() and size() checks.
+     */
     template<typename TYPE,
          template <typename, typename> typename SERIAL = vector,
          template <typename> typename ALLOC = allocator>
     class lockedQueue {
-        queue<TYPE, SERIAL, ALLOC> queue_;
-        mutable mutex mutex_{};
-        mutable condition condition_{};
-        atomic<u_integer> size_;
+        queue<TYPE, SERIAL, ALLOC> queue_;  ///< Underlying FIFO queue
+        mutable mutex mutex_{};             ///< Mutex for thread safety
+        mutable condition condition_{};     ///< Condition variable for synchronization
+        atomic<u_integer> size_;            ///< Atomic size counter
 
     public:
+        /**
+         * @brief Constructs an empty locked queue
+         */
         explicit lockedQueue();
 
-        lockedQueue(const lockedQueue&) = delete;
-        lockedQueue& operator=(const lockedQueue&) = delete;
-        lockedQueue(lockedQueue&&) noexcept = delete;
-        lockedQueue& operator=(lockedQueue&&) noexcept = delete;
+        lockedQueue(const lockedQueue&) = delete;               ///< Disable copy constructor
+        lockedQueue& operator=(const lockedQueue&) = delete;    ///< Disable copy assignment
+        lockedQueue(lockedQueue&&) noexcept = delete;           ///< Disable move constructor
+        lockedQueue& operator=(lockedQueue&&) noexcept = delete;///< Disable move assignment
 
+        /**
+         * @brief Checks if the queue is empty
+         * @return True if queue is empty, false otherwise
+         * @note Uses atomic size check for efficiency
+         */
         [[nodiscard]] bool empty() const noexcept;
 
+        /**
+         * @brief Gets the number of elements in the queue
+         * @return Current queue size
+         * @note Uses atomic size check for efficiency
+         */
         [[nodiscard]] u_integer size() const noexcept;
 
+        /**
+         * @brief Retrieves the head element without removing it
+         * @return Optional containing the head element if available
+         * @note Thread-safe, returns empty alternative if queue is empty
+         */
         alternative<TYPE> head() const noexcept;
 
+        /**
+         * @brief Retrieves the tail element without removing it
+         * @return Optional containing the tail element if available
+         * @note Thread-safe, returns empty alternative if queue is empty
+         */
         alternative<TYPE> tail() const noexcept;
 
+        /**
+         * @brief Pushes an element into the queue
+         * @param e Element to push
+         * @note Notifies one waiting thread after insertion
+         */
         void push(TYPE e);
 
+        /**
+         * @brief Removes and returns the head element (blocking)
+         * @return The head element from the queue
+         * @details
+         * Blocks the calling thread until an element is available.
+         * Thread will wait on condition variable if queue is empty.
+         */
         TYPE pop();
 
+        /**
+         * @brief Attempts to remove and return the head element (non-blocking)
+         * @return Optional containing the head element if available
+         * @note Returns empty alternative immediately if queue is empty
+         */
         alternative<TYPE> tryPop();
 
+        /**
+         * @brief Removes and returns the head element with timeout
+         * @param timeout Maximum duration to wait for an element
+         * @return Optional containing the head element if available within timeout
+         * @note Returns empty alternative if timeout expires
+         */
         alternative<TYPE> popFor(time::duration timeout);
 
+        /**
+         * @brief Removes all elements from the queue
+         * @note Thread-safe clear operation
+         */
         void clear() noexcept;
     };
 }

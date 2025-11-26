@@ -10,39 +10,102 @@
 #include "mutex.h"
 
 namespace original {
+
+    /**
+     * @class lockedPrique
+     * @brief Thread-safe priority queue with locking mechanism
+     * @tparam TYPE Element type stored in the queue
+     * @tparam Callback Comparator type for ordering elements (default: increaseComparator)
+     * @tparam SERIAL Underlying container type (default: vector)
+     * @tparam ALLOC Allocator type (default: allocator)
+     * @details
+     * Provides a thread-safe wrapper around a priority queue with support for:
+     * - Blocking and non-blocking operations
+     * - Timeout-based operations
+     * - Condition variable synchronization
+     * - Atomic size tracking
+     *
+     * All operations are thread-safe and protected by internal mutex.
+     * Size is maintained atomically for efficient empty() and size() checks.
+     */
     template<typename TYPE,
         template <typename> typename Callback = increaseComparator,
         template <typename, typename> typename SERIAL = vector,
         template <typename> typename ALLOC = allocator>
     requires Compare<Callback<TYPE>, TYPE>
     class lockedPrique {
-        prique<TYPE, Callback, SERIAL, ALLOC> prique_;
-        mutable mutex mutex_{};
-        mutable condition condition_{};
-        atomic<u_integer> size_;
+        prique<TYPE, Callback, SERIAL, ALLOC> prique_;  ///< Underlying priority queue
+        mutable mutex mutex_{};                         ///< Mutex for thread safety
+        mutable condition condition_{};                 ///< Condition variable for synchronization
+        atomic<u_integer> size_;                        ///< Atomic size counter
 
     public:
+        /**
+         * @brief Constructs an empty locked priority queue
+         */
         explicit lockedPrique();
 
-        lockedPrique(const lockedPrique&) = delete;
-        lockedPrique& operator=(const lockedPrique&) = delete;
-        lockedPrique(lockedPrique&&) noexcept = delete;
-        lockedPrique& operator=(lockedPrique&&) noexcept = delete;
+        lockedPrique(const lockedPrique&) = delete;               ///< Disable copy constructor
+        lockedPrique& operator=(const lockedPrique&) = delete;    ///< Disable copy assignment
+        lockedPrique(lockedPrique&&) noexcept = delete;           ///< Disable move constructor
+        lockedPrique& operator=(lockedPrique&&) noexcept = delete;///< Disable move assignment
 
+        /**
+         * @brief Checks if the queue is empty
+         * @return True if queue is empty, false otherwise
+         * @note Uses atomic size check for efficiency
+         */
         [[nodiscard]] bool empty() const noexcept;
 
+        /**
+         * @brief Gets the number of elements in the queue
+         * @return Current queue size
+         * @note Uses atomic size check for efficiency
+         */
         [[nodiscard]] u_integer size() const noexcept;
 
+        /**
+         * @brief Retrieves the top element without removing it
+         * @return Optional containing the top element if available
+         * @note Thread-safe, returns empty alternative if queue is empty
+         */
         alternative<TYPE> top() const noexcept;
 
+        /**
+         * @brief Pushes an element into the queue
+         * @param e Element to push
+         * @note Notifies one waiting thread after insertion
+         */
         void push(TYPE e);
 
+        /**
+         * @brief Removes and returns the top element (blocking)
+         * @return The top element from the queue
+         * @details
+         * Blocks the calling thread until an element is available.
+         * Thread will wait on condition variable if queue is empty.
+         */
         TYPE pop();
 
+        /**
+         * @brief Attempts to remove and return the top element (non-blocking)
+         * @return Optional containing the top element if available
+         * @note Returns empty alternative immediately if queue is empty
+         */
         alternative<TYPE> tryPop();
 
+        /**
+         * @brief Removes and returns the top element with timeout
+         * @param timeout Maximum duration to wait for an element
+         * @return Optional containing the top element if available within timeout
+         * @note Returns empty alternative if timeout expires
+         */
         alternative<TYPE> popFor(time::duration timeout);
 
+        /**
+         * @brief Removes all elements from the queue
+         * @note Thread-safe clear operation
+         */
         void clear() noexcept;
     };
 }
