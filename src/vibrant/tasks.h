@@ -166,7 +166,7 @@ namespace original {
             bool operator()(const COUPLE& lhs, const COUPLE& rhs) const;
         };
 
-        using priorityTaskQueue = lockedPrique<priorityTask, taskComparator, vector>;  ///< Priority queue
+        using priorityTaskQueue = lockedPrique<priorityTask, taskComparator>;  ///< Priority queue
 
         array<thread> threads_;              ///< Worker threads
         priorityTaskQueue tasks_waiting_;    ///< Waiting tasks
