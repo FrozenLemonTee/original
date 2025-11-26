@@ -173,15 +173,6 @@ namespace original {
         explicit constexpr array(TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
 
         /**
-         * @brief Constructs an empty array from a zero-sized built-in array (non-const version)
-         * @param arr Reference to the zero-sized built-in array
-         * @param alloc Allocator instance to use for memory management
-         * @details This constructor creates an empty array from a zero-sized built-in array.
-         *          The resulting array will have size 0.
-         */
-        explicit constexpr array(TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
-
-        /**
          * @brief Constructs an array from a built-in array (const version)
          * @tparam N Size of the built-in array
          * @param arr Reference to the const built-in array
@@ -192,16 +183,6 @@ namespace original {
          */
         template<u_integer N>
         explicit constexpr array(const TYPE (&arr)[N], ALLOC alloc = ALLOC{}) noexcept;
-
-        /**
-         * @brief Constructs an empty array from a zero-sized built-in array (const version)
-         * @param arr Reference to the const zero-sized built-in array
-         * @param alloc Allocator instance to use for memory management
-         * @details This constructor creates an empty array from a const zero-sized built-in array.
-         *          The resulting array will have size 0.
-         *          This version allows construction from const arrays.
-         */
-        explicit constexpr array(const TYPE (&arr)[0], ALLOC alloc = ALLOC{}) noexcept;
 
         /**
          * @brief Constructs an array from an arrayView
@@ -494,9 +475,6 @@ namespace std {
     }
 
     template <typename TYPE, typename ALLOC>
-    constexpr original::array<TYPE, ALLOC>::array(TYPE(&)[0], ALLOC alloc) noexcept : array(0, std::move(alloc)) {}
-
-    template <typename TYPE, typename ALLOC>
     template <original::u_integer N>
     constexpr original::array<TYPE, ALLOC>::array(const TYPE(& arr)[N], ALLOC alloc) noexcept : array(N, std::move(alloc))
     {
@@ -505,9 +483,6 @@ namespace std {
             this->setElem(i, arr[i]);
         }
     }
-
-    template <typename TYPE, typename ALLOC>
-    constexpr original::array<TYPE, ALLOC>::array(const TYPE(&)[0], ALLOC alloc) noexcept : array(0, std::move(alloc)) {}
 
     template <typename TYPE, typename ALLOC>
     original::array<TYPE, ALLOC>::array(arrayView<TYPE> view, ALLOC alloc) : array(view.count(), std::move(alloc))

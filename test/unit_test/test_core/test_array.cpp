@@ -331,15 +331,6 @@ TEST(ArrayTest, ConstructFromStaticArrayWithAllocator) {
     EXPECT_EQ(arr[1], 2.2); // arr应该保持原始值
 }
 
-TEST(ArrayTest, ConstructFromEmptyStaticArray) {
-    // 测试从空静态数组构造
-    int emptyArray[0] = {};
-    const array<int> arr(emptyArray);
-
-    EXPECT_EQ(arr.size(), 0);
-    EXPECT_TRUE(arr.empty());
-}
-
 TEST(ArrayTest, ConstructFromConstStaticArray) {
     // 测试从const静态数组构造
     constexpr int constArray[4] = {10, 20, 30, 40};
@@ -673,7 +664,8 @@ TEST(ArrayTest, SliceIteration) {
         EXPECT_EQ(arr[3], 300);  // 原数组对应位置被修改
     }
 
-    TEST(ArrayTest, SliceWithComplexTypes) {
+    namespace
+    {
         // 测试复杂类型的slice
         struct Person {
             std::string name;
@@ -682,7 +674,9 @@ TEST(ArrayTest, SliceIteration) {
                 return name == other.name && age == other.age;
             }
         };
+    }
 
+    TEST(ArrayTest, SliceWithComplexTypes) {
         array<Person> people = {
             Person{"Alice", 25},
             Person{"Bob", 30},

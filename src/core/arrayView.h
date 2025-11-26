@@ -154,12 +154,6 @@ namespace original {
         explicit constexpr arrayView(TYPE (&arr)[N]) noexcept;
 
         /**
-         * @brief Constructs an arrayView from a zero-sized built-in array
-         * @param arr Reference to the zero-sized array
-         */
-        explicit constexpr arrayView(TYPE (&arr)[0]) noexcept;
-
-        /**
          * @brief Subscript operator for element access
          * @param index Index of the element to access
          * @return Reference to the element at the specified index
@@ -345,9 +339,6 @@ original::arrayView<TYPE>::arrayView(TYPE* data, const u_integer count) : data_(
 template <typename TYPE>
 template <original::u_integer N>
 constexpr original::arrayView<TYPE>::arrayView(TYPE(& arr)[N]) noexcept : data_(arr), count_(N) {}
-
-template <typename TYPE>
-constexpr original::arrayView<TYPE>::arrayView(TYPE(& arr)[0]) noexcept : data_(arr), count_(0) {}
 
 template <typename TYPE>
 TYPE& original::arrayView<TYPE>::operator[](u_integer index)
