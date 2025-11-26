@@ -366,11 +366,7 @@ void original::taskDelegator::workingThread() {
 
         if (task) {
             this->active_threads_ += 1;
-            auto* p = task.get();
-            fprintf(stderr, "%p\n", p);
-            fprintf(stderr, "[debug workThread] thread id:%d\n", thread::thisId());
             task->run();
-            fprintf(stderr, "[debug workThread] thread id:%d\n", thread::thisId());
             this->active_threads_ -= 1;
         }
     }
