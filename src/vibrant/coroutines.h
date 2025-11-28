@@ -275,15 +275,6 @@ namespace original {
             static void await_resume() noexcept;
         };
 
-        template<typename TYPE>
-        class future {
-        public:
-            struct promise_type;
-        private:
-            using handle = std::coroutine_handle<promise_type>;
-
-            handle handle_;
-        public:
             struct promise_type {
                 bool initial_staus = false;
                 std::coroutine_handle<> continuation_;
@@ -611,17 +602,6 @@ template <typename TYPE>
 bool original::coroutine::future<TYPE>::ready() const noexcept
 {
     return !this->handle_ || this->handle_.done();
-}
-
-template <typename TYPE>
-TYPE original::coroutine::future<TYPE>::get()
-{
-    if (!this->handle_)
-        throw nullPointerError("future handle is null");
-    this->handle_.resume();
-    auto promise = this->handle_.promise();
-    promise.rethrow_if_exception();
-    return std::move(*promise.value_);
 }
 
 template <typename TYPE>
