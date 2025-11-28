@@ -111,17 +111,29 @@ namespace original
         /**
          * @brief Notifies a specified number of waiting threads
          * @param n Number of threads to notify
-         * @details This method provides a flexible notification mechanism:
+         * @param threshold Threshold for switching to notifyAll (default: 24)
+         * @details This method provides a flexible notification mechanism with
+         * intelligent behavior based on the number of threads to notify:
          * - If n == 0: No operation is performed
-         * - If n == 1: Equivalent to calling notify()
-         * - If n >= 2: Equivalent to calling notifyAll()
+         * - If n == 1: Equivalent to calling notify() (single notification)
+         * - If n >= 2:
+         *   - If n < threshold: Calls notify() n times sequentially
+         *   - If n >= threshold: Equivalent to calling notifyAll() (more efficient)
          *
-         * @note This is a convenience method for scenarios where the exact
-         *       number of threads to notify depends on runtime conditions.
-         *       For precise control over thread notification, use notify()
-         *       or notifyAll() directly.
+         * The threshold parameter provides a performance optimization: when notifying
+         * a large number of threads, it's more efficient to wake all threads at once
+         * rather than making multiple system calls.
+         *
+         * @note This is a convenience method for scenarios where the exact number
+         *       of threads to notify depends on runtime conditions. For precise
+         *       control over thread notification, use notify() or notifyAll() directly.
+         *       The default threshold of 24 is chosen as a balance between the
+         *       overhead of multiple notify() calls and the potential inefficiency
+         *       of waking more threads than necessary with notifyAll().
+         *       Thread scheduling is non-deterministic - there's no guarantee that
+         *       exactly n threads will be woken, especially when using notifyAll().
          */
-        void notifySome(u_integer n);
+        void notifySome(u_integer n, u_integer threshold = 24);
 
         /// Virtual destructor
         virtual ~conditionBase() = default;
@@ -453,12 +465,19 @@ bool original::conditionBase::waitFor(mutexBase& mutex, const time::duration& d,
     return true;
 }
 
-inline void original::conditionBase::notifySome(const u_integer n) {
+inline void original::conditionBase::notifySome(u_integer n, u_integer threshold) {
     if (n == 0){
         return;
     }
-    if (n == 1){
+    if (n == 1) {
         this->notify();
+        return;
+    }
+
+    if (threshold == 0 || n < threshold) {
+        for (u_integer i = 0; i < n; ++i) {
+            this->notify();
+        }
     } else {
         this->notifyAll();
     }
