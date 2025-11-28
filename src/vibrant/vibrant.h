@@ -5,6 +5,7 @@
 #include "atomic.h"
 #include "condition.h"
 #include "coroutines.h"
+#include "executor.h"
 #include "generators.h"
 #include "lockedQueue.h"
 #include "lockedPrique.h"
