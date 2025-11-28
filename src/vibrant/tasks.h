@@ -201,6 +201,12 @@ namespace original {
          */
         void workingThread();
 
+        /**
+        * @brief Move all delayed tasks to the waiting queue
+        * @return The number of delayed tasks that were activated
+        * @details Internal method used to move all tasks from the tasks_deferred_ queue
+        *          to the tasks_waiting_ queue, with priority set to DEFERRED
+        */
         u_integer moveAllDeferred();
     public:
         taskDelegator(const taskDelegator&) = delete;               ///< Disable copy constructor
