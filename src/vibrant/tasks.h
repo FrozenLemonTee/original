@@ -200,6 +200,8 @@ namespace original {
          * 6. Exits when stopped and all queues are empty
          */
         void workingThread();
+
+        u_integer moveAllDeferred();
     public:
         taskDelegator(const taskDelegator&) = delete;               ///< Disable copy constructor
         taskDelegator& operator=(const taskDelegator&) = delete;    ///< Disable copy assignment
