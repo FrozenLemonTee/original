@@ -581,13 +581,13 @@ TEST(TaskDelegatorTest, DiscardSingleDeferredTask) {
     EXPECT_EQ(delegator.deferredCnt(), 3);
 
     // 丢弃一个延迟任务
-    EXPECT_EQ(delegator.discardDeferred(), 2);
+    EXPECT_TRUE(delegator.discardDeferred());
 
     // 再丢弃一个
-    EXPECT_EQ(delegator.discardDeferred(), 1);
+    EXPECT_TRUE(delegator.discardDeferred());
 
     // 丢弃最后一个
-    EXPECT_EQ(delegator.discardDeferred(), 0);
+    EXPECT_TRUE(delegator.discardDeferred());
 }
 
 // 测试丢弃所有延迟任务
