@@ -328,9 +328,9 @@ namespace original {
 template <typename TYPE>
 template <typename Callback, typename... Args>
 original::taskDelegator::task<TYPE>::task(Callback&& c, Args&&... args)
-    : p([c = std::forward<Callback>(c), ...args = std::forward<Args>(args)]() mutable {
-        return c(args...);
-    }) {}
+        : p([c = std::forward<Callback>(c), ...args = std::forward<Args>(args)]() mutable {
+    return c(args...);
+}) {}
 
 template <typename TYPE>
 void original::taskDelegator::task<TYPE>::run()
@@ -394,13 +394,13 @@ original::u_integer original::taskDelegator::moveAllDeferred() {
 }
 
 inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
-    : threads_(thread_cnt),
-      stopped_(makeAtomic(false)),
-      active_threads_(makeAtomic<u_integer>(0)),
-      idle_threads_(makeAtomic<u_integer>(0)) {
+        : threads_(thread_cnt),
+          stopped_(makeAtomic(false)),
+          active_threads_(makeAtomic<u_integer>(0)),
+          idle_threads_(makeAtomic<u_integer>(0)) {
     for (auto& thread_ : this->threads_) {
         thread_ = std::move(thread {
-        [this]{ this->workingThread(); }
+                [this]{ this->workingThread(); }
         });
     }
 }
@@ -416,8 +416,8 @@ auto original::taskDelegator::submit(const priority priority, Callback&& c, Args
 {
     using ReturnType = decltype(c(args...));
     strongPtr<task<ReturnType>> new_task = makeStrongPtr<task<ReturnType>>(
-        std::forward<Callback>(c),
-        std::forward<Args>(args)...
+            std::forward<Callback>(c),
+            std::forward<Args>(args)...
     );
     return this->submit<ReturnType>(priority, new_task);
 }
@@ -427,8 +427,8 @@ auto original::taskDelegator::submit(time::duration timeout, Callback&& c, Args&
 {
     using ReturnType = decltype(c(args...));
     strongPtr<task<ReturnType>> new_task = makeStrongPtr<task<ReturnType>>(
-        std::forward<Callback>(c),
-        std::forward<Args>(args)...
+            std::forward<Callback>(c),
+            std::forward<Args>(args)...
     );
     auto f = new_task->getFuture();
     if (this->stopped_) {
