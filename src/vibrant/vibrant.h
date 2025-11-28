@@ -6,6 +6,7 @@
 #include "condition.h"
 #include "coroutines.h"
 #include "executor.h"
+#include "executors.h"
 #include "generators.h"
 #include "lockedQueue.h"
 #include "lockedPrique.h"
