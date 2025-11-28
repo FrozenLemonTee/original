@@ -259,8 +259,6 @@ namespace original {
             handle handle_;
         public:
             struct awaitable {
-                using handle = std::coroutine_handle<promise_type>;
-
                 handle handle_;
 
                 explicit awaitable(handle h);
@@ -273,11 +271,11 @@ namespace original {
             };
 
             struct finalAwaitable {
-                static bool await_ready() noexcept;
+                bool await_ready() noexcept;
 
-                void await_suspend(std::coroutine_handle<promise_type> handle) noexcept;
+                void await_suspend(handle handle) noexcept;
 
-                static void await_resume() noexcept;
+                void await_resume() noexcept;
             };
 
             struct promise_type {
@@ -290,7 +288,7 @@ namespace original {
 
                 auto initial_suspend();
 
-                static finalAwaitable final_suspend() noexcept;
+                finalAwaitable final_suspend() noexcept;
 
                 void return_value(TYPE value);
 
@@ -536,7 +534,7 @@ TYPE original::coroutine::task<TYPE>::awaitable::await_resume() const noexcept
 }
 
 template<typename TYPE>
-bool original::coroutine::task<TYPE>::finalAwaitable::await_ready() noexcept
+bool original::coroutine::task<TYPE>::finalAwaitable::await_ready() noexcept // NOLINT
 {
     return false;
 }
@@ -559,7 +557,7 @@ void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
 }
 
 template<typename TYPE>
-void original::coroutine::task<TYPE>::finalAwaitable::await_resume() noexcept {}
+void original::coroutine::task<TYPE>::finalAwaitable::await_resume() noexcept {} // NOLINT
 
 template <typename TYPE>
 original::coroutine::task<TYPE>
@@ -569,7 +567,7 @@ original::coroutine::task<TYPE>::promise_type::get_return_object()
 }
 
 template <typename TYPE>
-auto original::coroutine::task<TYPE>::promise_type::initial_suspend()
+auto original::coroutine::task<TYPE>::promise_type::initial_suspend() // NOLINT
 {
     return std::suspend_always{};
 }
