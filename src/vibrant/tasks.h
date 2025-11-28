@@ -278,9 +278,10 @@ namespace original {
 
         /**
          * @brief Discards one deferred task
-         * @return Remaining number of deferred tasks after discarding
+         * @return true if a deferred task was successfully discarded,
+         *         false if no deferred tasks were available
          */
-        u_integer discardDeferred();
+        bool discardDeferred();
 
         /**
          * @brief Discards all deferred tasks
@@ -381,6 +382,15 @@ inline void original::taskDelegator::workingThread() {
             this->active_threads_ -= 1;
         }
     }
+}
+
+original::u_integer original::taskDelegator::moveAllDeferred() {
+    u_integer activated = 0;
+    while (auto task = this->tasks_deferred_.tryPop()) {
+        this->tasks_waiting_.push(priorityTask{std::move(*task), priority::DEFERRED});
+        activated += 1;
+    }
+    return activated;
 }
 
 inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
