@@ -543,8 +543,7 @@ template<typename TYPE>
 void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
      std::coroutine_handle<promise_type> handle) noexcept
 {
-    auto& promise = handle.promise();
-    if (promise.continuation_) {
+    if (auto& promise = handle.promise(); promise.continuation_) {
         if (promise.executor_) {
             promise.executor_->schedule(promise.continuation_);
         } else {
@@ -552,7 +551,7 @@ void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
         }
     } else {
         if (promise.executor_) {
-            promise.executor_->schedule(std::coroutine_handle<>{});
+            promise.executor_->schedule(std::coroutine_handle{});
         }
     }
 }

@@ -45,8 +45,7 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
         return t.result();
     }
     while (!t.ready() && !this->hasStopped()) {
-        std::coroutine_handle<> handle = this->queue_.pop();
-        if (handle) {
+        if (std::coroutine_handle<> handle = this->queue_.pop()) {
             handle.resume();
         }
     }
