@@ -6,6 +6,7 @@
 namespace original {
     class syncExecutor : public executor {
         lockedQueue<std::coroutine_handle<>> queue_;
+    class syncExecutor final : public executor {
         atomic<bool> stopping_;
     public:
         syncExecutor();
@@ -15,14 +16,14 @@ namespace original {
         template<typename TYPE>
         TYPE wait(coroutine::task<TYPE>&& t);
 
-        bool hasStopped() const noexcept;
+        [[nodiscard]] bool hasStopped() const noexcept;
 
         void stop() noexcept;
 
         ~syncExecutor() override;
     };
 
-    class threadPoolExecutor : public executor {
+    class threadPoolExecutor final : public executor {
         taskDelegator& delegator_;
     public:
         explicit threadPoolExecutor(taskDelegator& delegator);
@@ -31,9 +32,9 @@ namespace original {
     };
 }
 
-original::syncExecutor::syncExecutor() : stopping_(makeAtomic(false)) {}
+inline original::syncExecutor::syncExecutor() : stopping_(makeAtomic(false)) {}
 
-void original::syncExecutor::schedule(std::coroutine_handle<> handle) {
+inline void original::syncExecutor::schedule(const std::coroutine_handle<> handle) {
     if (!this->stopping_)
         this->queue_.push(handle);
 }
@@ -56,23 +57,23 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
     return t.result();
 }
 
-bool original::syncExecutor::hasStopped() const noexcept {
+inline bool original::syncExecutor::hasStopped() const noexcept {
     return *this->stopping_;
 }
 
-void original::syncExecutor::stop() noexcept {
+inline void original::syncExecutor::stop() noexcept {
     if (!this->hasStopped())
         this->stopping_ = true;
 }
 
-original::syncExecutor::~syncExecutor() {
+inline original::syncExecutor::~syncExecutor() {
     this->stop();
 }
 
-original::threadPoolExecutor::threadPoolExecutor(taskDelegator& delegator)
+inline original::threadPoolExecutor::threadPoolExecutor(taskDelegator& delegator)
         : delegator_(delegator) {}
 
-void original::threadPoolExecutor::schedule(std::coroutine_handle<> handle) {
+inline void original::threadPoolExecutor::schedule(std::coroutine_handle<> handle) {
     this->delegator_.submit([handle]{
         handle.resume();
     });

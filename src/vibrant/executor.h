@@ -28,21 +28,22 @@ namespace original {
     };
 }
 
-original::executor::awaitable::awaitable(executor& executor)
+inline original::executor::awaitable::awaitable(executor& executor)
     : executor_(executor) {}
 
-bool original::executor::awaitable::await_ready() const noexcept { // NOLINT
+inline bool original::executor::awaitable::await_ready() const noexcept { // NOLINT
     return false;
 }
 
 void original::executor::awaitable::await_suspend(
      std::coroutine_handle<> handle) const noexcept {
+inline void original::executor::awaitable::await_suspend(
     this->executor_.schedule(handle);
 }
 
-void original::executor::awaitable::await_resume() const noexcept {}
+inline void original::executor::awaitable::await_resume() const noexcept {} // NOLINT
 
-original::executor::awaitable
+inline original::executor::awaitable
 original::executor::operator co_await() noexcept {
     return awaitable{*this};
 }
