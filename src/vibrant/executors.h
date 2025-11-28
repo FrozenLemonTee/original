@@ -40,7 +40,9 @@ inline void original::syncExecutor::schedule(const std::coroutine_handle<> handl
 
 template<typename TYPE>
 TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
-    t.via(*this);
+    if (!t.hasExecutor()) {
+        t.via(*this);
+    }
     if (t.ready()) {
         return t.result();
     }

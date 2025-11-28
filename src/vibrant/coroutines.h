@@ -308,6 +308,8 @@ namespace original {
 
             void start() noexcept;
 
+            [[nodiscard]] bool hasExecutor() const noexcept;
+
             task& via(executor& executor) noexcept;
 
             task(task&& other) noexcept;
@@ -605,6 +607,12 @@ template<typename TYPE>
 void original::coroutine::task<TYPE>::start() noexcept {
     if (this->handle_ && !this->handle_.done())
         this->handle_.resume();
+}
+
+template <typename TYPE>
+bool original::coroutine::task<TYPE>::hasExecutor() const noexcept
+{
+    return this->handle_.promise().executor_;
 }
 
 template<typename TYPE>
