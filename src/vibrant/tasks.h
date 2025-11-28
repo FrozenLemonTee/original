@@ -490,38 +490,25 @@ original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>> t
 
 inline void original::taskDelegator::runDeferred()
 {
-    if (!this->tasks_deferred_.empty()) {
-        this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
-    } else {
-        return;
+    if (auto task = this->tasks_deferred_.tryPop()) {
+        this->tasks_waiting_.push(priorityTask{std::move(*task), priority::DEFERRED});
+        this->condition_.notify();
     }
-    this->condition_.notify();
 }
 
 inline void original::taskDelegator::runAllDeferred()
 {
-    if (this->tasks_deferred_.empty()) {
-        return;
-    }
-    while (!this->tasks_deferred_.empty()) {
-        this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), priority::DEFERRED});
-    }
-    this->condition_.notifyAll();
+    this->condition_.notifySome(this->moveAllDeferred());
 }
 
-inline original::u_integer original::taskDelegator::discardDeferred()
+inline bool original::taskDelegator::discardDeferred()
 {
-    if (!this->tasks_deferred_.empty()) {
-        this->tasks_deferred_.pop();
-    }
-    return this->tasks_deferred_.size();
+    return this->tasks_deferred_.tryPop().hasValue();
 }
 
 inline void original::taskDelegator::discardAllDeferred()
 {
-    if (!this->tasks_deferred_.empty()) {
-        this->tasks_deferred_.clear();
-    }
+    this->tasks_deferred_.clear();
 }
 
 inline original::u_integer original::taskDelegator::deferredCnt() const noexcept
@@ -531,14 +518,15 @@ inline original::u_integer original::taskDelegator::deferredCnt() const noexcept
 
 inline void original::taskDelegator::stop(const stopMode mode)
 {
+    if (this->stopped_)
+        return;
+
     switch (mode) {
         case RUN_DEFERRED:
-            while (!this->tasks_deferred_.empty()) {
-                this->tasks_waiting_.push(priorityTask{this->tasks_deferred_.pop(), DEFERRED});
-            }
+            this->moveAllDeferred();
             break;
         case DISCARD_DEFERRED:
-            this->tasks_deferred_.clear();
+            this->discardAllDeferred();
             break;
         case KEEP_DEFERRED:
             break;
@@ -562,6 +550,7 @@ inline original::u_integer original::taskDelegator::idleThreads() const noexcept
 inline original::taskDelegator::~taskDelegator()
 {
     this->stop(stopMode::RUN_DEFERRED);
+    this->discardAllDeferred();
     for (auto& thread : this->threads_) {
         if (thread.joinable())
             thread.join();
