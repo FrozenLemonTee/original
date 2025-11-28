@@ -11,9 +11,8 @@
  *
  * Features:
  * - Task prioritization (IMMEDIATE, HIGH, NORMAL, LOW, DEFERRED)
- * - Automatic or manually shutdown
- *   with configurable stop modes (DISCARD_DEFERRED, KEEP_DEFERRED, RUN_DEFERRED)
- *   to handle deferred task
+ * - Automatic shutdown on destruction with configurable stop modes (DISCARD_DEFERRED, KEEP_DEFERRED, RUN_DEFERRED)
+ *   to handle deferred tasks
  * - Deferred task handling (activate, discard, or keep on shutdown)
  * - Query interfaces for task counts and thread states
  * - Timeout-based immediate task submission
