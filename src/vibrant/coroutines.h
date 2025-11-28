@@ -1,6 +1,7 @@
 #ifndef ORIGINAL_COROUTINES_H
 #define ORIGINAL_COROUTINES_H
 #include "optional.h"
+#include "executor.h"
 #include <coroutine>
 #include <exception>
 
@@ -249,43 +250,47 @@ namespace original {
         };
 
         template<typename TYPE>
-        class future;
-
-        template<typename TYPE>
-        struct awaitable {
-            using handle = std::coroutine_handle<typename future<TYPE>::promise_type>;
+        class task {
+        public:
+            struct promise_type;
+        private:
+            using handle = std::coroutine_handle<promise_type>;
 
             handle handle_;
+        public:
+            struct awaitable {
+                using handle = std::coroutine_handle<promise_type>;
 
-            explicit awaitable(handle h);
+                handle handle_;
 
-            [[nodiscard]] bool await_ready() const noexcept;
+                explicit awaitable(handle h);
 
-            void await_suspend(std::coroutine_handle<> handle) noexcept;
+                [[nodiscard]] bool await_ready() const noexcept;
 
-            TYPE await_resume() const noexcept;
-        };
+                void await_suspend(std::coroutine_handle<> handle) noexcept;
 
-        template<typename TYPE>
-        struct finalAwaitable {
-            static bool await_ready() noexcept;
+                TYPE await_resume() const noexcept;
+            };
 
-            void await_suspend(std::coroutine_handle<typename future<TYPE>::promise_type> handle) noexcept;
+            struct finalAwaitable {
+                static bool await_ready() noexcept;
 
-            static void await_resume() noexcept;
-        };
+                void await_suspend(std::coroutine_handle<promise_type> handle) noexcept;
+
+                static void await_resume() noexcept;
+            };
 
             struct promise_type {
-                bool initial_staus = false;
                 std::coroutine_handle<> continuation_;
+                executor* executor_ = nullptr;
                 alternative<TYPE> value_;
                 std::exception_ptr e_;
 
-                future get_return_object();
+                task get_return_object();
 
-                static std::suspend_always initial_suspend();
+                auto initial_suspend();
 
-                static finalAwaitable<TYPE> final_suspend() noexcept;
+                static finalAwaitable final_suspend() noexcept;
 
                 void return_value(TYPE value);
 
@@ -294,25 +299,32 @@ namespace original {
                 void rethrow_if_exception() const;
             };
 
-            future(const future&) = delete;
-            future& operator=(const future&) = delete;
+            task(const task&) = delete;
+            task& operator=(const task&) = delete;
 
-            future() = default;
+            task() = default;
 
-            explicit future(handle h);
+            explicit task(handle h);
 
-            future(future&& other) noexcept;
+            void start() noexcept;
 
-            future& operator=(future&& other) noexcept;
+            task& via(executor& executor) noexcept;
+
+            task(task&& other) noexcept;
+
+            task& operator=(task&& other) noexcept;
 
             [[nodiscard]] bool ready() const noexcept;
 
-            TYPE get();
+            awaitable operator co_await() noexcept;
 
-            awaitable<TYPE> operator co_await() noexcept;
+            TYPE result();
 
-            ~future();
+            ~task();
         };
+
+        template<typename Callback, typename... Args>
+        static auto run(executor& executor, Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
     };
 }
 
@@ -493,99 +505,132 @@ original::coroutine::generator<TYPE>::~generator()
 }
 
 template <typename TYPE>
-original::coroutine::awaitable<TYPE>::awaitable(handle h) : handle_(h) {}
+original::coroutine::task<TYPE>::awaitable::awaitable(handle h) : handle_(h) {}
 
 template <typename TYPE>
-bool original::coroutine::awaitable<TYPE>::await_ready() const noexcept
+bool original::coroutine::task<TYPE>::awaitable::await_ready() const noexcept
 {
-    return !this->handle_ || this->handle_->done();
+    return !this->handle_ || this->handle_.done();
 }
 
 template <typename TYPE>
-void original::coroutine::awaitable<TYPE>::await_suspend(std::coroutine_handle<> handle) noexcept
+void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_handle<> handle) noexcept
 {
     this->handle_.promise().continuation_ = handle;
-    this->handle_.resume();
+    auto& promise = this->handle_.promise();
+    if (promise.executor_) {
+        promise.executor_->schedule(this->handle_);
+    } else {
+        this->handle_.resume();
+    }
 }
 
 template <typename TYPE>
-TYPE original::coroutine::awaitable<TYPE>::await_resume() const noexcept
+TYPE original::coroutine::task<TYPE>::awaitable::await_resume() const noexcept
 {
-    auto p = this->handle_.promise();
-    p.rethrow_if_exception();
-    return std::move(*p.value_);
+    auto& promise = this->handle_.promise();
+    promise.rethrow_if_exception();
+    return std::move(*promise.value_);
 }
 
 template<typename TYPE>
-bool original::coroutine::finalAwaitable<TYPE>::await_ready() noexcept
+bool original::coroutine::task<TYPE>::finalAwaitable::await_ready() noexcept
 {
     return false;
 }
 
 template<typename TYPE>
-void original::coroutine::finalAwaitable<TYPE>::await_suspend(std::coroutine_handle<typename future<TYPE>::promise_type> handle) noexcept
+void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
+     std::coroutine_handle<promise_type> handle) noexcept
 {
-    if (auto coro = handle.promise().continuation_) {
-        coro.resume();
+    auto& promise = handle.promise();
+    if (promise.continuation_) {
+        if (promise.executor_) {
+            promise.executor_->schedule(promise.continuation_);
+        } else {
+            promise.continuation_.resume();
+        }
+    } else {
+        if (promise.executor_) {
+            promise.executor_->schedule(std::coroutine_handle<>{});
+        }
     }
 }
 
 template<typename TYPE>
-void original::coroutine::finalAwaitable<TYPE>::await_resume() noexcept {}
+void original::coroutine::task<TYPE>::finalAwaitable::await_resume() noexcept {}
 
 template <typename TYPE>
-original::coroutine::future<TYPE>
-original::coroutine::future<TYPE>::promise_type::get_return_object()
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::promise_type::get_return_object()
 {
-    return future{handle::from_promise(*this)};
+    return task{handle::from_promise(*this)};
 }
 
 template <typename TYPE>
-std::suspend_always
-original::coroutine::future<TYPE>::promise_type::initial_suspend()
+auto original::coroutine::task<TYPE>::promise_type::initial_suspend()
 {
     return std::suspend_always{};
 }
 
 template <typename TYPE>
-original::coroutine::finalAwaitable<TYPE>
-original::coroutine::future<TYPE>::promise_type::final_suspend() noexcept
+original::coroutine::task<TYPE>::finalAwaitable
+original::coroutine::task<TYPE>::promise_type::final_suspend() noexcept
 {
-    return finalAwaitable<TYPE>{};
+    return finalAwaitable{};
 }
 
 template <typename TYPE>
-void original::coroutine::future<TYPE>::promise_type::return_value(TYPE value)
+void original::coroutine::task<TYPE>::promise_type::return_value(TYPE value)
 {
     this->value_ = std::move(value);
 }
 
 template <typename TYPE>
-void original::coroutine::future<TYPE>::promise_type::unhandled_exception()
+void original::coroutine::task<TYPE>::promise_type::unhandled_exception()
 {
     this->e_ = std::current_exception();
 }
 
 template <typename TYPE>
-void original::coroutine::future<TYPE>::promise_type::rethrow_if_exception() const
+void original::coroutine::task<TYPE>::promise_type::rethrow_if_exception() const
 {
     if (this->e_)
         std::rethrow_exception(this->e_);
 }
 
 template <typename TYPE>
-original::coroutine::future<TYPE>::future(handle h) : handle_(std::move(h)) {}
+original::coroutine::task<TYPE>::task(handle h) : handle_(std::move(h)) {}
+
+template<typename TYPE>
+void original::coroutine::task<TYPE>::start() noexcept {
+    if (this->handle_ && !this->handle_.done())
+        this->handle_.resume();
+}
+
+template<typename TYPE>
+original::coroutine::task<TYPE>&
+original::coroutine::task<TYPE>::via(executor& executor) noexcept {
+    if (!this->handle_)
+        return *this;
+
+    auto& promise = this->handle_.promise();
+    promise.executor_ = &executor;
+    if (!this->handle_.done())
+        promise.executor_->schedule(this->handle_);
+    return *this;
+}
 
 template <typename TYPE>
-original::coroutine::future<TYPE>::future(future&& other) noexcept
+original::coroutine::task<TYPE>::task(task&& other) noexcept
 {
     this->handle_ = other.handle_;
     other.handle_ = nullptr;
 }
 
 template <typename TYPE>
-original::coroutine::future<TYPE>&
-original::coroutine::future<TYPE>::operator=(future&& other) noexcept
+original::coroutine::task<TYPE>&
+original::coroutine::task<TYPE>::operator=(task&& other) noexcept
 {
     if (this == &other)
         return *this;
@@ -599,23 +644,39 @@ original::coroutine::future<TYPE>::operator=(future&& other) noexcept
 }
 
 template <typename TYPE>
-bool original::coroutine::future<TYPE>::ready() const noexcept
+bool original::coroutine::task<TYPE>::ready() const noexcept
 {
     return !this->handle_ || this->handle_.done();
 }
 
 template <typename TYPE>
-original::coroutine::awaitable<TYPE>
-original::coroutine::future<TYPE>::operator co_await() noexcept
+original::coroutine::task<TYPE>::awaitable
+original::coroutine::task<TYPE>::operator co_await() noexcept
 {
-    return awaitable<TYPE>{this->handle_};
+    return awaitable{this->handle_};
+}
+
+template<typename TYPE>
+TYPE original::coroutine::task<TYPE>::result() {
+    if (!this->handle_ || !this->handle_.done()) {
+        throw sysError("task not completed");
+    }
+    this->handle_.promise().rethrow_if_exception();
+    return std::move(*this->handle_.promise().value_);
 }
 
 template <typename TYPE>
-original::coroutine::future<TYPE>::~future()
+original::coroutine::task<TYPE>::~task()
 {
     if (this->handle_)
         this->handle_.destroy();
+}
+
+template<typename Callback, typename... Args>
+auto original::coroutine::run(executor& executor, Callback&& c, Args&&... args)
+     -> task<std::invoke_result_t<Callback, Args...>> {
+    co_await executor;
+    co_return std::forward<Callback>(c)(std::forward<Args>(args)...);
 }
 
 #endif //ORIGINAL_COROUTINES_H
