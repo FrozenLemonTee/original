@@ -70,7 +70,7 @@ namespace original {
              *          handling according to the C++20 coroutine specification.
              */
             struct promise_type {
-                bool initial_staus = false;      ///< Tracks if coroutine has started execution
+                bool initial_status = false;      ///< Tracks if coroutine has started execution
                 alternative<TYPE> value_;        ///< Storage for the current yielded value
                 std::exception_ptr e_;           ///< Captured exceptions for propagation
 
@@ -350,8 +350,8 @@ void original::coroutine::generator<TYPE>::promise_type::return_void() {}
 template <typename TYPE>
 std::suspend_always original::coroutine::generator<TYPE>::promise_type::yield_value(TYPE value)
 {
-    if (!this->initial_staus) {
-        this->initial_staus = true;
+    if (!this->initial_status) {
+        this->initial_status = true;
     }
     this->value_ = std::move(value);
     return std::suspend_always{};
@@ -463,7 +463,7 @@ original::coroutine::generator<TYPE>::end()
 template <typename TYPE>
 bool original::coroutine::generator<TYPE>::launched() const
 {
-    return this->handle_.promise().initial_staus;
+    return this->handle_.promise().initial_status;
 }
 
 template <typename TYPE>
