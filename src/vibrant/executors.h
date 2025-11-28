@@ -4,9 +4,8 @@
 #include "executor.h"
 
 namespace original {
-    class syncExecutor : public executor {
-        lockedQueue<std::coroutine_handle<>> queue_;
     class syncExecutor final : public executor {
+        lockedQueue<std::coroutine_handle<>> queue_{};
         atomic<bool> stopping_;
     public:
         syncExecutor();

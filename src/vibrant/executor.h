@@ -35,9 +35,8 @@ inline bool original::executor::awaitable::await_ready() const noexcept { // NOL
     return false;
 }
 
-void original::executor::awaitable::await_suspend(
-     std::coroutine_handle<> handle) const noexcept {
 inline void original::executor::awaitable::await_suspend(
+     const std::coroutine_handle<> handle) const noexcept {
     this->executor_.schedule(handle);
 }
 
