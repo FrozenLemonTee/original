@@ -151,5 +151,7 @@ int main() {
         return a * a;
     }, 10);
     std::cout << "coro task result2: " << event_loop.wait(std::move(coro_task2)) << std::endl;
+    auto coro_task3 = original::coroutine::makeTask(thread_pool, sub_func, 77, 11);
+    std::cout << "coro task result3: " << event_loop.spinWait(std::move(coro_task3)) << std::endl;
     return 0;
 }
