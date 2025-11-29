@@ -513,7 +513,7 @@ namespace original {
          * @post Thread starts and will be joined on destruction
          */
         template<typename Callback, typename... ARGS>
-        explicit thread(Callback c, ARGS&&... args);
+        explicit thread(Callback&& c, ARGS&&... args);
 
         /**
          * @brief Construct and start a thread with the given callback and join policy
@@ -527,7 +527,7 @@ namespace original {
          * @see joinPolicy
          */
         template<typename Callback, typename... ARGS>
-        explicit thread(Callback c, joinPolicy policy, ARGS&&... args);
+        explicit thread(Callback&& c, joinPolicy policy, ARGS&&... args);
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
         /**
@@ -954,11 +954,11 @@ inline original::thread::thread()
     : will_join(true) {}
 
 template <typename Callback, typename ... ARGS>
-original::thread::thread(Callback c, ARGS&&... args)
+original::thread::thread(Callback&& c, ARGS&&... args)
     : thread_(std::forward<Callback>(c), std::forward<ARGS>(args)...), will_join(true) {}
 
 template <typename Callback, typename ... ARGS>
-original::thread::thread(Callback c, const joinPolicy policy, ARGS&&... args)
+original::thread::thread(Callback&& c, const joinPolicy policy, ARGS&&... args)
     : thread_(std::forward<Callback>(c), std::forward<ARGS>(args)...), will_join(policy == AUTO_JOIN) {}
 
 #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
