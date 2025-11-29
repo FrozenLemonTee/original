@@ -672,7 +672,7 @@ void original::coroutine::task<TYPE>::promise_type::rethrow_if_exception() const
 }
 
 template <typename TYPE>
-original::coroutine::task<TYPE>::task(handle h) : handle_(std::move(h)) {}
+original::coroutine::task<TYPE>::task(handle h) : handle_(h) {}
 
 template<typename TYPE>
 void original::coroutine::task<TYPE>::start() noexcept {
@@ -827,7 +827,7 @@ inline void original::coroutine::task<void>::promise_type::rethrow_if_exception(
         std::rethrow_exception(this->e_);
 }
 
-inline original::coroutine::task<void>::task(handle h) : handle_(std::move(h)) {}
+inline original::coroutine::task<void>::task(const handle h) : handle_(h) {}
 
 inline void original::coroutine::task<void>::start() const noexcept {
     if (this->handle_ && !this->handle_.done())
