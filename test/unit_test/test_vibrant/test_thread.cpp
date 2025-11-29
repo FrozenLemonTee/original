@@ -494,3 +494,108 @@ TEST_F(ThreadTest, PlatformThreadPrintableInterface) {
 
     pt1.join();
 }
+
+// Test thread yield functionality
+TEST_F(ThreadTest, ThreadYield) {
+    std::atomic<int> yield_count{0};
+    std::atomic<bool> worker_started{false};
+    std::atomic<bool> main_thread_yielded{false};
+
+    EXPECT_FALSE(main_thread_yielded);
+
+    thread worker([&] {
+        worker_started = true;
+
+        // Worker does some work and yields
+        for (int i = 0; i < 1000; ++i) {
+            // Simulate some work
+            volatile int result = i * i;
+            (void)result; // Avoid unused variable warning
+
+            // Yield periodically
+            if (i % 100 == 0) {
+                thread::yield();
+                ++yield_count;
+            }
+        }
+    });
+
+    // Wait for worker to start
+    while (!worker_started) {
+        thread::yield();
+    }
+
+    // Main thread also yields to give worker a chance
+    for (int i = 0; i < 50; ++i) {
+        thread::yield();
+        main_thread_yielded = true;
+    }
+
+    worker.join();
+
+    // Verify that yielding occurred
+    ASSERT_GT(yield_count, 0);
+    ASSERT_TRUE(main_thread_yielded);
+}
+
+// Test yield in high contention scenario
+TEST_F(ThreadTest, YieldHighContention) {
+    constexpr int NUM_THREADS = 4;
+    constexpr int ITERATIONS = 1000;
+
+    std::vector<thread> threads;
+    std::vector<std::atomic<int>> yield_counts(NUM_THREADS);
+    std::atomic<bool> start_flag{false};
+
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back([&, i] {
+            // Wait for start signal
+            while (!start_flag) {
+                thread::yield();
+            }
+
+            // Perform work with frequent yielding
+            for (int j = 0; j < ITERATIONS; ++j) {
+                // Simulate work
+                volatile double calculation = std::sqrt(j * 1.0);
+                (void)calculation;
+
+                // Yield every 10 iterations
+                if (j % 10 == 0) {
+                    thread::yield();
+                    ++yield_counts[i];
+                }
+            }
+        });
+    }
+
+    // Start all threads
+    start_flag = true;
+
+    // Wait for all threads to complete
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    // Verify that all threads yielded multiple times
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        ASSERT_GT(yield_counts[i], 0);
+        EXPECT_GE(yield_counts[i], ITERATIONS / 10 - 1); // At least close to expected yield count
+    }
+}
+
+// Test yield doesn't block indefinitely
+TEST_F(ThreadTest, YieldDoesNotBlock) {
+    auto start = std::chrono::steady_clock::now();
+
+    // Call yield multiple times - this should not block for long periods
+    for (int i = 0; i < 1000; ++i) {
+        thread::yield();
+    }
+
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    // Yielding 1000 times should complete quickly (much less than 1 second)
+    ASSERT_LT(elapsed.count(), 1000);
+}
