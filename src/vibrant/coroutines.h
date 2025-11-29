@@ -326,6 +326,79 @@ namespace original {
         template<typename Callback, typename... Args>
         static auto makeTask(executor& executor, Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
     };
+
+    template<>
+    class coroutine::task<void> {
+    public:
+        struct promise_type;
+    private:
+        using handle = std::coroutine_handle<promise_type>;
+
+        handle handle_;
+    public:
+        struct awaitable {
+            handle handle_;
+
+            explicit awaitable(handle h);
+
+            [[nodiscard]] bool await_ready() const noexcept;
+
+            void await_suspend(std::coroutine_handle<> handle) noexcept;
+
+            void await_resume() const noexcept;
+        };
+
+        struct finalAwaitable {
+            bool await_ready() noexcept;
+
+            void await_suspend(handle handle) noexcept;
+
+            void await_resume() noexcept;
+        };
+
+        struct promise_type {
+            std::coroutine_handle<> continuation_;
+            executor* executor_ = nullptr;
+            std::exception_ptr e_;
+
+            task get_return_object();
+
+            auto initial_suspend();
+
+            finalAwaitable final_suspend() noexcept;
+
+            void return_void();
+
+            void unhandled_exception();
+
+            void rethrow_if_exception() const;
+        };
+
+        task(const task&) = delete;
+        task& operator=(const task&) = delete;
+
+        task() = default;
+
+        explicit task(handle h);
+
+        void start() const noexcept;
+
+        [[nodiscard]] bool hasExecutor() const noexcept;
+
+        task& via(executor& executor) noexcept;
+
+        task(task&& other) noexcept;
+
+        task& operator=(task&& other) noexcept;
+
+        [[nodiscard]] bool ready() const noexcept;
+
+        awaitable operator co_await() const noexcept;
+
+        void result() const;
+
+        ~task();
+    };
 }
 
 template <typename TYPE>
@@ -672,6 +745,152 @@ TYPE original::coroutine::task<TYPE>::result() {
 
 template <typename TYPE>
 original::coroutine::task<TYPE>::~task()
+{
+    if (this->handle_)
+        this->handle_.destroy();
+}
+
+inline original::coroutine::task<void>::awaitable::awaitable(const handle h) : handle_(h) {}
+
+inline bool original::coroutine::task<void>::awaitable::await_ready() const noexcept
+{
+    return !this->handle_ || this->handle_.done();
+}
+
+inline void original::coroutine::task<void>::awaitable::await_suspend(const std::coroutine_handle<> handle) noexcept // NOLINT
+{
+    this->handle_.promise().continuation_ = handle;
+    auto& promise = this->handle_.promise();
+    if (promise.executor_) {
+        promise.executor_->schedule(this->handle_);
+    } else {
+        this->handle_.resume();
+    }
+}
+
+inline void original::coroutine::task<void>::awaitable::await_resume() const noexcept
+{
+    auto& promise = this->handle_.promise();
+    promise.rethrow_if_exception();
+}
+
+inline bool original::coroutine::task<void>::finalAwaitable::await_ready() noexcept // NOLINT
+{
+    return false;
+}
+
+inline void original::coroutine::task<void>::finalAwaitable::await_suspend( // NOLINT
+     std::coroutine_handle<promise_type> handle) noexcept
+{
+    if (auto& promise = handle.promise(); promise.continuation_) {
+        if (promise.executor_) {
+            promise.executor_->schedule(promise.continuation_);
+        } else {
+            promise.continuation_.resume();
+        }
+    } else {
+        if (promise.executor_) {
+            promise.executor_->schedule(std::coroutine_handle{});
+        }
+    }
+}
+
+inline void original::coroutine::task<void>::finalAwaitable::await_resume() noexcept {} // NOLINT
+
+inline original::coroutine::task<void>
+original::coroutine::task<void>::promise_type::get_return_object()
+{
+    return task{handle::from_promise(*this)};
+}
+
+inline auto original::coroutine::task<void>::promise_type::initial_suspend() // NOLINT
+{
+    return std::suspend_always{};
+}
+
+inline original::coroutine::task<void>::finalAwaitable
+original::coroutine::task<void>::promise_type::final_suspend() noexcept // NOLINT
+{
+    return finalAwaitable{};
+}
+
+inline void original::coroutine::task<void>::promise_type::return_void() {} // NOLINT
+
+inline void original::coroutine::task<void>::promise_type::unhandled_exception()
+{
+    this->e_ = std::current_exception();
+}
+
+inline void original::coroutine::task<void>::promise_type::rethrow_if_exception() const
+{
+    if (this->e_)
+        std::rethrow_exception(this->e_);
+}
+
+inline original::coroutine::task<void>::task(handle h) : handle_(std::move(h)) {}
+
+inline void original::coroutine::task<void>::start() const noexcept {
+    if (this->handle_ && !this->handle_.done())
+        this->handle_.resume();
+}
+
+inline bool original::coroutine::task<void>::hasExecutor() const noexcept
+{
+    return this->handle_.promise().executor_;
+}
+
+inline original::coroutine::task<void>&
+original::coroutine::task<void>::via(executor& executor) noexcept {
+    if (!this->handle_)
+        return *this;
+
+    auto& promise = this->handle_.promise();
+    promise.executor_ = &executor;
+    if (!this->handle_.done())
+        promise.executor_->schedule(this->handle_);
+    return *this;
+}
+
+inline original::coroutine::task<void>::task(task&& other) noexcept
+{
+    this->handle_ = other.handle_;
+    other.handle_ = nullptr;
+}
+
+inline original::coroutine::task<void>&
+original::coroutine::task<void>::operator=(task&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+
+    if (this->handle_)
+        this->handle_.destroy();
+
+    this->handle_ = other.handle_;
+    other.handle_ = nullptr;
+    return *this;
+}
+
+inline bool original::coroutine::task<void>::ready() const noexcept
+{
+    return !this->handle_ || this->handle_.done();
+}
+
+inline original::coroutine::task<void>::awaitable
+original::coroutine::task<void>::operator co_await() const noexcept
+{
+    return awaitable{this->handle_};
+}
+
+inline void original::coroutine::task<void>::result() const
+{
+    if (!this->handle_ || !this->handle_.done()) {
+        throw sysError("task not completed");
+    }
+    this->handle_.promise().rethrow_if_exception();
+}
+
+inline original::coroutine::task<void>::~task()
 {
     if (this->handle_)
         this->handle_.destroy();
