@@ -490,6 +490,8 @@ namespace original {
          */
         static inline void sleep(const time::duration& d);
 
+        static inline void yield();
+
         /// @brief Alias for joinPolicy::AUTO_JOIN
         static constexpr auto AUTO_JOIN = joinPolicy::AUTO_JOIN;
 
@@ -936,6 +938,15 @@ inline void original::thread::sleep(const time::duration& d)
 
 #else
     #error Unsupported platform
+#endif
+}
+
+inline void original::thread::yield()
+{
+#if ORIGINAL_PLATFORM_LINUX || ORIGINAL_PLATFORM_MACOS
+    sched_yield();
+#elif ORIGINAL_PLATFORM_WINDOWS
+    SwitchToThread();
 #endif
 }
 
