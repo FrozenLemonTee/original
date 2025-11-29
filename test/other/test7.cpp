@@ -145,9 +145,9 @@ int main() {
     auto thread_pool = original::threadPoolExecutor(delegator);
     original::singleton<original::syncExecutor>::init();
     auto& event_loop = original::singleton<original::syncExecutor>::instance();
-    auto coro_task1 = original::coroutine::run(thread_pool, add_func, 5, 6);
+    auto coro_task1 = original::coroutine::makeTask(thread_pool, add_func, 5, 6);
     std::cout << "coro task result1: " << event_loop.wait(std::move(coro_task1)) << std::endl;
-    auto coro_task2 = original::coroutine::run(thread_pool, [](const int a){
+    auto coro_task2 = original::coroutine::makeTask(thread_pool, [](const int a){
         return a * a;
     }, 10);
     std::cout << "coro task result2: " << event_loop.wait(std::move(coro_task2)) << std::endl;
