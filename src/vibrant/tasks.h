@@ -391,7 +391,7 @@ inline void original::taskDelegator::workingThread() {
     }
 }
 
-original::u_integer original::taskDelegator::moveAllDeferred() {
+inline original::u_integer original::taskDelegator::moveAllDeferred() {
     u_integer activated = 0;
     while (auto task = this->tasks_deferred_.tryPop()) {
         this->tasks_waiting_.push(priorityTask{std::move(*task), priority::DEFERRED});
