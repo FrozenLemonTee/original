@@ -1,6 +1,8 @@
 #ifndef ORIGINAL_EXECUTORS_H
 #define ORIGINAL_EXECUTORS_H
 #include "async.h"
+#include "lockedQueue.h"
+#include "tasks.h"
 #include "executor.h"
 
 namespace original {
@@ -14,6 +16,9 @@ namespace original {
 
         template<typename TYPE>
         TYPE wait(coroutine::task<TYPE>&& t);
+
+        template<typename TYPE>
+        TYPE spinWait(coroutine::task<TYPE>&& t);
 
         [[nodiscard]] bool hasStopped() const noexcept;
 
@@ -49,6 +54,28 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
     while (!t.ready() && !this->hasStopped()) {
         if (std::coroutine_handle<> handle = this->queue_.pop()) {
             handle.resume();
+        }
+    }
+    if (!t.ready()) {
+        throw sysError("syncExecutor stopped before task finished");
+    }
+    return t.result();
+}
+
+template <typename TYPE>
+TYPE original::syncExecutor::spinWait(coroutine::task<TYPE>&& t)
+{
+    if (!t.hasExecutor()) {
+        t.via(*this);
+    }
+    if (t.ready()) {
+        return t.result();
+    }
+    while (!t.ready() && !this->hasStopped()) {
+        if (auto alt = this->queue_.tryPop()) {
+            alt->resume();
+        } else {
+            thread::yield();
         }
     }
     if (!t.ready()) {
