@@ -18,28 +18,28 @@ original::array<int> matrixAdd(const original::array<int>& a, const original::ar
         if (i < b.size())
             result[i] += b[i];
     }
-    original::thread::sleep(original::seconds(1));
+    original::thread::sleep(original::milliseconds(100));
     return result;
 }
 
 int main() {
     auto simple_func = []{
-        original::thread::sleep(original::seconds(1));
+        original::thread::sleep(original::milliseconds(100));
         return 0;
     };
 
     auto add_func = [](const int a, const int b){
-        original::thread::sleep(original::seconds(1));
+        original::thread::sleep(original::milliseconds(100));
         return a + b;
     };
 
     auto sub_func = [](const int a, const int b) {
-        original::thread::sleep(original::seconds(1));
+        original::thread::sleep(original::milliseconds(100));
         return a - b;
     };
 
     auto simple_func2 = [](const int a){
-        original::thread::sleep(original::seconds(1));
+        original::thread::sleep(original::milliseconds(100));
         std::cout << "res = " << a << std::endl;
         return a;
     };

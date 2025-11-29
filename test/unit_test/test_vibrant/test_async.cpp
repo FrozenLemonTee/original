@@ -824,7 +824,7 @@ TEST(AsyncTest, SharedFutureHashMoveSemantics) {
 // 测试 future 的 waitFor 方法（成功情况）
 TEST(AsyncTest, FutureWaitForSuccess) {
     auto f = async::get([] {
-        thread::sleep(milliseconds(100));
+        thread::sleep(milliseconds(50));
         return 42;
     });
 

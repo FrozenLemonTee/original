@@ -107,7 +107,7 @@ int main()
 
     std::cout << "two days after today: " << now_utc.date() + 1_d + original::days() << std::endl;
 
-    constexpr original::integer sec = 5;
+    constexpr original::integer sec = 1;
     std::cout << "Sleep before: " << local_now << std::endl;
     std::cout << "Sleep for: " << sec << " second(s)." << std::endl;
     original::thread::sleep(original::seconds(sec));

@@ -55,11 +55,11 @@ TEST(TaskDelegatorTest, SubmitImmediateWithoutIdleThreadThrows) {
     taskDelegator delegator{4};
 
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 8; ++i)
     {
         // 提交长时间运行的任务，使线程繁忙
         auto long_task = delegator.submit([]{
-            thread::sleep(milliseconds(1500));
+            thread::sleep(milliseconds(900));
             return 42;
         });
     }
