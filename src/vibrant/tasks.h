@@ -372,12 +372,12 @@ inline void original::taskDelegator::workingThread() {
             this->idle_threads_ += 1;
             this->condition_.wait(this->mutex_wait_, [this]{
                 return this->stopped_ || !this->task_immediate_.empty()
-                       || !this->tasks_waiting_.empty() || !this->tasks_deferred_.empty();
+                       || !this->tasks_waiting_.empty();
             });
             this->idle_threads_ -= 1;
 
             if (this->stopped_ && this->task_immediate_.empty()
-                && this->tasks_waiting_.empty() && this->tasks_deferred_.empty()) {
+                && this->tasks_waiting_.empty()) {
                 return;
             }
             continue;
@@ -438,11 +438,11 @@ auto original::taskDelegator::submit(time::duration timeout, Callback&& c, Args&
             std::forward<Args>(args)...
     );
     auto f = new_task->getFuture();
-    if (this->stopped_) {
-        throw sysError("taskDelegator already stopped");
-    }
     {
         uniqueLock lock{this->mutex_wait_};
+        if (this->stopped_) {
+            throw sysError("taskDelegator already stopped");
+        }
         const bool success = this->condition_.waitFor(this->mutex_wait_, timeout, [this]{
             return *this->idle_threads_ > 0;
         });
@@ -469,11 +469,14 @@ template <typename TYPE>
 original::async::future<TYPE>
 original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>> t)
 {
+
     auto f = t->getFuture();
-    if (this->stopped_) {
-        throw sysError("taskDelegator already stopped");
-    }
-    switch (priority) {
+    {
+        uniqueLock lock{this->mutex_wait_};
+        if (this->stopped_) {
+            throw sysError("taskDelegator already stopped");
+        }
+        switch (priority) {
         case priority::IMMEDIATE:
             if (*this->idle_threads_ == 0) {
                 throw sysError("No idle threads now");
@@ -490,6 +493,7 @@ original::taskDelegator::submit(const priority priority, strongPtr<task<TYPE>> t
             return f;
         default:
             throw sysError("Unknown priority");
+        }
     }
     this->condition_.notify();
     return f;
@@ -528,7 +532,13 @@ inline void original::taskDelegator::stop(const stopMode mode)
     if (this->stopped_)
         return;
 
-    switch (mode) {
+    {
+        uniqueLock lock{this->mutex_wait_};
+        if (bool expected = false;
+            !this->stopped_.exchangeCmp(expected, true)) {
+            return;
+        }
+        switch (mode) {
         case RUN_DEFERRED:
             this->moveAllDeferred();
             break;
@@ -539,8 +549,8 @@ inline void original::taskDelegator::stop(const stopMode mode)
             break;
         default:
             throw sysError("Unknown stop mode");
+        }
     }
-    this->stopped_ = true;
     this->condition_.notifyAll();
 }
 
@@ -557,7 +567,6 @@ inline original::u_integer original::taskDelegator::idleThreads() const noexcept
 inline original::taskDelegator::~taskDelegator()
 {
     this->stop(stopMode::RUN_DEFERRED);
-    this->discardAllDeferred();
     for (auto& thread : this->threads_) {
         if (thread.joinable())
             thread.join();
