@@ -6,12 +6,12 @@ using namespace original;
 
 // 基础测试函数
 int add_func(const int a, const int b) {
-    thread::sleep(seconds(1));
+    thread::sleep(milliseconds(200));
     return a + b;
 }
 
 int sub_func(const int a, const int b) {
-    thread::sleep(seconds(1));
+    thread::sleep(milliseconds(200));
     return a - b;
 }
 
@@ -21,7 +21,7 @@ TEST(TaskDelegatorTest, SubmitNormalTasks) {
     auto f1 = delegator.submit(add_func, 2, 3);
     auto f2 = delegator.submit(sub_func, 10, 4);
 
-    thread::sleep(seconds(1));
+    thread::sleep(milliseconds(10));
 
     EXPECT_EQ(f1.result(), 5);
     EXPECT_EQ(f2.result(), 6);
@@ -52,14 +52,14 @@ TEST(TaskDelegatorTest, StopPreventsNewSubmits) {
 
 // 测试立即任务在没有空闲线程时提交会抛出异常
 TEST(TaskDelegatorTest, SubmitImmediateWithoutIdleThreadThrows) {
-    taskDelegator delegator{4};
+    taskDelegator delegator{2};
 
 
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         // 提交长时间运行的任务，使线程繁忙
         auto long_task = delegator.submit([]{
-            thread::sleep(milliseconds(900));
+            thread::sleep(milliseconds(700));
             return 42;
         });
     }
@@ -637,7 +637,7 @@ TEST(TaskDelegatorTest, SubmitWithTimeoutFailure) {
 
     // 提交一个长时间运行的任务占用线程
     auto long_task = delegator.submit([]{
-        thread::sleep(seconds(1));
+        thread::sleep(milliseconds(300));
         return 100;
     });
 
@@ -646,7 +646,7 @@ TEST(TaskDelegatorTest, SubmitWithTimeoutFailure) {
 
     // 尝试提交带超时的任务，应该超时
     EXPECT_THROW({
-        delegator.submit(milliseconds(50), []{
+        delegator.submit(milliseconds(25), []{
             return 42;
         });
     }, sysError);
