@@ -310,6 +310,8 @@ namespace original {
          */
         void stop(stopMode mode = stopMode::KEEP_DEFERRED);
 
+        bool isStopped() const noexcept;
+
         /**
          * @brief Gets the number of active threads
          * @return Count of currently active threads
@@ -552,6 +554,11 @@ inline void original::taskDelegator::stop(const stopMode mode)
         }
     }
     this->condition_.notifyAll();
+}
+
+inline bool original::taskDelegator::isStopped() const noexcept
+{
+    return *this->stopped_;
 }
 
 inline original::u_integer original::taskDelegator::activeThreads() const noexcept
