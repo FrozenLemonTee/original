@@ -419,7 +419,7 @@ TEST_F(CoroutineTaskTest, MixedThreadPoolAndSyncExecutor) {
     // Execute thread pool task manually
     poolTask.start();
     // Give some time for thread pool task to run
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(50ms);
 
     // Execute sync executor task
     const int syncResult = syncExec.wait(std::move(syncTask));
@@ -454,7 +454,7 @@ TEST_F(CoroutineTaskTest, MixedExecutorsWithMakeTask) {
 
     // Start the threadPoolExecutor task manually
     poolTask.start();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50)); // give thread pool time to run
+    std::this_thread::sleep_for(50ms); // give thread pool time to run
 
     // Execute the syncExecutor task
     const int syncResult = syncExec.wait(std::move(syncTask));
