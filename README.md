@@ -106,89 +106,131 @@ array("hello world!")
 
 ## 模块进度
 
-#### Core
+<details>
+<summary><strong>Core</strong>（基础模块：容器 / 算法 / 内存等）</summary>
 
-包含基本算法、容器等工具。
+### 容器
+- **array**（定长数组）
+- **bitSet**（位集合）
+- **vector**（动态数组）
+- **forwardChain**（单向链表）
+- **chain**（双向链表）
+- **blocksList**（块链表 / 分段链表）
+- **hashMap**（哈希映射表）
+- **treeMap**（树映射表）
+- **hashSet**（哈希集合）
+- **treeSet**（树集合）
+- **JSet / JMap**（跳表集合 / 跳表映射）
 
-##### 容器：
+### 容器接口
+- **printable**（格式化输出接口）
+- **comparable**（可比较接口）
+- **cloneable**（深拷贝接口）
+- **iterable**（可迭代接口）
+- **arrayView**（数组视图）
 
-定长容器：定长数组 array，位集合 bitSet，变长容器：变长数组 vector，单向链表 forwardChain，双向链表 chain，块状链表 blocksList，关联容器：映射表 hashMap/treeMap，集合 hashSet/treeSet，跳跃表JSet/JMap
+### 算法库
+- **allOf / anyOf / noneOf**（布尔判断算法）
+- **find / count / equal**（非修改算法）
+- **fill / swap / forEach**（修改算法）
+- **sort / stableSort / introSort**（排序算法）
 
-##### 容器接口：
+### 容器适配器
+- **stack**（栈）
+- **queue**（队列）
+- **deque**（双端队列）
+- **prique**（优先队列）
 
-格式化输出接口 printable，元素比较接口 comparable，堆对象深拷贝接口 cloneable，可迭代接口 iterable，数组视图 arrayView
+### 通用类型封装
+- **alternative**（单类型可选值）
 
-##### 算法库：
+### 算法适配器
+- **iterator / iterAdaptor**（迭代器 / 迭代器适配器）
+- **transform / transformStream**（变换器）
+- **filter / filterStream**（过滤器）
+- **comparator**（比较器）
 
-布尔算法：allOf/anyOf/noneOf...，非修改算法 find/count/equal...，修改算法 fill/swap/forEach/...，排序算法 sort/stableSort/introSort...
+### 异常安全
+- **error**（通用错误）
+- **outOfBoundError**（越界错误）
+- **unSupportedMethodError**（不支持的方法）
+- **allocateError**（内存分配失败）
+- **staticError**（编译期错误）
 
-##### 容器适配器：
+### 编译期工具
+- **couple**（二元组）
+- **tuple**（多元组）
 
-栈 stack，队列 queue，双端队列 deque，优先队列 prique
+### 内存管理
+- **ownerPtr**（唯一所有权指针）
+- **strongPtr**（强智能指针）
+- **weakPtr**（弱智能指针）
+- **allocatorBase / allocator**（通用分配器）
+- **objPoolAllocator**（对象池分配器）
+- **deleterBase / deleter**（删除器）
+- **singleton**（单例模式）
 
-##### 通用类型封装类：
-
-存在值可选封装 alternative
-
-##### 算法适配器：
-
-迭代器 iterator/iterAdaptor，变换器 transform/transformStream，过滤器 filter/filterStream，比较器 comparator
-
-##### 异常安全：
-
-运行时异常 error/outOfBoundError/unSupportedMethodError/allocateError...，编译期错误 staticError
-
-##### 编译期工具：
-
-二元组 couple，多元组 tuple
-
-##### 内存管理：
-
-自动指针 ownerPtr/strongPtr/weakPtr，分配器 allocatorBase/allocator/objPoolAllocator，删除器 deleterBase/deleter，单例模式 singleton
+</details>
 
 
-#### Vibrant
+<details>
+<summary><strong>Vibrant</strong>（异步模块 ：多线程 / 协程 / IO 等）</summary>
 
-并发模块，正在实现。
+### 线程
+- **threadBase**（线程基类）
+- **pThread**（POSIX 线程包装）
+- **thread**（通用线程）
 
-##### 线程：
+### 临界区管理
+- **mutexBase / pMutex**（互斥量）
+- **lockGuard / uniqueLock / multiLock**（作用域锁 / 独占锁 / 多重锁）
+- **semaphore / semaphoreGuard**（信号量）
 
-基类 threadBase，POSIX类线程 pThread，线程 thread
+### 线程同步
+- **conditionBase / pCondition**（条件变量）
+- **syncPoint**（线程同步点）
 
-##### 临界区管理：
+### 原子操作
+- **atomic**（原子变量）
 
-互斥量 mutexBase/pMutex，锁管理器 lockGuard/uniqueLock/multiLock，信号量 semaphore/semaphoreGuard
+### 跨线程生产 / 消费
+- **async::promise**（承诺值）
+- **async::futureBase / future / sharedFuture**（未来值 / 共享未来值）
 
-##### 线程同步：
+### 线程安全容器
+- **lockedQueue**（互斥锁队列）
+- **lockedPrique**（互斥锁优先队列）
 
-条件变量 conditionBase/pCondition，线程同步点 syncPoint
+### 时间表示
+- **time::duration**（时间段）
+- **time::point**（时间点）
+- **time::UTCTime**（UTC 时间）
 
-##### 原子操作：
+### 任务调度
+- **taskBase / task**（任务 / 可调度任务）
+- **taskDelegator**（任务委派器 / 线程池）
 
-原子变量 atomic
+### 协程
+- **coroutine::generator**（协程生成器）
+- **coroutine::task**（协程异步任务）
+- **executor / syncExecutor / threadPoolExecutor**（协程执行器 / 同步事件循环执行器 / 线程池执行器）
+</details>
 
-##### 跨线程生产/消费:
 
-跨线程生产者 async::promise，跨线程消费者 async::futureBase/async::future/async::sharedFuture
+<details>
+<summary><strong>matrix</strong>（计划实现：张量 / 线性代数）</summary>
 
-##### 时间表示：
+- 张量结构（Tensor）
+- 基本线性代数运算（矩阵、向量等）
 
-时间段 time::duration，时间戳 time::point，UTC时间 time::UTCTime
+</details>
 
-##### 任务调度：
 
-任务包装类 taskBase/task，任务委派器 taskDelegator
+<details>
+<summary><strong>graph</strong>（计划实现：图结构 / 图算法）</summary>
 
-##### 协程：
+- 图结构（邻接表、邻接矩阵）
+- 图算法（DFS/BFS、最短路、最小生成树等）
 
-生成器 coroutine::generator
-
-#### matrix
-
-计划实现，包含张量，线性代数工具功能。
-
-#### graph
-
-计划实现，包含图论结构和图算法。
-
+</details>
 
