@@ -70,7 +70,7 @@ TEST_F(CoroutineTaskTest, TaskWithCoAwait) {
         co_return 100;
     };
 
-    auto mainTask = [&]() -> coroutine::task<int> {
+    auto mainTask = [nestedTask = std::move(nestedTask)]() mutable -> coroutine::task<int> {
         const auto value = co_await nestedTask();
         co_return value + 50;
     }();
