@@ -945,6 +945,7 @@ TEST(AsyncTest, SharedFutureBaseWaitFor) {
     const bool completed = base_ptr->waitFor(milliseconds(300));
     EXPECT_TRUE(completed);
     EXPECT_TRUE(base_ptr->ready());
+    EXPECT_EQ(sf.result(), 42);
     EXPECT_EQ(base_ptr->exception(), nullptr);
 }
 
