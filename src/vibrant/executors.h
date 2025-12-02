@@ -48,15 +48,15 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE> t) {
     if (!t.hasExecutor()) {
         t.via(*this);
     }
-    if (t.ready()) {
+    if (t.finished()) {
         return t.result();
     }
-    while (!t.ready() && !this->hasStopped()) {
+    while (!t.finished() && !this->hasStopped()) {
         if (std::coroutine_handle<> handle = this->queue_.pop()) {
             handle.resume();
         }
     }
-    if (!t.ready()) {
+    if (!t.finished()) {
         throw sysError("syncExecutor stopped before task finished");
     }
     return t.result();
@@ -68,10 +68,10 @@ TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
     if (!t.hasExecutor()) {
         t.via(*this);
     }
-    if (t.ready()) {
+    if (t.finished()) {
         return t.result();
     }
-    while (!t.ready() && !this->hasStopped()) {
+    while (!t.finished() && !this->hasStopped()) {
         if (auto alt = this->queue_.tryPop()) {
             if (auto handle = *alt)
                 handle.resume();
@@ -79,7 +79,7 @@ TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
             thread::yield();
         }
     }
-    if (!t.ready()) {
+    if (!t.finished()) {
         throw sysError("syncExecutor stopped before task finished");
     }
     return t.result();
