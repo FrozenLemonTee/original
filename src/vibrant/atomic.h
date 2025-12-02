@@ -400,7 +400,7 @@ namespace original {
     class atomicImpl<TYPE, false>
     {
         /// @brief Internal value type selection based on size
-        using val_type = some_t<sizeof(TYPE) == 4, LONG, LONG64>;
+        using val_type = someType<sizeof(TYPE) == 4, LONG, LONG64>;
 
         /// @brief Properly aligned atomic storage
         alignas(TYPE) volatile TYPE data_{};
