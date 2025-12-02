@@ -255,6 +255,12 @@ namespace original {
             friend coroutine;
             struct promise_type;
         private:
+            enum class state {
+                STANDBY,
+                RUNNING,
+                FINISHED,
+            };
+
             using handle = std::coroutine_handle<promise_type>;
 
             handle handle_;
@@ -284,6 +290,7 @@ namespace original {
                 executor* executor_ = nullptr;
                 alternative<TYPE> value_;
                 std::exception_ptr e_;
+                state state_ = state::STANDBY;
 
                 task get_return_object();
 
@@ -348,6 +355,12 @@ namespace original {
         friend coroutine;
         struct promise_type;
     private:
+        enum class state {
+            STANDBY,
+            RUNNING,
+            FINISHED,
+        };
+
         using handle = std::coroutine_handle<promise_type>;
 
         handle handle_;
@@ -376,6 +389,7 @@ namespace original {
             std::coroutine_handle<> continuation_;
             executor* executor_ = nullptr;
             std::exception_ptr e_;
+            state state_ = state::STANDBY;
 
             task get_return_object();
 
