@@ -312,7 +312,7 @@ namespace original {
 
             explicit task(handle h);
 
-            void start() noexcept;
+            bool start() noexcept;
 
             [[nodiscard]] bool hasExecutor() const noexcept;
 
@@ -415,7 +415,7 @@ namespace original {
 
         explicit task(handle h);
 
-        void start() const noexcept;
+        bool start() noexcept;
 
         [[nodiscard]] bool hasExecutor() const noexcept;
 
@@ -727,9 +727,25 @@ template <typename TYPE>
 original::coroutine::task<TYPE>::task(handle h) : handle_(h) {}
 
 template<typename TYPE>
-void original::coroutine::task<TYPE>::start() noexcept {
-    if (this->handle_ && !this->handle_.done())
-        this->handle_.resume();
+bool original::coroutine::task<TYPE>::start() noexcept {
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    switch (promise.state_) {
+        case state::STANDBY:
+            if (this->hasExecutor()){
+                promise.state_ = state::RUNNING;
+                promise.executor_->schedule(this->handle_);
+                return true;
+            }
+            break;
+        case state::RUNNING:
+        case state::FINISHED:
+        default:
+            break;
+    }
+    return false;
 }
 
 template <typename TYPE>
@@ -948,9 +964,25 @@ inline void original::coroutine::task<void>::promise_type::rethrow_if_exception(
 
 inline original::coroutine::task<void>::task(const handle h) : handle_(h) {}
 
-inline void original::coroutine::task<void>::start() const noexcept {
-    if (this->handle_ && !this->handle_.done())
-        this->handle_.resume();
+inline bool original::coroutine::task<void>::start() noexcept {
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    switch (promise.state_) {
+        case state::STANDBY:
+            if (this->hasExecutor()){
+                promise.state_ = state::RUNNING;
+                promise.executor_->schedule(this->handle_);
+                return true;
+            }
+            break;
+        case state::RUNNING:
+        case state::FINISHED:
+        default:
+            break;
+    }
+    return false;
 }
 
 inline bool original::coroutine::task<void>::hasExecutor() const noexcept
