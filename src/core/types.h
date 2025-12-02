@@ -599,6 +599,27 @@ namespace original {
     template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
     using someType = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
 
+    template<typename TYPE, typename...>
+    struct firstArgType {
+        using type = TYPE;
+    };
+
+    template<typename... Args>
+    using firstArg = firstArgType<Args...>::type;
+
+    template <typename, typename... Args>
+    struct lastArgsType {
+        using type = lastArgsType<Args...>::type;
+    };
+
+    template<typename TYPE>
+    struct lastArgsType<TYPE> {
+        using type = TYPE;
+    };
+
+    template<typename... Args>
+    using lastArg = lastArgsType<Args...>::type;
+
     // ==================== Compile-time Index Sequences ====================
 
     /**
