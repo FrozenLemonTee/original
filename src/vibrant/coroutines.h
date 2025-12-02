@@ -279,7 +279,7 @@ namespace original {
             };
 
             struct promise_type {
-                std::coroutine_handle<> continuation_;
+                std::coroutine_handle<> continuation_{};
                 executor* executor_ = nullptr;
                 alternative<TYPE> value_;
                 std::exception_ptr e_;
