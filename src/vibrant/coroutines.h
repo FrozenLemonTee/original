@@ -789,6 +789,15 @@ original::coroutine::task<TYPE>::operator=(task&& other) noexcept
     return *this;
 }
 
+template<typename TYPE>
+bool original::coroutine::task<TYPE>::started() const noexcept {
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    return promise.state_ != state::STANDBY;
+}
+
 template <typename TYPE>
 bool original::coroutine::task<TYPE>::finished() const noexcept
 {
