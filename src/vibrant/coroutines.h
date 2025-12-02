@@ -252,6 +252,7 @@ namespace original {
         template<typename TYPE>
         class task {
         public:
+            friend coroutine;
             struct promise_type;
         private:
             using handle = std::coroutine_handle<promise_type>;
@@ -344,6 +345,7 @@ namespace original {
     template<>
     class coroutine::task<void> {
     public:
+        friend coroutine;
         struct promise_type;
     private:
         using handle = std::coroutine_handle<promise_type>;
