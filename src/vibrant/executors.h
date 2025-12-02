@@ -101,6 +101,9 @@ inline original::threadPoolExecutor::threadPoolExecutor(taskDelegator& delegator
         : delegator_(delegator) {}
 
 inline void original::threadPoolExecutor::schedule(std::coroutine_handle<> handle) {
+    if (!handle)
+        return;
+
     this->delegator_.submit([handle]{
         handle.resume();
     });
