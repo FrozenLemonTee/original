@@ -377,9 +377,9 @@ TEST_F(CoroutineTaskTest, MakeTaskWithSyncExecutorException) {
 TEST_F(CoroutineTaskTest, MakeTaskWithSyncExecutorMultipleSequential) {
     syncExecutor executor;
 
-    auto accumulateFunction = [](int start, const std::vector<int>& values) -> int {
+    auto accumulateFunction = [](const int start, const std::vector<int>& values) -> int {
         int sum = start;
-        for (int v : values) sum += v;
+        for (const int& v : values) sum += v;
         return sum;
     };
 
@@ -425,7 +425,7 @@ TEST_F(CoroutineTaskTest, MixedThreadPoolAndSyncExecutor) {
     const int syncResult = syncExec.wait(std::move(syncTask));
 
     // Wait for thread pool task to finish
-    int poolResult = poolTask.result();
+    const int poolResult = poolTask.result();
 
     EXPECT_EQ(poolResult, 10);
     EXPECT_EQ(syncResult, 1);
