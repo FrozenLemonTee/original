@@ -641,12 +641,15 @@ bool original::coroutine::task<TYPE>::awaitable::await_ready() const noexcept
 template <typename TYPE>
 void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_handle<> handle) noexcept
 {
-    this->handle_.promise().continuation_ = handle;
     auto& promise = this->handle_.promise();
-    if (promise.executor_) {
+    promise.continuation_ = handle;
+
+    if (promise.state_ == state::STANDBY){
+        promise.state_ = state::RUNNING;
+    }
+
+    if (promise.executor_){
         promise.executor_->schedule(this->handle_);
-    } else {
-        this->handle_.resume();
     }
 }
 
@@ -668,16 +671,12 @@ template<typename TYPE>
 void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
      std::coroutine_handle<promise_type> handle) noexcept
 {
-    if (auto& promise = handle.promise(); promise.continuation_) {
-        if (promise.executor_) {
+    auto& promise = handle.promise();
+    promise.state_ = state::FINISHED;
+
+    if (promise.continuation_ && promise.executor_) {
+        if (promise.executor_)
             promise.executor_->schedule(promise.continuation_);
-        } else {
-            promise.continuation_.resume();
-        }
-    } else {
-        if (promise.executor_) {
-            promise.executor_->schedule(std::coroutine_handle{});
-        }
     }
 }
 
@@ -762,8 +761,6 @@ original::coroutine::task<TYPE>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
-    if (!this->handle_.done())
-        promise.executor_->schedule(this->handle_);
     return *this;
 }
 
@@ -880,11 +877,20 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
 
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
-    if (!this->handle_ || !this->handle_.done()) {
-        throw sysError("task not completed");
+    auto& promise = handle_.promise();
+    switch (promise.state_) {
+        case state::STANDBY:
+        default:
+            throw sysError("Task not started");
+
+        case state::RUNNING:
+            throw sysError("Task not finished");
+
+        case state::FINISHED:
+            break;
     }
-    this->handle_.promise().rethrow_if_exception();
-    return std::move(*this->handle_.promise().value_);
+    promise.rethrow_if_exception();
+    return std::move(*promise.value_);
 }
 
 template <typename TYPE>
@@ -903,12 +909,15 @@ inline bool original::coroutine::task<void>::awaitable::await_ready() const noex
 
 inline void original::coroutine::task<void>::awaitable::await_suspend(const std::coroutine_handle<> handle) noexcept // NOLINT
 {
-    this->handle_.promise().continuation_ = handle;
     auto& promise = this->handle_.promise();
-    if (promise.executor_) {
+    promise.continuation_ = handle;
+
+    if (promise.state_ == state::STANDBY){
+        promise.state_ = state::RUNNING;
+    }
+
+    if (promise.executor_){
         promise.executor_->schedule(this->handle_);
-    } else {
-        this->handle_.resume();
     }
 }
 
@@ -926,16 +935,11 @@ inline bool original::coroutine::task<void>::finalAwaitable::await_ready() noexc
 inline void original::coroutine::task<void>::finalAwaitable::await_suspend( // NOLINT
      std::coroutine_handle<promise_type> handle) noexcept
 {
-    if (auto& promise = handle.promise(); promise.continuation_) {
-        if (promise.executor_) {
-            promise.executor_->schedule(promise.continuation_);
-        } else {
-            promise.continuation_.resume();
-        }
-    } else {
-        if (promise.executor_) {
-            promise.executor_->schedule(std::coroutine_handle{});
-        }
+    auto& promise = handle.promise();
+    promise.state_ = state::FINISHED;
+
+    if (promise.continuation_ && promise.executor_) {
+        promise.executor_->schedule(promise.continuation_);
     }
 }
 
@@ -1006,8 +1010,6 @@ original::coroutine::task<void>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
-    if (!this->handle_.done())
-        promise.executor_->schedule(this->handle_);
     return *this;
 }
 
@@ -1065,10 +1067,19 @@ original::coroutine::task<void>::operator co_await() const noexcept
 
 inline void original::coroutine::task<void>::result() const
 {
-    if (!this->handle_ || !this->handle_.done()) {
-        throw sysError("task not completed");
+    auto& promise = handle_.promise();
+    switch (promise.state_) {
+        case state::STANDBY:
+        default:
+            throw sysError("Task not started");
+
+        case state::RUNNING:
+            throw sysError("Task not finished");
+
+        case state::FINISHED:
+            break;
     }
-    this->handle_.promise().rethrow_if_exception();
+    promise.rethrow_if_exception();
 }
 
 template <typename U>
@@ -1134,7 +1145,9 @@ auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... a
         co_await exec;
         co_return std::apply(std::move(f), std::move(tup));
     };
-    return run_impl(executor, std::move(func_copy), std::move(args_copy));
+    auto t = run_impl(executor, std::move(func_copy), std::move(args_copy));
+    t.via(executor);
+    return t;
 }
 
 #endif //ORIGINAL_COROUTINES_H
