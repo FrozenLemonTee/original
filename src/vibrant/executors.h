@@ -73,7 +73,8 @@ TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
     }
     while (!t.ready() && !this->hasStopped()) {
         if (auto alt = this->queue_.tryPop()) {
-            alt->resume();
+            if (auto handle = *alt)
+                handle.resume();
         } else {
             thread::yield();
         }
