@@ -34,6 +34,7 @@ namespace original {
             mutable condition cond_{};                   ///< Condition variable for synchronization
             mutable mutex mutex_{};                      ///< Mutex for thread safety
             std::exception_ptr e_{};                      ///< Exception pointer for error handling
+            alternative<thread> worker_{};
 
         public:
             asyncWrapper();
@@ -49,6 +50,9 @@ namespace original {
              * @param e Exception pointer to store
              */
             void setException(const std::exception_ptr& e);
+
+            template<typename Callback, typename... Args>
+            void setWorker(Callback&& c, Args&&... args);
 
             /**
              * @brief Checks if the result is ready
@@ -98,6 +102,8 @@ namespace original {
              * @return Exception pointer (nullptr if no exception)
              */
             [[nodiscard]] std::exception_ptr exception() const;
+
+            ~asyncWrapper();
         };
 
     public:
@@ -352,6 +358,8 @@ namespace original {
             bool valid_{false};                         ///< Whether the promise still holds a valid task
 
         public:
+            friend class async;
+
             // Disable copying to prevent multiple executions of the same computation
             promise(const promise&) = delete;
             promise& operator=(const promise&) = delete;
@@ -559,6 +567,7 @@ namespace original {
         mutable condition cond_{};                   ///< Condition variable for synchronization
         mutable mutex mutex_{};                      ///< Mutex for thread safety
         std::exception_ptr e_{};                      ///< Exception pointer for error handling
+        alternative<thread> worker_{};
 
     public:
         asyncWrapper() = default;
@@ -573,6 +582,9 @@ namespace original {
          * @param e Exception pointer to store
          */
         void setException(const std::exception_ptr& e);
+
+        template<typename Callback, typename... Args>
+        void setWorker(Callback&& c, Args&&... args);
 
         /**
          * @brief Checks if the computation is completed
@@ -615,6 +627,8 @@ namespace original {
          * @return Exception pointer (nullptr if no exception)
          */
         [[nodiscard]] std::exception_ptr exception() const noexcept;
+
+        ~asyncWrapper();
     };
 
     /**
@@ -775,6 +789,8 @@ namespace original {
         bool valid_{false};                           ///< Whether the promise still holds a valid task
 
     public:
+        friend class async;
+
         // Disable copying to prevent multiple executions of the same computation
         promise(const promise&) = delete;
         promise& operator=(const promise&) = delete;
@@ -846,6 +862,13 @@ void original::async::asyncWrapper<TYPE>::setException(const std::exception_ptr 
         this->ready_.store(true);
     }
     this->cond_.notifyAll();
+}
+
+template <typename TYPE>
+template <typename Callback, typename ... Args>
+void original::async::asyncWrapper<TYPE>::setWorker(Callback&& c, Args&&... args)
+{
+    this->worker_.emplace(std::forward<Callback>(c), std::forward<Args>(args)...);
 }
 
 template <typename TYPE>
@@ -921,6 +944,13 @@ original::async::asyncWrapper<TYPE>::exception() const
 {
     uniqueLock lock{this->mutex_};
     return this->e_;
+}
+
+template <typename TYPE>
+original::async::asyncWrapper<TYPE>::~asyncWrapper()
+{
+    if (this->worker_.hasValue() && this->worker_->joinable())
+        this->worker_->join();
 }
 
 template <typename TYPE>
@@ -1159,17 +1189,14 @@ auto original::async::get(Callback&& c, Args&&... args)
     -> future<std::invoke_result_t<std::decay_t<Callback>, std::decay_t<Args>...>>
 {
     auto p = makePromise(std::forward<Callback>(c), std::forward<Args>(args)...);
-    auto fut = p.getFuture();
 
     auto p_shared = makeStrongPtr<decltype(p)>(std::move(p));
-    thread t{
-        [p_shared]() mutable {
-            p_shared->run();
-        },
-        thread::AUTO_DETACH
-    };
+    auto awr = p_shared->awr_;
+    awr->setWorker([p_shared]() mutable {
+        p_shared->run();
+    });
 
-    return fut;
+    return future{awr};
 }
 
 template <typename T, typename Callback>
@@ -1237,6 +1264,12 @@ auto original::operator|(async::promise<void, Callback1> p, Callback2&& c)
         shared_p->function()();
         return c();
     });
+}
+
+template <typename Callback, typename ... Args>
+void original::async::asyncWrapper<void>::setWorker(Callback&& c, Args&&... args)
+{
+    this->worker_.emplace(std::forward<Callback>(c), std::forward<Args>(args)...);
 }
 
 inline void original::async::asyncWrapper<void>::setValue()
@@ -1314,6 +1347,12 @@ original::async::asyncWrapper<void>::exception() const noexcept
 {
     uniqueLock lock{this->mutex_};
     return this->e_;
+}
+
+inline original::async::asyncWrapper<void>::~asyncWrapper()
+{
+    if (this->worker_.hasValue() && this->worker_->joinable())
+        this->worker_->join();
 }
 
 inline original::async::future<void>::future(strongPtr<asyncWrapper<void>> awr)
