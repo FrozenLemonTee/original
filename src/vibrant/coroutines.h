@@ -322,7 +322,11 @@ namespace original {
 
             task& operator=(task&& other) noexcept;
 
-            [[nodiscard]] bool ready() const noexcept;
+            [[nodiscard]] bool started() const noexcept;
+
+            [[nodiscard]] bool finished() const noexcept;
+
+            [[nodiscard]] bool empty() const noexcept;
 
             [[nodiscard]] explicit operator bool() const noexcept;
 
@@ -421,7 +425,11 @@ namespace original {
 
         task& operator=(task&& other) noexcept;
 
-        [[nodiscard]] bool ready() const noexcept;
+        [[nodiscard]] bool started() const noexcept;
+
+        [[nodiscard]] bool finished() const noexcept;
+
+        [[nodiscard]] bool empty() const noexcept;
 
         [[nodiscard]] explicit operator bool() const noexcept;
 
@@ -766,9 +774,18 @@ original::coroutine::task<TYPE>::operator=(task&& other) noexcept
 }
 
 template <typename TYPE>
-bool original::coroutine::task<TYPE>::ready() const noexcept
+bool original::coroutine::task<TYPE>::finished() const noexcept
 {
-    return !this->handle_ || this->handle_.done();
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    return promise.state_ == state::FINISHED && this->handle_.done();
+}
+
+template<typename TYPE>
+bool original::coroutine::task<TYPE>::empty() const noexcept {
+    return !this->handle_;
 }
 
 template <typename TYPE>
@@ -973,9 +990,25 @@ original::coroutine::task<void>::operator=(task&& other) noexcept
     return *this;
 }
 
-inline bool original::coroutine::task<void>::ready() const noexcept
+bool original::coroutine::task<void>::started() const noexcept {
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    return promise.state_ != state::STANDBY;
+}
+
+inline bool original::coroutine::task<void>::finished() const noexcept
 {
-    return !this->handle_ || this->handle_.done();
+    if (this->empty())
+        return false;
+
+    auto& promise = this->handle_.promise();
+    return promise.state_ == state::FINISHED && this->handle_.done();
+}
+
+bool original::coroutine::task<void>::empty() const noexcept {
+    return !this->handle_;
 }
 
 inline original::coroutine::task<void>::operator bool() const noexcept
