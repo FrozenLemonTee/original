@@ -316,7 +316,21 @@ namespace original {
 
             [[nodiscard]] bool ready() const noexcept;
 
+            [[nodiscard]] explicit operator bool() const noexcept;
+
             awaitable operator co_await() noexcept;
+
+            template<typename U>
+            task<U> operator|(task<U> rhs);
+
+            template<typename U>
+            task<U> operator>>(task<U> rhs);
+
+            template<typename Callback>
+            auto operator|(Callback&& c);
+
+            template<typename Callback>
+            auto operator>>(Callback&& c);
 
             TYPE result();
 
@@ -393,9 +407,23 @@ namespace original {
 
         [[nodiscard]] bool ready() const noexcept;
 
+        [[nodiscard]] explicit operator bool() const noexcept;
+
         awaitable operator co_await() const noexcept;
 
         void result() const;
+
+        template<typename U>
+        task<U> operator|(task<U> rhs);
+
+        template<typename U>
+        task<U> operator>>(task<U> rhs);
+
+        template<typename Callback>
+        auto operator|(Callback&& c);
+
+        template<typename Callback>
+        auto operator>>(Callback&& c);
 
         ~task();
     };
@@ -728,10 +756,68 @@ bool original::coroutine::task<TYPE>::ready() const noexcept
 }
 
 template <typename TYPE>
+original::coroutine::task<TYPE>::operator bool() const noexcept
+{
+    return this->handle_ != nullptr;
+}
+
+template <typename TYPE>
 original::coroutine::task<TYPE>::awaitable
 original::coroutine::task<TYPE>::operator co_await() noexcept
 {
     return awaitable{this->handle_};
+}
+
+template <typename TYPE>
+template <typename U>
+original::coroutine::task<U>
+original::coroutine::task<TYPE>::operator|(task<U> rhs)
+{
+    if (!this->handle_ || !rhs)
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
+        co_await l;
+        co_return co_await r;
+    };
+    return sequence(std::move(*this), std::move(rhs));
+}
+
+template <typename TYPE>
+template <typename U>
+original::coroutine::task<U>
+original::coroutine::task<TYPE>::operator>>(task<U> rhs)
+{
+    if (!this->handle_ || !rhs)
+        throw valueError("Can not combine empty tasks");
+
+    auto pipeline = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
+        LHS tmp = co_await l;
+        co_return co_await r(std::move(tmp));
+    };
+    return pipeline(std::move(*this), std::move(rhs));
+}
+
+template <typename TYPE>
+template <typename Callback>
+auto original::coroutine::task<TYPE>::operator|(Callback&& c)
+{
+    if (!this->handle_)
+        throw valueError("Can not combine empty tasks");
+
+    auto exec = this->handle_.promise().executor_;
+    return std::move(*this) | std::move(makeTask(*exec, std::forward<Callback>(c)));
+}
+
+template <typename TYPE>
+template <typename Callback>
+auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
+{
+    if (!this->handle_)
+        throw valueError("Can not combine empty tasks");
+
+    auto exec = this->handle_.promise().executor_;
+    return std::move(*this) >> std::move(makeTask(*exec, std::forward<Callback>(c)));
 }
 
 template<typename TYPE>
@@ -876,6 +962,11 @@ inline bool original::coroutine::task<void>::ready() const noexcept
     return !this->handle_ || this->handle_.done();
 }
 
+inline original::coroutine::task<void>::operator bool() const noexcept
+{
+    return this->handle_ != nullptr;
+}
+
 inline original::coroutine::task<void>::awaitable
 original::coroutine::task<void>::operator co_await() const noexcept
 {
@@ -888,6 +979,49 @@ inline void original::coroutine::task<void>::result() const
         throw sysError("task not completed");
     }
     this->handle_.promise().rethrow_if_exception();
+}
+
+template <typename U>
+original::coroutine::task<U>
+original::coroutine::task<void>::operator|(task<U> rhs)
+{
+    if (!this->handle_ || !rhs)
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
+        co_await l;
+        co_return co_await r;
+    };
+    return sequence(std::move(*this), std::move(rhs));
+}
+
+template <typename U>
+original::coroutine::task<U>
+original::coroutine::task<void>::operator>>(task<U> rhs)
+{
+    if (!this->handle_ || !rhs)
+        throw valueError("Can not combine empty tasks");
+
+    return std::move(*this) | std::move(rhs);
+}
+
+template <typename Callback>
+auto original::coroutine::task<void>::operator|(Callback&& c)
+{
+    if (!this->handle_)
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    return std::move(*this) | std::move(makeTask(*exec, std::forward<Callback>(c)));
+}
+
+template <typename Callback>
+auto original::coroutine::task<void>::operator>>(Callback&& c)
+{
+    if (!this->handle_)
+        throw valueError("Can not combine empty tasks");
+
+    return std::move(*this) >> std::forward<Callback>(c);
 }
 
 inline original::coroutine::task<void>::~task()
