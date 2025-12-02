@@ -15,10 +15,10 @@ namespace original {
         void schedule(std::coroutine_handle<> handle) override;
 
         template<typename TYPE>
-        TYPE wait(coroutine::task<TYPE>&& t);
+        TYPE wait(coroutine::task<TYPE> t);
 
         template<typename TYPE>
-        TYPE spinWait(coroutine::task<TYPE>&& t);
+        TYPE spinWait(coroutine::task<TYPE> t);
 
         [[nodiscard]] bool hasStopped() const noexcept;
 
@@ -44,7 +44,7 @@ inline void original::syncExecutor::schedule(const std::coroutine_handle<> handl
 }
 
 template<typename TYPE>
-TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
+TYPE original::syncExecutor::wait(coroutine::task<TYPE> t) {
     if (!t.hasExecutor()) {
         t.via(*this);
     }
@@ -63,7 +63,7 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE>&& t) {
 }
 
 template <typename TYPE>
-TYPE original::syncExecutor::spinWait(coroutine::task<TYPE>&& t)
+TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
 {
     if (!t.hasExecutor()) {
         t.via(*this);
