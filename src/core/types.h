@@ -597,7 +597,7 @@ namespace original {
      * @endcode
      */
     template<bool MATCH, typename MATCH_TYPE, typename OTHER_TYPE>
-    using some_t = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
+    using someType = some<MATCH, MATCH_TYPE, OTHER_TYPE>::type;
 
     // ==================== Compile-time Index Sequences ====================
 
