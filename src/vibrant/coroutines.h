@@ -272,7 +272,7 @@ namespace original {
 
                 [[nodiscard]] bool await_ready() const noexcept;
 
-                void await_suspend(std::coroutine_handle<> handle) noexcept;
+                void await_suspend(std::coroutine_handle<> waiter) noexcept;
 
                 TYPE await_resume() const noexcept;
             };
@@ -376,7 +376,7 @@ namespace original {
 
             [[nodiscard]] bool await_ready() const noexcept;
 
-            void await_suspend(std::coroutine_handle<> handle) noexcept;
+            void await_suspend(std::coroutine_handle<> waiter) noexcept;
 
             void await_resume() const noexcept;
         };
@@ -639,10 +639,10 @@ bool original::coroutine::task<TYPE>::awaitable::await_ready() const noexcept
 }
 
 template <typename TYPE>
-void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_handle<> handle) noexcept
+void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_handle<> waiter) noexcept
 {
     auto& promise = this->handle_.promise();
-    promise.continuation_ = handle;
+    promise.continuation_ = waiter;
 
     if (promise.state_ == state::STANDBY){
         promise.state_ = state::RUNNING;
@@ -907,7 +907,7 @@ inline bool original::coroutine::task<void>::awaitable::await_ready() const noex
     return !this->handle_ || this->handle_.done();
 }
 
-inline void original::coroutine::task<void>::awaitable::await_suspend(const std::coroutine_handle<> handle) noexcept // NOLINT
+inline void original::coroutine::task<void>::awaitable::await_suspend(const std::coroutine_handle<> waiter) noexcept // NOLINT
 {
     auto& promise = this->handle_.promise();
     promise.continuation_ = handle;
