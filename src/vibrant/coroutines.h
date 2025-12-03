@@ -288,6 +288,7 @@ namespace original {
             struct promise_type {
                 std::coroutine_handle<> continuation_{};
                 executor* executor_ = nullptr;
+                executor* next_exec_ = nullptr;
                 alternative<TYPE> value_;
                 std::exception_ptr e_;
                 state state_ = state::STANDBY;
@@ -317,6 +318,8 @@ namespace original {
             [[nodiscard]] bool hasExecutor() const noexcept;
 
             task& via(executor& executor) noexcept;
+
+            task& viaNext(executor& executor) noexcept;
 
             task(task&& other) noexcept;
 
@@ -392,6 +395,7 @@ namespace original {
         struct promise_type {
             std::coroutine_handle<> continuation_;
             executor* executor_ = nullptr;
+            executor* next_exec_ = nullptr;
             std::exception_ptr e_;
             state state_ = state::STANDBY;
 
@@ -420,6 +424,8 @@ namespace original {
         [[nodiscard]] bool hasExecutor() const noexcept;
 
         task& via(executor& executor) noexcept;
+
+        task& viaNext(executor& executor) noexcept;
 
         task(task&& other) noexcept;
 
@@ -644,12 +650,18 @@ void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_ha
     auto& promise = this->handle_.promise();
     promise.continuation_ = waiter;
 
-    if (promise.state_ == state::STANDBY){
-        promise.state_ = state::RUNNING;
-    }
-
-    if (promise.executor_){
-        promise.executor_->schedule(this->handle_);
+    switch (promise.state_) {
+        case state::STANDBY:
+        default:
+            promise.state_ = state::RUNNING;
+        case state::RUNNING:
+            if (promise.executor_)
+                promise.executor_->schedule(this->handle_);
+            break;
+        case state::FINISHED:
+            if (promise.next_exec_)
+                promise.next_exec_->schedule(waiter);
+            break;
     }
 }
 
@@ -674,9 +686,12 @@ void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
     auto& promise = handle.promise();
     promise.state_ = state::FINISHED;
 
-    if (promise.continuation_ && promise.executor_) {
-        if (promise.executor_)
+    if (promise.continuation_) {
+        if (promise.next_exec_) {
+            promise.next_exec_->schedule(promise.continuation_);
+        } else if (promise.executor_) {
             promise.executor_->schedule(promise.continuation_);
+        }
     }
 }
 
@@ -761,6 +776,18 @@ original::coroutine::task<TYPE>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
+    return *this;
+}
+
+template <typename TYPE>
+original::coroutine::task<TYPE>&
+original::coroutine::task<TYPE>::viaNext(executor& executor) noexcept
+{
+    if (this->empty())
+        return *this;
+
+    auto& promise = this->handle_.promise();
+    promise.next_exec_ = &executor;
     return *this;
 }
 
@@ -910,14 +937,20 @@ inline bool original::coroutine::task<void>::awaitable::await_ready() const noex
 inline void original::coroutine::task<void>::awaitable::await_suspend(const std::coroutine_handle<> waiter) noexcept // NOLINT
 {
     auto& promise = this->handle_.promise();
-    promise.continuation_ = handle;
+    promise.continuation_ = waiter;
 
-    if (promise.state_ == state::STANDBY){
+    switch (promise.state_) {
+    case state::STANDBY:
+    default:
         promise.state_ = state::RUNNING;
-    }
-
-    if (promise.executor_){
-        promise.executor_->schedule(this->handle_);
+    case state::RUNNING:
+        if (promise.executor_)
+            promise.executor_->schedule(this->handle_);
+        break;
+    case state::FINISHED:
+        if (promise.next_exec_)
+            promise.next_exec_->schedule(waiter);
+        break;
     }
 }
 
@@ -938,8 +971,12 @@ inline void original::coroutine::task<void>::finalAwaitable::await_suspend( // N
     auto& promise = handle.promise();
     promise.state_ = state::FINISHED;
 
-    if (promise.continuation_ && promise.executor_) {
-        promise.executor_->schedule(promise.continuation_);
+    if (promise.continuation_) {
+        if (promise.next_exec_) {
+            promise.next_exec_->schedule(promise.continuation_);
+        } else if (promise.executor_) {
+            promise.executor_->schedule(promise.continuation_);
+        }
     }
 }
 
@@ -1010,6 +1047,17 @@ original::coroutine::task<void>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
+    return *this;
+}
+
+inline original::coroutine::task<void>&
+original::coroutine::task<void>::viaNext(executor& executor) noexcept
+{
+    if (this->empty())
+        return *this;
+
+    auto& promise = this->handle_.promise();
+    promise.next_exec_ = &executor;
     return *this;
 }
 
