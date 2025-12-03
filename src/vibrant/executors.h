@@ -45,17 +45,21 @@ inline void original::syncExecutor::schedule(const std::coroutine_handle<> handl
 
 template<typename TYPE>
 TYPE original::syncExecutor::wait(coroutine::task<TYPE> t) {
-    if (!t.hasExecutor()) {
-        t.via(*this);
+    t.viaNext(*this);
+    if (!t.started()) {
+        t.start();
     }
+
     if (t.finished()) {
         return t.result();
     }
+
     while (!t.finished() && !this->hasStopped()) {
-        if (std::coroutine_handle<> handle = this->queue_.pop()) {
-            handle.resume();
+        if (auto h = this->queue_.pop()) {
+            h.resume();
         }
     }
+
     if (!t.finished()) {
         throw sysError("syncExecutor stopped before task finished");
     }
@@ -65,23 +69,28 @@ TYPE original::syncExecutor::wait(coroutine::task<TYPE> t) {
 template <typename TYPE>
 TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
 {
-    if (!t.hasExecutor()) {
-        t.via(*this);
+    t.viaNext(*this);
+    if (!t.started()) {
+        t.start();
     }
+
     if (t.finished()) {
         return t.result();
     }
+
     while (!t.finished() && !this->hasStopped()) {
         if (auto alt = this->queue_.tryPop()) {
-            if (auto handle = *alt)
-                handle.resume();
+            if (auto h = *alt)
+                h.resume();
         } else {
             thread::yield();
         }
     }
+
     if (!t.finished()) {
         throw sysError("syncExecutor stopped before task finished");
     }
+
     return t.result();
 }
 
