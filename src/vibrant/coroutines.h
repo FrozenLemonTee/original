@@ -765,13 +765,16 @@ bool original::coroutine::task<TYPE>::start() noexcept {
 template <typename TYPE>
 bool original::coroutine::task<TYPE>::hasExecutor() const noexcept
 {
+    if (this->empty())
+        return false;
+
     return this->handle_.promise().executor_;
 }
 
 template<typename TYPE>
 original::coroutine::task<TYPE>&
 original::coroutine::task<TYPE>::via(executor& executor) noexcept {
-    if (!this->handle_)
+    if (this->empty())
         return *this;
 
     auto& promise = this->handle_.promise();
@@ -805,7 +808,7 @@ original::coroutine::task<TYPE>::operator=(task&& other) noexcept
     if (this == &other)
         return *this;
 
-    if (this->handle_)
+    if (!this->empty())
         this->handle_.destroy();
 
     this->handle_ = other.handle_;
@@ -855,7 +858,7 @@ template <typename U>
 original::coroutine::task<U>
 original::coroutine::task<TYPE>::operator|(task<U> rhs)
 {
-    if (!this->handle_ || !rhs)
+    if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
     auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
@@ -870,7 +873,7 @@ template <typename U>
 original::coroutine::task<U>
 original::coroutine::task<TYPE>::operator>>(task<U> rhs)
 {
-    if (!this->handle_ || !rhs)
+    if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
     auto pipeline = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
@@ -884,7 +887,7 @@ template <typename TYPE>
 template <typename Callback>
 auto original::coroutine::task<TYPE>::operator|(Callback&& c)
 {
-    if (!this->handle_)
+    if (this->empty())
         throw valueError("Can not combine empty tasks");
 
     auto exec = this->handle_.promise().executor_;
@@ -895,7 +898,7 @@ template <typename TYPE>
 template <typename Callback>
 auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
 {
-    if (!this->handle_)
+    if (this->empty())
         throw valueError("Can not combine empty tasks");
 
     auto exec = this->handle_.promise().executor_;
@@ -904,6 +907,9 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
 
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
+    if (this->empty())
+        throw valueError("Can not get result from an empty task");
+
     auto& promise = handle_.promise();
     switch (promise.state_) {
         case state::STANDBY:
@@ -923,7 +929,7 @@ TYPE original::coroutine::task<TYPE>::result() {
 template <typename TYPE>
 original::coroutine::task<TYPE>::~task()
 {
-    if (this->handle_)
+    if (!this->empty())
         this->handle_.destroy();
 }
 
@@ -1037,12 +1043,15 @@ inline bool original::coroutine::task<void>::start() const noexcept {
 
 inline bool original::coroutine::task<void>::hasExecutor() const noexcept
 {
+    if (this->empty())
+        return false;
+
     return this->handle_.promise().executor_;
 }
 
 inline original::coroutine::task<void>&
 original::coroutine::task<void>::via(executor& executor) noexcept {
-    if (!this->handle_)
+    if (this->empty())
         return *this;
 
     auto& promise = this->handle_.promise();
@@ -1073,7 +1082,7 @@ original::coroutine::task<void>::operator=(task&& other) noexcept
     if (this == &other)
         return *this;
 
-    if (this->handle_)
+    if (!this->empty())
         this->handle_.destroy();
 
     this->handle_ = other.handle_;
@@ -1115,7 +1124,9 @@ original::coroutine::task<void>::operator co_await() const noexcept
 
 inline void original::coroutine::task<void>::result() const
 {
-    auto& promise = handle_.promise();
+    if (this->empty())
+        throw valueError("Can not get result from an empty task");
+
     const auto& promise = handle_.promise();
     switch (promise.state_) {
         case state::STANDBY:
@@ -1135,7 +1146,7 @@ template <typename U>
 original::coroutine::task<U>
 original::coroutine::task<void>::operator|(task<U> rhs)
 {
-    if (!this->handle_ || !rhs)
+    if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
     auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
@@ -1149,7 +1160,7 @@ template <typename U>
 original::coroutine::task<U>
 original::coroutine::task<void>::operator>>(task<U> rhs)
 {
-    if (!this->handle_ || !rhs)
+    if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
     return std::move(*this) | std::move(rhs);
@@ -1158,7 +1169,7 @@ original::coroutine::task<void>::operator>>(task<U> rhs)
 template <typename Callback>
 auto original::coroutine::task<void>::operator|(Callback&& c)
 {
-    if (!this->handle_)
+    if (this->empty())
         throw valueError("Can not combine empty tasks");
 
     const auto exec = this->handle_.promise().executor_;
@@ -1168,7 +1179,7 @@ auto original::coroutine::task<void>::operator|(Callback&& c)
 template <typename Callback>
 auto original::coroutine::task<void>::operator>>(Callback&& c)
 {
-    if (!this->handle_)
+    if (this->empty())
         throw valueError("Can not combine empty tasks");
 
     return std::move(*this) >> std::forward<Callback>(c);
@@ -1176,7 +1187,7 @@ auto original::coroutine::task<void>::operator>>(Callback&& c)
 
 inline original::coroutine::task<void>::~task()
 {
-    if (this->handle_)
+    if (!this->empty())
         this->handle_.destroy();
 }
 
