@@ -860,11 +860,16 @@ original::coroutine::task<TYPE>::operator|(task<U> rhs)
     if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
-    auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
+    auto sequence = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<RHS> {
         co_await l;
         co_return co_await r;
     };
-    return sequence(std::move(*this), std::move(rhs));
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+    auto task = sequence(std::move(*this), std::move(rhs));
+    task.via(*exec);
+    return task;
 }
 
 template <typename TYPE>
@@ -875,11 +880,16 @@ original::coroutine::task<TYPE>::operator>>(task<U> rhs)
     if (this->empty() || rhs.empty())
         throw valueError("Can not combine empty tasks");
 
-    auto pipeline = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<U> {
+    auto pipeline = []<typename LHS, typename RHS>(task<LHS> l, task<RHS> r) mutable -> task<RHS> {
         LHS tmp = co_await l;
         co_return co_await r(std::move(tmp));
     };
-    return pipeline(std::move(*this), std::move(rhs));
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+    auto task = pipeline(std::move(*this), std::move(rhs));
+    task.via(*exec);
+    return task;
 }
 
 template <typename TYPE>
@@ -890,6 +900,9 @@ auto original::coroutine::task<TYPE>::operator|(Callback&& c)
         throw valueError("Can not combine empty tasks");
 
     auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
     return std::move(*this) | std::move(makeTask(*exec, std::forward<Callback>(c)));
 }
 
@@ -901,6 +914,9 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
         throw valueError("Can not combine empty tasks");
 
     auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
     return std::move(*this) >> std::move(makeTask(*exec, std::forward<Callback>(c)));
 }
 
@@ -1151,7 +1167,12 @@ original::coroutine::task<void>::operator|(task<U> rhs)
         co_await l;
         co_return co_await r;
     };
-    return sequence(std::move(*this), std::move(rhs));
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+    auto task = sequence(std::move(*this), std::move(rhs));
+    task.via(*exec);
+    return task;
 }
 
 template <typename U>
@@ -1171,6 +1192,9 @@ auto original::coroutine::task<void>::operator|(Callback&& c)
         throw valueError("Can not combine empty tasks");
 
     const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
     return std::move(*this) | std::move(makeTask(*exec, std::forward<Callback>(c)));
 }
 
@@ -1180,7 +1204,11 @@ auto original::coroutine::task<void>::operator>>(Callback&& c)
     if (this->empty())
         throw valueError("Can not combine empty tasks");
 
-    return std::move(*this) >> std::forward<Callback>(c);
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    return std::move(*this) >> std::move(makeTask(*exec, std::forward<Callback>(c)));
 }
 
 inline original::coroutine::task<void>::~task()
@@ -1200,7 +1228,6 @@ auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... a
     Tuple args_copy{std::forward<Args>(args)...};
     auto run_impl = [](original::executor& exec, Func f, Tuple tup) -> task<Return>
     {
-        co_await exec;
         co_return std::apply(std::move(f), std::move(tup));
     };
     auto t = run_impl(executor, std::move(func_copy), std::move(args_copy));
