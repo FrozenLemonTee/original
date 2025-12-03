@@ -12,15 +12,15 @@ int main()
     original::singleton<original::syncExecutor>::init();
     auto& event_loop = original::singleton<original::syncExecutor>::instance();
     bool flag1 = false;
-    auto task1 = original::coroutine::makeTask(thread_pool, [&flag1]
+    auto task1 = original::coroutine::makeTask(event_loop, [&flag1]
     {
         flag1 = true;
     });
-    auto task2 = original::coroutine::makeTask(thread_pool, [](const int x)
+    auto task2 = original::coroutine::makeTask(event_loop, [](const int x)
     {
         return x + 1;
     }, 2);
-    auto task3 = original::coroutine::makeTask(thread_pool, [](const original::floating n)
+    auto task3 = original::coroutine::makeTask(event_loop, [](const original::floating n)
     {
        return n > 6.3;
     }, 6.5);
@@ -34,7 +34,7 @@ int main()
         return x * 2;
     }, 10);
     auto arr = original::array{0, 0, 0};
-    auto task5 = original::coroutine::makeTask(thread_pool, [&arr](const int x)
+    auto task5 = original::coroutine::makeTask(event_loop, [&arr](const int x)
     {
         arr[0] = -1;
         return x + 1;
