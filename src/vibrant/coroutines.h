@@ -419,7 +419,7 @@ namespace original {
 
         explicit task(handle h);
 
-        bool start() noexcept;
+        [[nodiscard]] bool start() const noexcept;
 
         [[nodiscard]] bool hasExecutor() const noexcept;
 
@@ -956,7 +956,7 @@ inline void original::coroutine::task<void>::awaitable::await_suspend(const std:
 
 inline void original::coroutine::task<void>::awaitable::await_resume() const noexcept
 {
-    auto& promise = this->handle_.promise();
+    const auto& promise = this->handle_.promise();
     promise.rethrow_if_exception();
 }
 
@@ -966,7 +966,7 @@ inline bool original::coroutine::task<void>::finalAwaitable::await_ready() noexc
 }
 
 inline void original::coroutine::task<void>::finalAwaitable::await_suspend( // NOLINT
-     std::coroutine_handle<promise_type> handle) noexcept
+     const std::coroutine_handle<promise_type> handle) noexcept
 {
     auto& promise = handle.promise();
     promise.state_ = state::FINISHED;
@@ -1014,7 +1014,7 @@ inline void original::coroutine::task<void>::promise_type::rethrow_if_exception(
 
 inline original::coroutine::task<void>::task(const handle h) : handle_(h) {}
 
-inline bool original::coroutine::task<void>::start() noexcept {
+inline bool original::coroutine::task<void>::start() const noexcept {
     if (this->empty())
         return false;
 
@@ -1081,11 +1081,11 @@ original::coroutine::task<void>::operator=(task&& other) noexcept
     return *this;
 }
 
-bool original::coroutine::task<void>::started() const noexcept {
+inline bool original::coroutine::task<void>::started() const noexcept {
     if (this->empty())
         return false;
 
-    auto& promise = this->handle_.promise();
+    const auto& promise = this->handle_.promise();
     return promise.state_ != state::STANDBY;
 }
 
@@ -1094,11 +1094,11 @@ inline bool original::coroutine::task<void>::finished() const noexcept
     if (this->empty())
         return false;
 
-    auto& promise = this->handle_.promise();
+    const auto& promise = this->handle_.promise();
     return promise.state_ == state::FINISHED && this->handle_.done();
 }
 
-bool original::coroutine::task<void>::empty() const noexcept {
+inline bool original::coroutine::task<void>::empty() const noexcept {
     return !this->handle_;
 }
 
@@ -1116,6 +1116,7 @@ original::coroutine::task<void>::operator co_await() const noexcept
 inline void original::coroutine::task<void>::result() const
 {
     auto& promise = handle_.promise();
+    const auto& promise = handle_.promise();
     switch (promise.state_) {
         case state::STANDBY:
         default:
