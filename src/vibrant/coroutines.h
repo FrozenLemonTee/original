@@ -745,8 +745,7 @@ bool original::coroutine::task<TYPE>::start() noexcept {
     if (this->empty())
         return false;
 
-    auto& promise = this->handle_.promise();
-    switch (promise.state_) {
+    switch (auto& promise = this->handle_.promise(); promise.state_) {
         case state::STANDBY:
             if (this->hasExecutor()){
                 promise.state_ = state::RUNNING;
@@ -1024,8 +1023,7 @@ inline bool original::coroutine::task<void>::start() const noexcept {
     if (this->empty())
         return false;
 
-    auto& promise = this->handle_.promise();
-    switch (promise.state_) {
+    switch (auto& promise = this->handle_.promise(); promise.state_) {
         case state::STANDBY:
             if (this->hasExecutor()){
                 promise.state_ = state::RUNNING;
