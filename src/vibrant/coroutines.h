@@ -345,7 +345,7 @@ namespace original {
             auto operator|(Callback&& c);
 
             template<typename Callback>
-            auto operator>>(Callback&& c);
+            auto operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, TYPE>>;
 
             TYPE result();
 
@@ -908,16 +908,26 @@ auto original::coroutine::task<TYPE>::operator|(Callback&& c)
 
 template <typename TYPE>
 template <typename Callback>
-auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
+auto original::coroutine::task<TYPE>::operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, TYPE>>
 {
     if (this->empty())
         throw valueError("Can not combine empty tasks");
 
+    auto pipeline = []<typename LHS, typename RHS>(executor& exec, task<LHS> l, RHS&& r) mutable
+        -> task<std::invoke_result_t<RHS, LHS>> {
+        LHS tmp = co_await l;
+        auto rhs = makeTask(exec, std::forward<RHS>(r), std::move(tmp));
+        co_return co_await rhs;
+    };
     auto exec = this->handle_.promise().executor_;
     if (!exec)
         throw sysError("Tasks without a specified executor cannot be combined");
 
-    return std::move(*this) >> std::move(makeTask(*exec, std::forward<Callback>(c)));
+    using Func  = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    auto task = pipeline(*exec, std::move(*this), std::move(func_copy));
+    task.via(*exec);
+    return task;
 }
 
 template<typename TYPE>
