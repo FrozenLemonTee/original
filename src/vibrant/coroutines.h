@@ -353,6 +353,9 @@ namespace original {
         };
 
         template<typename Callback, typename... Args>
+        static auto makeTask(Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
+
+        template<typename Callback, typename... Args>
         static auto makeTask(executor& executor, Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
     };
 
@@ -1227,20 +1230,29 @@ inline original::coroutine::task<void>::~task()
         this->handle_.destroy();
 }
 
-template<typename Callback, typename... Args>
-auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... args)
-     -> task<std::invoke_result_t<Callback, Args...>> {
+template <typename Callback, typename ... Args>
+auto original::coroutine::makeTask(Callback&& c, Args&&... args)
+    -> task<std::invoke_result_t<Callback, Args...>>
+{
     using Return = std::invoke_result_t<Callback, Args...>;
     using Func  = std::decay_t<Callback>;
     using Tuple = std::tuple<std::decay_t<Args>...>;
 
     Func func_copy{std::forward<Callback>(c)};
     Tuple args_copy{std::forward<Args>(args)...};
-    auto run_impl = [](original::executor& exec, Func f, Tuple tup) -> task<Return>
+    auto run_impl = [](Func f, Tuple tup) -> task<Return>
     {
         co_return std::apply(std::move(f), std::move(tup));
     };
-    auto t = run_impl(executor, std::move(func_copy), std::move(args_copy));
+    auto t = run_impl(std::move(func_copy), std::move(args_copy));
+    return t;
+}
+
+template<typename Callback, typename... Args>
+auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... args)
+     -> task<std::invoke_result_t<Callback, Args...>> {
+    using Return = std::invoke_result_t<Callback, Args...>;
+    task<Return> t = makeTask(std::forward<Callback>(c), std::forward<Args>(args)...);
     t.via(executor);
     return t;
 }
