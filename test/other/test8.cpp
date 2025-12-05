@@ -1,3 +1,5 @@
+#include <random>
+
 #include "coroutines.h"
 #include "executors.h"
 #include "singleton.h"
@@ -52,5 +54,36 @@ int main()
     auto res2 = event_loop.spinWait(std::move(chain2));
     std::cout << original::printable::formatStrings("res2 = ", res2) << std::endl;
     std::cout << original::printable::formatStrings("arr = ", arr) << std::endl;
+    auto increase = [](const int x){
+        return x + 1;
+    };
+    auto task8 = original::coroutine::makeTask(event_loop, increase, 0);
+    auto chain3 = task8 >> increase >> increase >> increase;
+    auto res3 = event_loop.spinWait(std::move(chain3));
+    std::cout << original::printable::formatStrings("res3 = ", res3) << std::endl;
+
+    bool complete = false;
+    auto rand = [&complete] {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution dis(1, 100);
+        complete = true;
+        const auto res = dis(gen);
+        std::cout << res << std::endl;
+        return res;
+    };
+    auto judge = [](const int num){
+        const auto res = num > 50;
+        std::cout << original::printable::formatString(res) << std::endl;
+        return res;
+    };
+    auto str = [](const bool res) -> std::string {
+        return res ? "Larger than 50" : "Less than 50";
+    };
+    auto rand_task = original::coroutine::makeTask(event_loop, rand);
+    auto chain4 = rand_task >> judge >> str;
+    auto res4 = event_loop.spinWait(std::move(chain4));
+    std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
+    std::cout << original::printable::formatStrings("complete = ", complete) << std::endl;
     return 0;
 }
