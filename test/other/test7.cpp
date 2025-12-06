@@ -143,15 +143,13 @@ int main() {
         std::cout << "hash set elem: " << e << std::endl;
     }
     auto thread_pool = original::threadPoolExecutor(delegator);
-    original::singleton<original::syncExecutor>::init();
-    auto& event_loop = original::singleton<original::syncExecutor>::instance();
-    auto coro_task1 = original::coroutine::makeTask(event_loop, add_func, 5, 6);
-    std::cout << "coro task result1: " << event_loop.wait(std::move(coro_task1)) << std::endl;
-    auto coro_task2 = original::coroutine::makeTask(event_loop, [](const int a){
+    auto coro_task1 = original::coroutine::makeTask(thread_pool, add_func, 5, 6);
+    std::cout << "coro task result1: " << original::coroutine::spinRun(std::move(coro_task1)) << std::endl;
+    auto coro_task2 = original::coroutine::makeTask(thread_pool, [](const int a){
         return a * a;
     }, 10);
-    std::cout << "coro task result2: " << event_loop.wait(std::move(coro_task2)) << std::endl;
-    auto coro_task3 = original::coroutine::makeTask(event_loop, sub_func, 77, 11);
-    std::cout << "coro task result3: " << event_loop.spinWait(std::move(coro_task3)) << std::endl;
+    std::cout << "coro task result2: " << original::coroutine::spinRun(std::move(coro_task2)) << std::endl;
+    auto coro_task3 = original::coroutine::makeTask(thread_pool, sub_func, 77, 11);
+    std::cout << "coro task result3: " << original::coroutine::spinRun(std::move(coro_task3)) << std::endl;
     return 0;
 }
