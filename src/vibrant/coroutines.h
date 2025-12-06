@@ -4,6 +4,8 @@
 #include "executor.h"
 #include <coroutine>
 #include <exception>
+#include "syncPoint.h"
+#include "thread.h"
 
 /**
  * @file coroutines.h
@@ -357,6 +359,14 @@ namespace original {
 
         template<typename Callback, typename... Args>
         static auto makeTask(executor& executor, Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
+
+        template<typename TYPE>
+        static TYPE spinRun(task<TYPE> t);
+
+        template<typename TYPE>
+        static TYPE run(task<TYPE> t);
+
+        static bool run(const task<void>& t);
     };
 
     template<>
@@ -1247,6 +1257,67 @@ auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... a
     task<Return> t = makeTask(std::forward<Callback>(c), std::forward<Args>(args)...);
     t.via(executor);
     return t;
+}
+
+template <typename TYPE>
+TYPE original::coroutine::spinRun(task<TYPE> t)
+{
+    if (t.empty())
+        throw valueError("Can not run an empty task");
+    if (t.finished())
+        return t.result();
+    if (t.started())
+        throw valueError("Can not run a task while started");
+    if (!t.hasExecutor())
+        throw valueError("Can not run a task without a specified executor");
+
+    t.start();
+    while (!t.finished()) {
+        thread::yield();
+        thread::sleep(milliseconds(5));
+    }
+    return t.result();
+}
+
+template <typename TYPE>
+TYPE original::coroutine::run(task<TYPE> t)
+{
+    if (t.empty())
+        throw valueError("Can not run an empty task");
+    if (t.finished())
+        return t.result();
+    if (t.started())
+        throw valueError("Can not run a task while started");
+    if (!t.hasExecutor())
+        throw valueError("Can not run a task without a specified executor");
+
+    syncPoint pt{2};
+    t.sync(pt);
+    if (const bool started = t.start(); !started) {
+        throw sysError("Can not run a task");
+    }
+    pt.arrive();
+    return t.result();
+}
+
+inline bool original::coroutine::run(const task<void>& t)
+{
+    if (t.empty())
+        throw valueError("Can not run an empty task");
+    if (t.finished())
+        return true;
+    if (t.started())
+        throw valueError("Can not run a task while started");
+    if (!t.hasExecutor())
+        throw valueError("Can not run a task without a specified executor");
+
+    syncPoint pt{2};
+    t.sync(pt);
+    if (const bool started = t.start(); !started) {
+        return false;
+    }
+    pt.arrive();
+    return true;
 }
 
 #endif //ORIGINAL_COROUTINES_H
