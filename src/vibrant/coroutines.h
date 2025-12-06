@@ -288,7 +288,7 @@ namespace original {
             struct promise_type {
                 std::coroutine_handle<> continuation_{};
                 executor* executor_ = nullptr;
-                executor* next_exec_ = nullptr;
+                syncPoint* spt_ = nullptr;
                 alternative<TYPE> value_;
                 std::exception_ptr e_;
                 state state_ = state::STANDBY;
@@ -313,13 +313,13 @@ namespace original {
 
             explicit task(handle h);
 
+            void sync(syncPoint& spt);
+
             bool start() noexcept;
 
             [[nodiscard]] bool hasExecutor() const noexcept;
 
             task& via(executor& executor) noexcept;
-
-            task& viaNext(executor& executor) noexcept;
 
             task(task&& other) noexcept;
 
@@ -398,7 +398,7 @@ namespace original {
         struct promise_type {
             std::coroutine_handle<> continuation_;
             executor* executor_ = nullptr;
-            executor* next_exec_ = nullptr;
+            syncPoint* spt_ = nullptr;
             std::exception_ptr e_;
             state state_ = state::STANDBY;
 
@@ -422,13 +422,13 @@ namespace original {
 
         explicit task(handle h);
 
+        void sync(syncPoint& spt) const;
+
         [[nodiscard]] bool start() const noexcept;
 
         [[nodiscard]] bool hasExecutor() const noexcept;
 
         task& via(executor& executor) noexcept;
-
-        task& viaNext(executor& executor) noexcept;
 
         task(task&& other) noexcept;
 
@@ -662,8 +662,6 @@ void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_ha
                 promise.executor_->schedule(this->handle_);
             break;
         case state::FINISHED:
-            if (promise.next_exec_)
-                promise.next_exec_->schedule(waiter);
             break;
     }
 }
@@ -689,12 +687,12 @@ void original::coroutine::task<TYPE>::finalAwaitable::await_suspend(
     auto& promise = handle.promise();
     promise.state_ = state::FINISHED;
 
-    if (promise.continuation_) {
-        if (promise.next_exec_) {
-            promise.next_exec_->schedule(promise.continuation_);
-        } else if (promise.executor_) {
-            promise.executor_->schedule(promise.continuation_);
-        }
+    if (promise.continuation_ && promise.executor_) {
+        promise.executor_->schedule(promise.continuation_);
+    }
+
+    if (const auto spt = promise.spt_) {
+        spt->arrive();
     }
 }
 
@@ -743,6 +741,16 @@ void original::coroutine::task<TYPE>::promise_type::rethrow_if_exception() const
 template <typename TYPE>
 original::coroutine::task<TYPE>::task(handle h) : handle_(h) {}
 
+template <typename TYPE>
+void original::coroutine::task<TYPE>::sync(syncPoint& spt)
+{
+    if (this->empty())
+        throw sysError("Can not sync with an empty task");
+    if (this->started())
+        throw sysError("Can not sync with a started task");
+    this->handle_.promise().spt_ = &spt;
+}
+
 template<typename TYPE>
 bool original::coroutine::task<TYPE>::start() noexcept {
     if (this->empty())
@@ -781,18 +789,6 @@ original::coroutine::task<TYPE>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
-    return *this;
-}
-
-template <typename TYPE>
-original::coroutine::task<TYPE>&
-original::coroutine::task<TYPE>::viaNext(executor& executor) noexcept
-{
-    if (this->empty())
-        return *this;
-
-    auto& promise = this->handle_.promise();
-    promise.next_exec_ = &executor;
     return *this;
 }
 
@@ -916,7 +912,7 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c) -> task<std::invo
     if (this->empty())
         throw valueError("Can not combine empty tasks");
 
-    auto pipeline = []<typename LHS, typename RHS>(executor& exec, task<LHS> l, RHS&& r) mutable
+    auto pipeline = []<typename LHS, typename RHS>(executor& exec, task<LHS> l, RHS r) mutable
         -> task<std::invoke_result_t<RHS, LHS>> {
         LHS tmp = co_await l;
         auto rhs = makeTask(exec, std::forward<RHS>(r), std::move(tmp));
@@ -982,8 +978,6 @@ inline void original::coroutine::task<void>::awaitable::await_suspend(const std:
             promise.executor_->schedule(this->handle_);
         break;
     case state::FINISHED:
-        if (promise.next_exec_)
-            promise.next_exec_->schedule(waiter);
         break;
     }
 }
@@ -1005,12 +999,12 @@ inline void original::coroutine::task<void>::finalAwaitable::await_suspend( // N
     auto& promise = handle.promise();
     promise.state_ = state::FINISHED;
 
-    if (promise.continuation_) {
-        if (promise.next_exec_) {
-            promise.next_exec_->schedule(promise.continuation_);
-        } else if (promise.executor_) {
-            promise.executor_->schedule(promise.continuation_);
-        }
+    if (promise.continuation_ && promise.executor_) {
+        promise.executor_->schedule(promise.continuation_);
+    }
+
+    if (const auto spt = promise.spt_) {
+        spt->arrive();
     }
 }
 
@@ -1048,6 +1042,15 @@ inline void original::coroutine::task<void>::promise_type::rethrow_if_exception(
 
 inline original::coroutine::task<void>::task(const handle h) : handle_(h) {}
 
+inline void original::coroutine::task<void>::sync(syncPoint& spt) const
+{
+    if (this->empty())
+        throw sysError("Can not sync with an empty task");
+    if (this->started())
+        throw sysError("Can not sync with a started task");
+    this->handle_.promise().spt_ = &spt;
+}
+
 inline bool original::coroutine::task<void>::start() const noexcept {
     if (this->empty())
         return false;
@@ -1083,17 +1086,6 @@ original::coroutine::task<void>::via(executor& executor) noexcept {
 
     auto& promise = this->handle_.promise();
     promise.executor_ = &executor;
-    return *this;
-}
-
-inline original::coroutine::task<void>&
-original::coroutine::task<void>::viaNext(executor& executor) noexcept
-{
-    if (this->empty())
-        return *this;
-
-    auto& promise = this->handle_.promise();
-    promise.next_exec_ = &executor;
     return *this;
 }
 
