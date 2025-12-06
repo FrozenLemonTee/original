@@ -1210,7 +1210,9 @@ auto original::coroutine::task<void>::operator|(Callback&& c)
     if (!exec)
         throw sysError("Tasks without a specified executor cannot be combined");
 
-    return std::move(*this) | std::move(makeTask(*exec, std::forward<Callback>(c)));
+    using Func  = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    return std::move(*this) | std::move(makeTask(*exec, std::move(func_copy)));
 }
 
 template <typename Callback>
@@ -1223,7 +1225,9 @@ auto original::coroutine::task<void>::operator>>(Callback&& c)
     if (!exec)
         throw sysError("Tasks without a specified executor cannot be combined");
 
-    return std::move(*this) >> std::move(makeTask(*exec, std::forward<Callback>(c)));
+    using Func  = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    return std::move(*this) >> std::move(makeTask(*exec, std::move(func_copy)));
 }
 
 inline original::coroutine::task<void>::~task()
