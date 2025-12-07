@@ -5,6 +5,7 @@
 #include "atomic.h"
 #include "condition.h"
 #include "coroutines.h"
+#include "events.h"
 #include "executor.h"
 #include "executors.h"
 #include "generators.h"
