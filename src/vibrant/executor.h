@@ -2,11 +2,14 @@
 #define ORIGINAL_EXECUTOR_H
 
 #include <coroutine>
+#include "zeit.h"
 
 namespace original {
 
     class executor {
     public:
+        using Func = std::function<void()>;
+
         class awaitable {
             executor& executor_;
 
@@ -22,7 +25,9 @@ namespace original {
 
         virtual ~executor() = default;
 
-        virtual void schedule(std::coroutine_handle<> handle) = 0;
+        virtual void schedule(Func fn) = 0;
+
+        virtual void schedule(time::duration delay, Func fn) = 0;
 
         awaitable operator co_await() noexcept;
     };
