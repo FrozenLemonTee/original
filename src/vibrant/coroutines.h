@@ -1326,9 +1326,16 @@ TYPE original::coroutine::spinRun(task<TYPE> t)
         throw valueError("Can not run a task without a specified executor");
 
     t.start();
+    u_integer spin = 0;
     while (!t.finished()) {
-        thread::yield();
-        thread::sleep(milliseconds(5));
+        if (spin < 50) {
+            thread::yield();
+        } else if (spin < 200) {
+            thread::sleep(microseconds(50));
+        } else {
+            thread::sleep(milliseconds(1));
+        }
+        spin += 1;
     }
     return t.result();
 }
