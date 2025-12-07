@@ -31,6 +31,18 @@
  */
 
 namespace original {
+    template<typename A>
+    concept Awaiter = requires(A awaiter, std::coroutine_handle<> handle) {
+        { awaiter.await_ready() } -> std::same_as<bool>;
+        { awaiter.await_suspend(handle) } -> std::same_as<void>;
+        { awaiter.await_resume() };
+    };
+
+    template<typename A>
+    concept Awaitable = Awaiter<A> || requires(A awaitable) {
+        { awaitable.operator co_await() } -> Awaiter;
+    };
+
     /**
      * @class coroutine
      * @brief Namespace for coroutine-related utilities and generator implementation
