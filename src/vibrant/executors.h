@@ -7,18 +7,33 @@
 
 namespace original {
     class syncExecutor final : public executor {
-        lockedQueue<std::coroutine_handle<>> queue_{};
+        using executor::Func;
+
+        lockedQueue<Func> events_queue_{};
         atomic<bool> stopping_;
+
+        using timerTask = couple<time::point, Func>;
+        template<typename COUPLE>
+        struct timerComparator {
+            bool operator()(const COUPLE& lhs, const COUPLE& rhs) const;
+        };
+
+        lockedPrique<timerTask, timerComparator> timer_queue_{};
+        thread worker_;
+
+        void timerLoop();
     public:
         syncExecutor();
 
-        void schedule(std::coroutine_handle<> handle) override;
+        void schedule(Func fn) override;
 
-        template<typename TYPE>
-        TYPE wait(coroutine::task<TYPE> t);
+        void schedule(time::duration delay, Func fn) override;
 
-        template<typename TYPE>
-        TYPE spinWait(coroutine::task<TYPE> t);
+        void runOnce();
+
+        void run();
+
+        void runUntilIdle();
 
         [[nodiscard]] bool hasStopped() const noexcept;
 
@@ -36,62 +51,75 @@ namespace original {
     };
 }
 
-inline original::syncExecutor::syncExecutor() : stopping_(makeAtomic(false)) {}
-
-inline void original::syncExecutor::schedule(const std::coroutine_handle<> handle) {
-    if (!this->stopping_)
-        this->queue_.push(handle);
-}
-
-template<typename TYPE>
-TYPE original::syncExecutor::wait(coroutine::task<TYPE> t) {
-    t.viaNext(*this);
-    if (!t.started()) {
-        t.start();
-    }
-
-    if (t.finished()) {
-        return t.result();
-    }
-
-    while (!t.finished() && !this->hasStopped()) {
-        if (auto h = this->queue_.pop()) {
-            h.resume();
-        }
-    }
-
-    if (!t.finished()) {
-        throw sysError("syncExecutor stopped before task finished");
-    }
-    return t.result();
-}
-
-template <typename TYPE>
-TYPE original::syncExecutor::spinWait(coroutine::task<TYPE> t)
+template <typename COUPLE>
+bool original::syncExecutor::timerComparator<COUPLE>::operator()(const COUPLE& lhs, const COUPLE& rhs) const
 {
-    t.viaNext(*this);
-    if (!t.started()) {
-        t.start();
-    }
+    return lhs.first() < rhs.first();
+}
 
-    if (t.finished()) {
-        return t.result();
-    }
-
-    while (!t.finished() && !this->hasStopped()) {
-        if (auto alt = this->queue_.tryPop()) {
-            if (auto h = *alt)
-                h.resume();
-        } else {
+inline void original::syncExecutor::timerLoop()
+{
+    while (!this->hasStopped()) {
+        const auto opt = this->timer_queue_.top();
+        if (!opt) {
             thread::yield();
+            continue;
+        }
+        auto& task = *opt;
+        if (auto now = time::point::now(); task.first() > now) {
+            auto wait_time = task.first() - now;
+            if (auto pop = this->timer_queue_.popFor(wait_time); !pop) {
+                thread::yield();
+                continue;
+            }
+            this->schedule(task.second());
+        } else {
+            if (auto pop = this->timer_queue_.tryPop())
+                this->schedule(std::move(pop->second()));
         }
     }
+}
 
-    if (!t.finished()) {
-        throw sysError("syncExecutor stopped before task finished");
+inline original::syncExecutor::syncExecutor()
+    : stopping_(makeAtomic(false)), worker_(std::move([this]{ this->timerLoop(); })) {}
+
+inline void original::syncExecutor::schedule(Func fn)
+{
+    if (!this->hasStopped() && fn)
+        this->events_queue_.push(std::move(fn));
+}
+
+inline void original::syncExecutor::schedule(const time::duration delay, Func fn)
+{
+    if (!this->hasStopped() && fn) {
+        const auto when = time::point::now() + delay;
+        this->timer_queue_.push(std::move(timerTask{when, fn}));
     }
+}
 
-    return t.result();
+inline void original::syncExecutor::runOnce()
+{
+    if (const auto fn = this->events_queue_.pop()) {
+        fn();
+    } else {
+        thread::yield();
+    }
+}
+
+inline void original::syncExecutor::run()
+{
+    while (!this->hasStopped()) {
+        this->runOnce();
+    }
+}
+
+inline void original::syncExecutor::runUntilIdle()
+{
+    while (auto opt = this->events_queue_.tryPop()) {
+        if (auto& fn = *opt) {
+            fn();
+        }
+    }
 }
 
 inline bool original::syncExecutor::hasStopped() const noexcept {
