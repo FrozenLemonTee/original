@@ -43,11 +43,15 @@ namespace original {
     };
 
     class threadPoolExecutor final : public executor {
+        using executor::Func;
+
         taskDelegator& delegator_;
     public:
         explicit threadPoolExecutor(taskDelegator& delegator);
 
-        void schedule(std::coroutine_handle<> handle) override;
+        void schedule(Func fn) override;
+
+        void schedule(time::duration delay, Func fn) override;
     };
 }
 
@@ -138,12 +142,22 @@ inline original::syncExecutor::~syncExecutor() {
 inline original::threadPoolExecutor::threadPoolExecutor(taskDelegator& delegator)
         : delegator_(delegator) {}
 
-inline void original::threadPoolExecutor::schedule(std::coroutine_handle<> handle) {
-    if (!handle)
+inline void original::threadPoolExecutor::schedule(Func fn)
+{
+    if (!fn)
         return;
 
-    this->delegator_.submit([handle]{
-        handle.resume();
+    this->delegator_.submit(std::move(fn));
+}
+
+inline void original::threadPoolExecutor::schedule(time::duration delay, Func fn)
+{
+    if (!fn)
+        return;
+
+    this->delegator_.submit([fn = std::move(fn), delay = std::move(delay)] {
+        thread::sleep(delay);
+        fn();
     });
 }
 
