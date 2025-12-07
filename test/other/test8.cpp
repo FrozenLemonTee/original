@@ -1,9 +1,13 @@
 #include <random>
 
 #include "coroutines.h"
+#include "events.h"
 #include "executors.h"
 #include "singleton.h"
 #include "tasks.h"
+
+
+using namespace original::literals;
 
 int main()
 {
@@ -78,8 +82,10 @@ int main()
     auto str = [](const bool res) -> std::string {
         return res ? "Larger than 50" : "Less than 50";
     };
+    original::taskDelegator delegator2{2};
+    original::threadPoolExecutor thread_pool_local{delegator2};
     auto rand_task = original::coroutine::makeTask(thread_pool, rand);
-    auto chain4 = rand_task >> judge >> str;
+    auto chain4 = rand_task >> judge >> thread_pool_local >> str >> original::coDelay(1_s);
     auto res4 = original::coroutine::run(std::move(chain4));
     std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
     std::cout << original::printable::formatStrings("complete = ", complete) << std::endl;
