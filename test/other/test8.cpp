@@ -7,7 +7,7 @@
 
 int main()
 {
-    original::singleton<original::taskDelegator>::init(static_cast<original::u_integer>(1));
+    original::singleton<original::taskDelegator>::init();
     auto& delegator = original::singleton<original::taskDelegator>::instance();
     original::singleton<original::threadPoolExecutor>::init(delegator);
     auto& thread_pool = original::singleton<original::threadPoolExecutor>::instance();
