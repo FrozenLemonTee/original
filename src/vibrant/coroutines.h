@@ -365,6 +365,10 @@ namespace original {
 
             task operator>>(executor& exec);
 
+            task operator|(Awaiter auto&& awaiter);
+
+            task operator>>(Awaiter auto&& awaiter);
+
             TYPE result();
 
             ~task();
@@ -487,6 +491,10 @@ namespace original {
         task operator|(executor& exec);
 
         task operator>>(executor& exec);
+
+        task operator|(Awaiter auto&& awaiter);
+
+        task operator>>(Awaiter auto&& awaiter);
 
         ~task();
     };
@@ -981,6 +989,34 @@ original::coroutine::task<TYPE>::operator>>(executor& exec)
     return std::move(*this) | exec;
 }
 
+template <typename TYPE>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator|(Awaiter auto&& awaiter)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename T>(task<T> t, Awaiter auto a) mutable -> task<T> {
+        T tmp = co_await t;
+        co_await a;
+        co_return tmp;
+    };
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(std::move(*this), std::forward<decltype(awaiter)>(awaiter));
+    task.via(*exec);
+    return task;
+}
+
+template <typename TYPE>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator>>(Awaiter auto&& awaiter)
+{
+    return std::move(*this) | std::forward<decltype(awaiter)>(awaiter);
+}
+
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
     if (this->empty())
@@ -1290,6 +1326,32 @@ inline original::coroutine::task<void>
 original::coroutine::task<void>::operator>>(executor& exec)
 {
     return std::move(*this) | exec;
+}
+
+original::coroutine::task<void>
+original::coroutine::task<void>::operator|(Awaiter auto&& awaiter)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = [](task t, Awaitable auto a) mutable -> task {
+        co_await t;
+        co_await a;
+        co_return;
+    };
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(std::move(*this), std::forward<decltype(awaiter)>(awaiter));
+    task.via(*exec);
+    return task;
+}
+
+original::coroutine::task<void>
+original::coroutine::task<void>::operator>>(Awaiter auto&& awaiter)
+{
+    return std::move(*this) | std::forward<decltype(awaiter)>(awaiter);
 }
 
 inline original::coroutine::task<void>::~task()
