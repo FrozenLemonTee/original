@@ -615,6 +615,12 @@ namespace original {
              */
             friend point operator+(const point& p, const duration& d);
 
+            /**
+             * @brief Adds duration to time point(Reversed version)
+             * @param d Duration to add
+             * @param p Time point
+             * @return New time point after addition
+             */
             friend point operator+(const duration& d, const point& p);
 
             /**
@@ -935,13 +941,19 @@ namespace original {
             integer value(calendar calendar) const;
 
             /**
-             * @brief Converts to time::point
+             * @brief Conversion operator of UTCTime to time point
              * @return Time point representing this UTC time
              * @warning When converting back to time::point, the time point will only
              * have second-level precision (sub-second components will be zero)
              */
             explicit operator original::time::point() const;
 
+            /**
+             * @brief Converts to time::point
+             * @return Time point representing this UTC time
+             * @warning When converting back to time::point, the time point will only
+             * have second-level precision (sub-second components will be zero)
+             */
             point toPoint() const;
 
             /**
