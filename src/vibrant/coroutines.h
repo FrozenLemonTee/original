@@ -979,7 +979,13 @@ original::coroutine::task<TYPE>::operator|(executor& exec)
         co_await executor;
         co_return tmp;
     };
-    return sequence(exec, std::move(*this));
+    auto prev_exec = this->handle_.promise().executor_;
+    if (!prev_exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(exec, std::move(*this));
+    task.via(*prev_exec);
+    return task;
 }
 
 template <typename TYPE>
@@ -1319,7 +1325,13 @@ original::coroutine::task<void>::operator|(executor& exec)
         co_await executor;
         co_return;
     };
-    return sequence(exec, std::move(*this));
+    const auto prev_exec = this->handle_.promise().executor_;
+    if (!prev_exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(exec, std::move(*this));
+    task.via(*prev_exec);
+    return task;
 }
 
 inline original::coroutine::task<void>
