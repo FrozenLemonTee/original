@@ -349,6 +349,10 @@ namespace original {
             template<typename Callback>
             auto operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, TYPE>>;
 
+            task operator|(executor& exec);
+
+            task operator>>(executor& exec);
+
             TYPE result();
 
             ~task();
@@ -467,6 +471,10 @@ namespace original {
 
         template<typename Callback>
         auto operator>>(Callback&& c);
+
+        task operator|(executor& exec);
+
+        task operator>>(executor& exec);
 
         ~task();
     };
@@ -939,6 +947,28 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c) -> task<std::invo
     return task;
 }
 
+template <typename TYPE>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator|(executor& exec)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename T>(executor& executor, task<T> t) mutable -> task<T> {
+        T tmp = co_await t;
+        co_await executor;
+        co_return tmp;
+    };
+    return sequence(exec, std::move(*this));
+}
+
+template <typename TYPE>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator>>(executor& exec)
+{
+    return std::move(*this) | exec;
+}
+
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
     if (this->empty())
@@ -1228,6 +1258,26 @@ auto original::coroutine::task<void>::operator>>(Callback&& c)
     using Func  = std::decay_t<Callback>;
     Func func_copy{std::forward<Callback>(c)};
     return std::move(*this) >> std::move(makeTask(*exec, std::move(func_copy)));
+}
+
+inline original::coroutine::task<void>
+original::coroutine::task<void>::operator|(executor& exec)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = [](executor& executor, task t) mutable -> task {
+        co_await t;
+        co_await executor;
+        co_return;
+    };
+    return sequence(exec, std::move(*this));
+}
+
+inline original::coroutine::task<void>
+original::coroutine::task<void>::operator>>(executor& exec)
+{
+    return std::move(*this) | exec;
 }
 
 inline original::coroutine::task<void>::~task()
