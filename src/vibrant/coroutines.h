@@ -289,7 +289,7 @@ namespace original {
 
                 void await_suspend(std::coroutine_handle<> waiter) noexcept;
 
-                TYPE await_resume() const noexcept;
+                TYPE await_resume() const;
             };
 
             struct finalAwaitable {
@@ -421,7 +421,7 @@ namespace original {
 
             void await_suspend(std::coroutine_handle<> waiter) noexcept;
 
-            void await_resume() const noexcept;
+            void await_resume() const;
         };
 
         struct finalAwaitable {
@@ -718,7 +718,7 @@ void original::coroutine::task<TYPE>::awaitable::await_suspend(std::coroutine_ha
 }
 
 template <typename TYPE>
-TYPE original::coroutine::task<TYPE>::awaitable::await_resume() const noexcept
+TYPE original::coroutine::task<TYPE>::awaitable::await_resume() const
 {
     auto& promise = this->handle_.promise();
     promise.rethrow_if_exception();
@@ -1123,7 +1123,7 @@ inline void original::coroutine::task<void>::awaitable::await_suspend(const std:
     }
 }
 
-inline void original::coroutine::task<void>::awaitable::await_resume() const noexcept
+inline void original::coroutine::task<void>::awaitable::await_resume() const
 {
     const auto& promise = this->handle_.promise();
     promise.rethrow_if_exception();
