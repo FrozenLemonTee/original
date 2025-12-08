@@ -122,6 +122,8 @@ inline void original::syncExecutor::runUntilIdle()
     while (auto opt = this->events_queue_.tryPop()) {
         if (auto& fn = *opt) {
             fn();
+        } else {
+            thread::yield();
         }
     }
 }
