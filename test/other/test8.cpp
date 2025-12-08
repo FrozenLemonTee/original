@@ -119,5 +119,25 @@ int main()
             | original::coCatch<original::noElementError>(catch_handler3);
     auto res6 = original::coroutine::run(std::move(err_chain2));
     std::cout << original::printable::formatStrings("res6 = ", res6) << std::endl;
+    original::singleton<original::syncExecutor>::init();
+    auto& event_loop = original::singleton<original::syncExecutor>::instance();
+    auto task9 = original::coroutine::makeTask(event_loop, increase, 1);
+    task9.start();
+    event_loop.runOnce();
+    auto res7 = original::coroutine::spinRun(std::move(task9));
+    std::cout << original::printable::formatStrings("res7 = ", res7) << std::endl;
+    auto when_all1 = original::coroutine::makeTask(thread_pool, increase, 0);
+    auto when_all2 = original::coroutine::makeTask(thread_pool, increase, 1);
+    auto when_all3 = original::coroutine::makeTask(thread_pool, increase, 2);
+    bool when_all_flag1 = false;
+    auto when_all4 = original::coroutine::makeTask(thread_pool, [&when_all_flag1]{
+        when_all_flag1 = true;
+    });
+    const auto& [wa_res1, wa_res2, wa_res3, wa_res4] = original::coroutine::whenAll(std::move(when_all1), std::move(when_all2), std::move(when_all3), std::move(when_all4));
+    std::cout << original::printable::formatStrings("wa_res1 = ", wa_res1) << std::endl;
+    std::cout << original::printable::formatStrings("wa_res2 = ", wa_res2) << std::endl;
+    std::cout << original::printable::formatStrings("wa_res3 = ", wa_res3) << std::endl;
+    std::cout << original::printable::formatStrings("wa_res4 = ", wa_res4) << std::endl;
+    std::cout << original::printable::formatStrings("when_all_flag1 = ", when_all_flag1) << std::endl;
     return 0;
 }
