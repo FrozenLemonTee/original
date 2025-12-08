@@ -32,11 +32,6 @@ int main()
     auto res1 = original::coroutine::spinRun(std::move(chain1));
     std::cout << original::printable::formatStrings("res1 = ", res1) << std::endl;
     std::cout << original::printable::formatStrings("flag1 = ", flag1) << std::endl;
-
-    auto task4 = original::coroutine::makeTask(thread_pool, [](const int x)
-    {
-        return x * 2;
-    }, 10);
     auto arr = original::array{0, 0, 0};
     auto task5 = original::coroutine::makeTask(thread_pool, [&arr](const int x)
     {
@@ -96,12 +91,33 @@ int main()
         return 1.0 / div;
     };
     auto catch_handler = [](const std::exception& e) -> original::floating {
-        std::cout << "Caught a exception: " << e.what() << std::endl;
+        std::cout << "Caught an exception: " << e.what() << std::endl;
         return 0;
     };
     auto err_task = original::coroutine::makeTask(thread_pool, err, 0);
     auto err_chain = err_task >> original::coCatch<original::valueError>(catch_handler);
     auto res5 = original::coroutine::run(std::move(err_chain));
     std::cout << original::printable::formatStrings("res5 = ", res5) << std::endl;
+    auto multi_err = [](const int x){
+        if (x == 0)
+            throw original::valueError("Element is " + original::printable::formatString(x));
+        if (x == 1)
+            throw original::noElementError("Element is " + original::printable::formatString(x));
+        return x;
+    };
+    auto err_task2 = original::coroutine::makeTask(thread_pool_local, multi_err, 1);
+    auto catch_handler2 = [](const original::valueError& e){
+        std::cout << "Caught an exception: " << e.what() << std::endl;
+        return 111;
+    };
+    auto catch_handler3 = [](const original::noElementError& e){
+        std::cout << "Caught an exception: " << e.what() << std::endl;
+        return 222;
+    };
+    auto err_chain2 = err_task2
+            | original::coCatch<original::valueError>(catch_handler2)
+            | original::coCatch<original::noElementError>(catch_handler3);
+    auto res6 = original::coroutine::run(std::move(err_chain2));
+    std::cout << original::printable::formatStrings("res6 = ", res6) << std::endl;
     return 0;
 }
