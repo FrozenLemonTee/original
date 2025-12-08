@@ -4,6 +4,7 @@
 #include "executor.h"
 #include <coroutine>
 #include <exception>
+#include "awaitable.h"
 #include "syncPoint.h"
 #include "thread.h"
 
@@ -369,6 +370,12 @@ namespace original {
 
             task operator>>(Awaiter auto&& awaiter);
 
+            template<typename E, typename Handle>
+            task operator|(errorCatchAwaitable<E, Handle>&& catcher);
+
+            template<typename E, typename Handle>
+            task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
+
             TYPE result();
 
             ~task();
@@ -495,6 +502,12 @@ namespace original {
         task operator|(Awaiter auto&& awaiter);
 
         task operator>>(Awaiter auto&& awaiter);
+
+        template<typename E, typename Handle>
+        task operator|(errorCatchAwaitable<E, Handle>&& catcher);
+
+        template<typename E, typename Handle>
+        task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
 
         ~task();
     };
@@ -1023,6 +1036,40 @@ original::coroutine::task<TYPE>::operator>>(Awaiter auto&& awaiter)
     return std::move(*this) | std::forward<decltype(awaiter)>(awaiter);
 }
 
+template <typename TYPE>
+template <typename E, typename Handle>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator|(errorCatchAwaitable<E, Handle>&& catcher)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename T, typename Err, typename H>(task<T> t, errorCatchAwaitable<Err, H> c) mutable -> task<T> {
+        auto& h = co_await c;
+        try {
+            T tmp = co_await t;
+            co_return tmp;
+        } catch (const Err& exception) {
+            co_return h(exception);
+        }
+    };
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(std::move(*this), std::forward<decltype(catcher)>(catcher));
+    task.via(*exec);
+    return task;
+}
+
+template <typename TYPE>
+template <typename E, typename Handle>
+original::coroutine::task<TYPE>
+original::coroutine::task<TYPE>::operator>>(errorCatchAwaitable<E, Handle>&& catcher)
+{
+    return std::move(*this) | std::forward<decltype(catcher)>(catcher);
+}
+
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
     if (this->empty())
@@ -1364,6 +1411,38 @@ original::coroutine::task<void>
 original::coroutine::task<void>::operator>>(Awaiter auto&& awaiter)
 {
     return std::move(*this) | std::forward<decltype(awaiter)>(awaiter);
+}
+
+template <typename E, typename Handle>
+original::coroutine::task<void>
+original::coroutine::task<void>::operator|(errorCatchAwaitable<E, Handle>&& catcher)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto sequence = []<typename Err, typename H>(task t, errorCatchAwaitable<Err, H> c) mutable -> task {
+        auto& h = co_await c;
+        try {
+            co_await t;
+            co_return;
+        } catch (const Err& exception) {
+            co_return h(exception);
+        }
+    };
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = sequence(std::move(*this), std::forward<decltype(catcher)>(catcher));
+    task.via(*exec);
+    return task;
+}
+
+template <typename E, typename Handle>
+original::coroutine::task<void>
+original::coroutine::task<void>::operator>>(errorCatchAwaitable<E, Handle>&& catcher)
+{
+    return std::move(*this) | std::forward<decltype(catcher)>(catcher);
 }
 
 inline original::coroutine::task<void>::~task()
