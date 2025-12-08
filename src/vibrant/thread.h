@@ -27,7 +27,7 @@
  * - High-level RAII thread management (thread)
  * - Exception-safe thread operations
  * - Flexible join/detach policies
- * - Cross-platform thread operations (sleep, ID retrieval)
+ * - Cross-platform thread operations (sleep, ID retrieval, yield)
  *
  * Platform Support:
  * - GCC/Clang: Uses pthread API (pThread implementation)
@@ -234,7 +234,7 @@ namespace original {
         /**
          * @brief Check if thread is joinable
          * @return true if thread is joinable
-         * @note Implementation of threadBase::joinable()
+         * @note Implementation of threadBase::joinable() 
          */
         [[nodiscard]] bool joinable() const override;
 
@@ -410,7 +410,7 @@ namespace original {
      * Key Features:
      * - Wraps platform-specific thread implementation with unified interface
      * - Configurable join policy (AUTO_JOIN or AUTO_DETACH)
-     * - Cross-platform thread operations (sleep, ID retrieval)
+     * - Cross-platform thread operations (sleep, ID retrieval, yield)
      * - Automatic cleanup based on join policy
      *
      * Platform Abstraction:
@@ -490,6 +490,19 @@ namespace original {
          */
         static inline void sleep(const time::duration& d);
 
+        /**
+         * @brief Yields execution of the current thread to another thread
+         * @details Platform-specific implementation:
+         * - Linux/macOS: Uses sched_yield() system call
+         * - Windows: Uses SwitchToThread() API
+         * @note This function offers the processor to another ready-to-run thread.
+         * The current thread remains in the ready queue and may be scheduled again
+         * immediately if no other threads are ready to run.
+         * @code
+         * // Yield processor to other threads
+         * original::thread::yield();
+         * @endcode
+         */
         static inline void yield();
 
         /// @brief Alias for joinPolicy::AUTO_JOIN
