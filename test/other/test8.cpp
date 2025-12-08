@@ -1,7 +1,7 @@
 #include <random>
 
 #include "coroutines.h"
-#include "events.h"
+#include "awaitable.h"
 #include "executors.h"
 #include "singleton.h"
 #include "tasks.h"
@@ -85,9 +85,23 @@ int main()
     original::taskDelegator delegator2{2};
     original::threadPoolExecutor thread_pool_local{delegator2};
     auto rand_task = original::coroutine::makeTask(thread_pool, rand);
-    auto chain4 = rand_task >> judge >> thread_pool_local >> str >> original::coDelay(1_s);
+    auto chain4 = rand_task >> judge >> thread_pool_local >> str >> original::coDelay(200_ms);
     auto res4 = original::coroutine::run(std::move(chain4));
     std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
     std::cout << original::printable::formatStrings("complete = ", complete) << std::endl;
+    auto err = [](const original::floating div) -> original::floating {
+        if (div == 0) {
+            throw original::valueError("divide by zero");
+        }
+        return 1.0 / div;
+    };
+    auto catch_handler = [](const std::exception& e) -> original::floating {
+        std::cout << "Caught a exception: " << e.what() << std::endl;
+        return 0;
+    };
+    auto err_task = original::coroutine::makeTask(thread_pool, err, 0);
+    auto err_chain = err_task >> original::coCatch<original::valueError>(catch_handler);
+    auto res5 = original::coroutine::run(std::move(err_chain));
+    std::cout << original::printable::formatStrings("res5 = ", res5) << std::endl;
     return 0;
 }
