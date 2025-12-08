@@ -394,6 +394,12 @@ namespace original {
         static TYPE run(task<TYPE> t);
 
         static bool run(const task<void>& t);
+
+        template<typename... Args>
+        static tuple<someType<std::is_void_v<Args>, bool, Args>...> whenAll(task<Args>... ts);
+
+        template<typename... Args>
+        static tuple<someType<std::is_void_v<Args>, bool, Args>...> spinWhenAll(task<Args>... ts);
     };
 
     template<>
@@ -1544,6 +1550,82 @@ inline bool original::coroutine::run(const task<void>& t)
     }
     pt.arrive();
     return true;
+}
+
+template <typename ... Args>
+original::tuple<original::someType<std::is_void_v<Args>, bool, Args>...>
+original::coroutine::whenAll(task<Args>... ts)
+{
+    if ((ts.empty() || ...)) {
+        throw valueError("Can not use whenAll with empty tasks");
+    }
+
+    if (const bool all_have_executor = (ts.hasExecutor() && ...); !all_have_executor) {
+        throw sysError("All tasks must have a specified executor for whenAll");
+    }
+
+    if ((ts.started() || ...)) {
+        throw valueError("Can not use whenAll with already started tasks");
+    }
+
+    syncPoint pt{sizeof...(ts) + 1};
+    (ts.sync(pt), ...);
+    if (const bool all_started = (ts.start() && ...); !all_started) {
+        throw sysError("Failed to start one or more tasks");
+    }
+    pt.arrive();
+
+    return original::tuple<someType<std::is_void_v<Args>, bool, Args>...> {
+        []<typename T>(task<T>& t) -> someType<std::is_void_v<T>, bool, T> {
+            if constexpr (std::is_void_v<T>) {
+                t.result();
+                return true;
+            } else {
+                return t.result();
+            }
+        }(ts)...
+    };
+}
+
+template <typename ... Args>
+original::tuple<original::someType<std::is_void_v<Args>, bool, Args>...>
+original::coroutine::spinWhenAll(task<Args>... ts)
+{
+    if ((ts.empty() || ...)) {
+        throw valueError("Can not use spinWhenAll with empty tasks");
+    }
+    if (const bool all_have_executor = (ts.hasExecutor() && ...); !all_have_executor) {
+        throw sysError("All tasks must have a specified executor for spinWhenAll");
+    }
+    if ((ts.started() || ...)) {
+        throw valueError("Can not use spinWhenAll with already started tasks");
+    }
+    if (const bool all_started = (ts.start() && ...); !all_started) {
+        throw sysError("Failed to start one or more tasks");
+    }
+
+    u_integer spin = 0;
+    while (!(ts.finished() && ...)) {
+        if (spin < 50) {
+            thread::yield();
+        } else if (spin < 200) {
+            thread::sleep(microseconds(50));
+        } else {
+            thread::sleep(milliseconds(1));
+        }
+        spin += 1;
+    }
+
+    return original::tuple<someType<std::is_void_v<Args>, bool, Args>...>{
+        []<typename T>(task<T>& t) -> someType<std::is_void_v<T>, bool, T> {
+            if constexpr (std::is_void_v<T>) {
+                t.result();
+                return true;
+            } else {
+                return t.result();
+            }
+        }(ts)...
+    };
 }
 
 #endif //ORIGINAL_COROUTINES_H
