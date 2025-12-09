@@ -31,7 +31,6 @@
 #include "refCntPtr.h"
 #include "array.h"
 #include "lockedPrique.h"
-#include "vector.h"
 
 namespace original {
 
@@ -198,7 +197,7 @@ namespace original {
          * 5. Updates active_threads_ count atomically when executing tasks
          * 6. Exits when stopped and all queues are empty
          */
-        void workingThread();
+        void workerThread();
 
         /**
         * @brief Move all delayed tasks to the waiting queue
@@ -361,7 +360,7 @@ bool original::taskDelegator::taskComparator<COUPLE>::operator()(const COUPLE& l
     return static_cast<u_integer>(lhs.second()) < static_cast<u_integer>(rhs.second());
 }
 
-inline void original::taskDelegator::workingThread() {
+inline void original::taskDelegator::workerThread() {
     while (true) {
         strongPtr<taskBase> task;
 
@@ -409,7 +408,7 @@ inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
           idle_threads_(makeAtomic<u_integer>(0)) {
     for (auto& thread_ : this->threads_) {
         thread_ = std::move(thread {
-                [this]{ this->workingThread(); }
+                [this]{ this->workerThread(); }
         });
     }
 }
