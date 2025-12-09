@@ -119,8 +119,8 @@ int main()
             | original::coCatch<original::noElementError>(catch_handler3);
     auto res6 = original::coroutine::run(std::move(err_chain2));
     std::cout << original::printable::formatStrings("res6 = ", res6) << std::endl;
-    original::singleton<original::syncExecutor>::init();
-    auto& event_loop = original::singleton<original::syncExecutor>::instance();
+    original::singleton<original::eventsLoopExecutor>::init();
+    auto& event_loop = original::singleton<original::eventsLoopExecutor>::instance();
     auto task9 = original::coroutine::makeTask(event_loop, increase, 1);
     task9.start();
     event_loop.runOnce();
