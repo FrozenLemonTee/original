@@ -6,7 +6,7 @@
 #include "executor.h"
 
 namespace original {
-    class syncExecutor final : public executor {
+    class eventsLoopExecutor final : public executor {
         using executor::Func;
 
         lockedQueue<Func> events_queue_{};
@@ -21,9 +21,11 @@ namespace original {
         lockedPrique<timerTask, timerComparator> timer_queue_{};
         thread worker_;
 
+        void eventsLoop();
+
         void timerLoop();
     public:
-        syncExecutor();
+        eventsLoopExecutor();
 
         void schedule(Func fn) override;
 
@@ -33,13 +35,11 @@ namespace original {
 
         void run();
 
-        void runUntilIdle();
-
         [[nodiscard]] bool hasStopped() const noexcept;
 
         void stop() noexcept;
 
-        ~syncExecutor() override;
+        ~eventsLoopExecutor() override;
     };
 
     class threadPoolExecutor final : public executor {
@@ -56,89 +56,89 @@ namespace original {
 }
 
 template <typename COUPLE>
-bool original::syncExecutor::timerComparator<COUPLE>::operator()(const COUPLE& lhs, const COUPLE& rhs) const
+bool original::eventsLoopExecutor::timerComparator<COUPLE>::operator()(const COUPLE& lhs, const COUPLE& rhs) const
 {
     return lhs.first() < rhs.first();
 }
 
-inline void original::syncExecutor::timerLoop()
+inline void original::eventsLoopExecutor::eventsLoop()
 {
     while (!this->hasStopped()) {
-        const auto opt = this->timer_queue_.top();
-        if (!opt) {
-            thread::yield();
-            continue;
-        }
-        auto& task = *opt;
-        if (auto now = time::point::now(); task.first() > now) {
-            auto wait_time = task.first() - now;
-            if (auto pop = this->timer_queue_.popFor(wait_time); !pop) {
-                thread::yield();
-                continue;
+        if (auto opt_fn = this->events_queue_.tryPop()) {
+            if (auto& fn = *opt_fn) {
+                fn();
             }
-            this->schedule(task.second());
         } else {
-            if (auto pop = this->timer_queue_.tryPop())
-                this->schedule(std::move(pop->second()));
+            thread::yield();
         }
     }
 }
 
-inline original::syncExecutor::syncExecutor()
-    : stopping_(makeAtomic(false)), worker_(std::move([this]{ this->timerLoop(); })) {}
+inline void original::eventsLoopExecutor::timerLoop()
+{
+    while (!this->hasStopped()) {
+        auto opt = this->timer_queue_.top();
+        if (!opt) {
+            thread::yield();
+            continue;
+        }
 
-inline void original::syncExecutor::schedule(Func fn)
+        if (auto now = time::point::now(); opt->first() <= now) {
+            if (auto popped = timer_queue_.tryPop())
+            {
+                this->schedule(std::move(popped->second()));
+            }
+        } else {
+            thread::yield();
+        }
+    }
+}
+
+inline original::eventsLoopExecutor::eventsLoopExecutor()
+    : stopping_(makeAtomic(false)),
+      worker_(std::move([this]{ this->timerLoop(); })) {}
+
+inline void original::eventsLoopExecutor::schedule(Func fn)
 {
     if (!this->hasStopped() && fn)
         this->events_queue_.push(std::move(fn));
 }
 
-inline void original::syncExecutor::schedule(const time::duration delay, Func fn)
+inline void original::eventsLoopExecutor::schedule(const time::duration delay, Func fn)
 {
     if (!this->hasStopped() && fn) {
         const auto when = time::point::now() + delay;
-        this->timer_queue_.push(std::move(timerTask{when, fn}));
+        this->timer_queue_.push(std::move(timerTask{when, std::move(fn)}));
     }
 }
 
-inline void original::syncExecutor::runOnce()
+inline void original::eventsLoopExecutor::runOnce()
 {
-    if (const auto fn = this->events_queue_.pop()) {
-        fn();
-    } else {
-        thread::yield();
-    }
-}
-
-inline void original::syncExecutor::run()
-{
-    while (!this->hasStopped()) {
-        this->runOnce();
-    }
-}
-
-inline void original::syncExecutor::runUntilIdle()
-{
-    while (auto opt = this->events_queue_.tryPop()) {
+    if (const auto opt = this->events_queue_.tryPop()) {
         if (auto& fn = *opt) {
             fn();
-        } else {
-            thread::yield();
         }
     }
 }
 
-inline bool original::syncExecutor::hasStopped() const noexcept {
+inline void original::eventsLoopExecutor::run()
+{
+    this->eventsLoop();
+}
+
+inline bool original::eventsLoopExecutor::hasStopped() const noexcept {
     return *this->stopping_;
 }
 
-inline void original::syncExecutor::stop() noexcept {
+inline void original::eventsLoopExecutor::stop() noexcept {
     if (!this->hasStopped())
         this->stopping_ = true;
 }
 
-inline original::syncExecutor::~syncExecutor() {
+inline original::eventsLoopExecutor::~eventsLoopExecutor() {
     this->stop();
+    if (this->worker_.joinable())
+        this->worker_.join();
 }
 
 inline original::threadPoolExecutor::threadPoolExecutor(taskDelegator& delegator)
