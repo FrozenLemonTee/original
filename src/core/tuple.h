@@ -216,6 +216,11 @@ namespace original {
                                             indexSequence<T_SIZE...> ts,
                                             indexSequence<O_SIZE...> os) const;
 
+        template<typename... O_TYPES, u_integer... T_SIZE, u_integer... O_SIZE>
+        tuple<TYPES..., O_TYPES...> _concat(tuple<O_TYPES...>&& other,
+                                            indexSequence<T_SIZE...> ts,
+                                            indexSequence<O_SIZE...> os);
+
     public:
         tuple() = default;
 
@@ -386,6 +391,9 @@ namespace original {
          */
         template<typename... O_TYPES>
         tuple<TYPES..., O_TYPES...> operator+(const tuple<O_TYPES...>& other) const;
+
+        template<typename... O_TYPES>
+        tuple<TYPES..., O_TYPES...> operator+(tuple<O_TYPES...>&& other);
 
         ~tuple() override = default;
 
@@ -780,6 +788,15 @@ original::tuple<TYPES...>::_concat(const tuple<O_TYPES...> &other,
 }
 
 template <typename ... TYPES>
+template <typename ... O_TYPES, original::u_integer... T_SIZE, original::u_integer... O_SIZE>
+original::tuple<TYPES..., O_TYPES...>
+original::tuple<TYPES...>::_concat(tuple<O_TYPES...>&& other,
+                                   indexSequence<T_SIZE...>,
+                                   indexSequence<O_SIZE...>) {
+    return tuple<TYPES..., O_TYPES...>{std::move(this->get<T_SIZE>())..., std::move(other.template get<O_SIZE>())...};
+}
+
+template <typename ... TYPES>
 original::tuple<TYPES...>::tuple(TYPES&&... e)
     : elems(std::forward<TYPES>(e)...) {}
 
@@ -875,6 +892,16 @@ original::tuple<TYPES...>::operator+(const tuple<O_TYPES...>& other) const
     return this->_concat(other,
                          makeSequence<sizeof...(TYPES)>(),
                          makeSequence<sizeof...(O_TYPES)>());
+}
+
+template <typename ... TYPES>
+template <typename ... O_TYPES>
+original::tuple<TYPES..., O_TYPES...>
+original::tuple<TYPES...>::operator+(tuple<O_TYPES...>&& other)
+{
+    return this->_concat(std::move(other),
+                        makeSequence<sizeof...(TYPES)>(),
+                        makeSequence<sizeof...(O_TYPES)>());
 }
 
 template<typename F_TYPE, typename S_TYPE>
