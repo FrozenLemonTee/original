@@ -376,6 +376,12 @@ namespace original {
             template<typename E, typename Handle>
             task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
 
+            template<typename... Callback>
+            auto operator|(tuple<Callback...>&& cs);
+
+            template<typename... Callback>
+            auto operator>>(tuple<Callback...>&& cs);
+
             TYPE result();
 
             ~task();
@@ -515,8 +521,17 @@ namespace original {
         template<typename E, typename Handle>
         task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
 
+        template<typename... Callback>
+        auto operator|(tuple<Callback...>&& cs);
+
+        template<typename... Callback>
+        auto operator>>(tuple<Callback...>&& cs);
+
         ~task();
     };
+
+    template<typename... Callback>
+    tuple<std::decay_t<Callback>...> coParallel(Callback&&... c);
 }
 
 template <typename TYPE>
@@ -1076,6 +1091,102 @@ original::coroutine::task<TYPE>::operator>>(errorCatchAwaitable<E, Handle>&& cat
     return std::move(*this) | std::forward<decltype(catcher)>(catcher);
 }
 
+template <typename TYPE>
+template <typename ... Callback>
+auto original::coroutine::task<TYPE>::operator|(tuple<Callback...>&& cs)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    using TasksTuple = tuple<task<std::invoke_result_t<Callback>>...>;
+    using ResultTuple = tuple<
+        someType<
+            std::is_void_v<std::invoke_result_t<Callback>>,
+            bool,
+            std::invoke_result_t<Callback>
+        >
+    ...>;
+
+    auto sequence = []<typename... F>(task t, tuple<F...> funcs, executor* exe) mutable -> task<ResultTuple> {
+        co_await t;
+        auto make_tasks = []<u_integer... I, typename... Func>(indexSequence<I...>, tuple<Func...>& fn, executor* e) {
+            return tuple{
+                std::move(makeTask(*e, fn.template get<I>()))...
+            };
+        };
+        auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe);
+        auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultTuple> {
+            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
+                if constexpr (std::is_void_v<T>) {
+                    co_await cur;
+                    co_return true;
+                } else {
+                    co_return co_await cur;
+                }
+            };
+            co_return ResultTuple{ co_await convert_to_bool(tp.template get<I>()).via(exe)... };
+        };
+        auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
+        results_tasks.via(*exe);
+        co_return co_await results_tasks;
+    };
+    auto task = sequence(std::move(*this), std::move(cs), exec);
+    task.via(*exec);
+    return task;
+}
+
+template <typename TYPE>
+template <typename ... Callback>
+auto original::coroutine::task<TYPE>::operator>>(tuple<Callback...>&& cs)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    using TasksTuple = tuple<task<std::invoke_result_t<Callback, TYPE>>...>;
+    using ResultTuple = tuple<
+        someType<
+            std::is_void_v<std::invoke_result_t<Callback, TYPE>>,
+            bool,
+            std::invoke_result_t<Callback, TYPE>
+        >
+    ...>;
+
+    auto sequence = []<typename... F>(task t, tuple<F...> funcs, executor* exe) mutable -> task<ResultTuple> {
+        TYPE tmp = co_await t;
+        auto make_tasks = []<u_integer... I, typename... Func, typename T>(indexSequence<I...>, tuple<Func...>& fn, executor* e, T arg) {
+            return tuple{
+                std::move(makeTask(*e, fn.template get<I>(), std::move(arg)))...
+            };
+        };
+        auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe, tmp);
+        auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultTuple> {
+            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
+                if constexpr (std::is_void_v<T>) {
+                    co_await cur;
+                    co_return true;
+                } else {
+                    co_return co_await cur;
+                }
+            };
+            co_return ResultTuple{ co_await convert_to_bool(tp.template get<I>()).via(*exe)... };
+        };
+        auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
+        results_tasks.via(*exe);
+        co_return co_await results_tasks;
+    };
+    auto task = sequence(std::move(*this), std::move(cs), exec);
+    task.via(*exec);
+    return task;
+}
+
 template<typename TYPE>
 TYPE original::coroutine::task<TYPE>::result() {
     if (this->empty())
@@ -1451,6 +1562,59 @@ original::coroutine::task<void>::operator>>(errorCatchAwaitable<E, Handle>&& cat
     return std::move(*this) | std::forward<decltype(catcher)>(catcher);
 }
 
+template <typename ... Callback>
+auto original::coroutine::task<void>::operator|(tuple<Callback...>&& cs)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    using TasksTuple = tuple<task<std::invoke_result_t<Callback>>...>;
+    using ResultTuple = tuple<
+        someType<
+            std::is_void_v<std::invoke_result_t<Callback>>,
+            bool,
+            std::invoke_result_t<Callback>
+        >
+    ...>;
+
+    auto sequence = []<typename... F>(task t, tuple<F...> funcs, executor* exe) mutable -> task<ResultTuple> {
+        co_await t;
+        auto make_tasks = []<u_integer... I, typename... Func>(indexSequence<I...>, tuple<Func...>& fn, executor* e) {
+            return tuple{
+                std::move(makeTask(*e, fn.template get<I>()))...
+            };
+        };
+        auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe);
+        auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultTuple> {
+            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
+                if constexpr (std::is_void_v<T>) {
+                    co_await cur;
+                    co_return true;
+                } else {
+                    co_return co_await cur;
+                }
+            };
+            co_return ResultTuple{ co_await convert_to_bool(tp.template get<I>()).via(*exe)... };
+        };
+        auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
+        results_tasks.via(*exe);
+        co_return co_await results_tasks;
+    };
+    auto task = sequence(std::move(*this), std::move(cs), exec);
+    task.via(*exec);
+    return task;
+}
+
+template <typename ... Callback>
+auto original::coroutine::task<void>::operator>>(tuple<Callback...>&& cs)
+{
+    return std::move(*this) | std::forward<decltype(cs)>(cs);
+}
+
 inline original::coroutine::task<void>::~task()
 {
     if (!this->empty())
@@ -1626,6 +1790,13 @@ original::coroutine::spinWhenAll(task<Args>... ts)
             }
         }(ts)...
     };
+}
+
+template <typename ... Callback>
+original::tuple<std::decay_t<Callback>...>
+original::coParallel(Callback&&... c)
+{
+    return tuple<std::decay_t<Callback>...>{std::decay_t<Callback>(std::forward<Callback>(c))...};
 }
 
 #endif //ORIGINAL_COROUTINES_H
