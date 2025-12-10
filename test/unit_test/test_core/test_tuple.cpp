@@ -342,3 +342,24 @@ TEST(TupleMoveOnlyTest, MixedTypes) {
     EXPECT_EQ(t2.get<1>(), "tuple test");
     EXPECT_EQ(t.get<0>(), nullptr); // NOLINT: moved-from state
 }
+
+TEST(TupleMoveOnlyTest, TupleConcatenationForMoveOnly) {
+    tuple t1(MoveOnly(1), MoveOnly(2));
+    tuple t2(MoveOnly(3), MoveOnly(4));
+    tuple t3(MoveOnly(5), MoveOnly(6));
+    tuple concat{std::move(t1) + std::move(t2) + std::move(t3)};
+
+    EXPECT_EQ(concat.get<0>().value(), 1);
+    EXPECT_EQ(concat.get<1>().value(), 2);
+    EXPECT_EQ(concat.get<2>().value(), 3);
+    EXPECT_EQ(concat.get<3>().value(), 4);
+    EXPECT_EQ(concat.get<4>().value(), 5);
+    EXPECT_EQ(concat.get<5>().value(), 6);
+
+    EXPECT_EQ(t1.get<0>().value(), -1);
+    EXPECT_EQ(t1.get<1>().value(), -1);
+    EXPECT_EQ(t2.get<0>().value(), -1);
+    EXPECT_EQ(t2.get<1>().value(), -1);
+    EXPECT_EQ(t3.get<0>().value(), -1);
+    EXPECT_EQ(t3.get<1>().value(), -1);
+}
