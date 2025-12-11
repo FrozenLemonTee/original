@@ -236,6 +236,8 @@ namespace original {
          */
         alternative& operator=(const TYPE& t);
 
+        alternative& operator=(TYPE&& t);
+
         /**
          * @brief Checks if contains a value
          * @return true if contains value, false if empty
@@ -583,6 +585,13 @@ original::alternative<TYPE>&
 original::alternative<TYPE>::operator=(const TYPE& t)
 {
     this->set(t);
+    return *this;
+}
+
+template <typename TYPE>
+original::alternative<TYPE>& original::alternative<TYPE>::operator=(TYPE&& t)
+{
+    this->emplace(std::forward<TYPE>(t));
     return *this;
 }
 
