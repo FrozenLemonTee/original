@@ -35,12 +35,21 @@ int main()
     auto void_3 = [&flags1]{
         flags1[2] = true;
     };
-    auto chain_parallel2 = original::coroutine::makeTask(thread_pool, []{})
+    auto chain_parallel2 = thread_pool
         >> original::coParallel(void_1, void_2, void_3);
     auto [res4, res5, res6] = original::coroutine::spinRun(std::move(chain_parallel2));
     std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
     std::cout << original::printable::formatStrings("res5 = ", res5) << std::endl;
     std::cout << original::printable::formatStrings("res6 = ", res6) << std::endl;
     std::cout << original::printable::formatStrings("flags1 = ", flags1) << std::endl;
+    auto chain_condition1 = thread_pool
+        >> []{return 0;}
+        >> original::coIfElse(
+            [](const int x){ return x > 0; },
+            add_1,
+            add_2
+           );
+    auto res7 = original::coroutine::spinRun(std::move(chain_condition1));
+    std::cout << original::printable::formatStrings("res7 = ", res7) << std::endl;
     return 0;
 }
