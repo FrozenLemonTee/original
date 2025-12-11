@@ -3,7 +3,6 @@
 #include "executors.h"
 #include "awaitable.h"
 #include <thread>
-#include <chrono>
 #include <stdexcept>
 #include <vector>
 #include <atomic>
@@ -360,7 +359,7 @@ TEST_F(TaskBasicTest, ComplexPipelineWithDelayAndCatch) {
     std::vector<std::string> executionLog;
     
     auto task1 = coroutine::makeTask(*executor, [&executionLog]() -> std::string {
-        executionLog.push_back("Task1 executed");
+        executionLog.emplace_back("Task1 executed");
         return "Hello";
     });
     
