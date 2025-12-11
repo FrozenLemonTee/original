@@ -408,6 +408,12 @@ namespace original {
             template<typename E, typename Handle>
             task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
 
+            template<typename Pred, typename Then, typename Else>
+            auto operator|(taskCondition<Pred, Then, Else>&& condition);
+
+            template<typename Pred, typename Then, typename Else>
+            auto operator>>(taskCondition<Pred, Then, Else>&& condition);
+
             template<typename... Callback>
             auto operator|(tuple<Callback...>&& cs);
 
@@ -553,6 +559,12 @@ namespace original {
         template<typename E, typename Handle>
         task operator>>(errorCatchAwaitable<E, Handle>&& catcher);
 
+        template<typename Pred, typename Then, typename Else>
+        auto operator|(taskCondition<Pred, Then, Else>&& condition);
+
+        template<typename Pred, typename Then, typename Else>
+        auto operator>>(taskCondition<Pred, Then, Else>&& condition);
+
         template<typename... Callback>
         auto operator|(tuple<Callback...>&& cs);
 
@@ -562,8 +574,29 @@ namespace original {
         ~task();
     };
 
+    template <>
+    struct coroutine::flattenTask<void> { using type = bool; };
+
+    template <>
+    struct coroutine::flattenTask<coroutine::task<void>> { using type = bool; };
+
+    template<typename Callback>
+    auto operator|(executor& exec, Callback&& c);
+
+    template<typename Callback>
+    auto operator>>(executor& exec, Callback&& c);
+
+    template<typename... Callback>
+    auto operator|(executor& exec, tuple<Callback...>&& cs);
+
+    template<typename... Callback>
+    auto operator>>(executor& exec, tuple<Callback...>&& cs);
+
     template<typename... Callback>
     tuple<std::decay_t<Callback>...> coParallel(Callback&&... c);
+
+    template<typename Pred, typename Then, typename Else>
+    auto coIfElse(Pred&& p, Then&& t, Else&& e);
 }
 
 template <typename TYPE>
@@ -1128,6 +1161,66 @@ original::coroutine::task<TYPE>::operator>>(errorCatchAwaitable<E, Handle>&& cat
 }
 
 template <typename TYPE>
+template <typename Pred, typename Then, typename Else>
+auto original::coroutine::task<TYPE>::operator|(taskCondition<Pred, Then, Else>&& condition)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    using ReturnThen = std::invoke_result_t<Then>;
+    using ReturnElse = std::invoke_result_t<Else>;
+    staticError<valueError, !std::is_same_v<ReturnThen, ReturnElse>>::asserts();
+    using Return = ReturnThen;
+
+    auto branch = []<typename P, typename T, typename E>(taskCondition<P, T, E> cond, task t, executor* exe) -> task<Return> {
+        co_await t;
+        auto pred = makeTask(*exe, std::move(cond.pred_)); // NOLINT: Prevent internal error from MinGW GCC
+        if (co_await pred) {
+            co_return co_await makeTask(*exe, std::move(cond.then_));
+        }
+        co_return co_await makeTask(*exe, std::move(cond.else_));
+    };
+
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = branch(std::forward<decltype(condition)>(condition), std::move(*this), exec);
+    task.via(*exec);
+    return task;
+}
+
+template <typename TYPE>
+template <typename Pred, typename Then, typename Else>
+auto original::coroutine::task<TYPE>::operator>>(taskCondition<Pred, Then, Else>&& condition)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    using ReturnThen = std::invoke_result_t<Then, TYPE>;
+    using ReturnElse = std::invoke_result_t<Else, TYPE>;
+    staticError<valueError, !std::is_same_v<ReturnThen, ReturnElse>>::asserts();
+    using Return = ReturnThen;
+
+    auto branch = []<typename P, typename T, typename E>(taskCondition<P, T, E> cond, task t, executor* exe) -> task<Return> {
+        auto prev = co_await t;
+        auto pred = makeTask(*exe, std::move(cond.pred_), prev); // NOLINT: Prevent internal error from MinGW GCC
+        if (co_await pred) {
+            co_return co_await makeTask(*exe, std::move(cond.then_), prev);
+        }
+        co_return co_await makeTask(*exe, std::move(cond.else_), prev);
+    };
+
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = branch(std::forward<decltype(condition)>(condition), std::move(*this), exec);
+    task.via(*exec);
+    return task;
+}
+
+template <typename TYPE>
 template <typename ... Callback>
 auto original::coroutine::task<TYPE>::operator|(tuple<Callback...>&& cs)
 {
@@ -1598,6 +1691,41 @@ original::coroutine::task<void>::operator>>(errorCatchAwaitable<E, Handle>&& cat
     return std::move(*this) | std::forward<decltype(catcher)>(catcher);
 }
 
+template <typename Pred, typename Then, typename Else>
+auto original::coroutine::task<void>::operator|(taskCondition<Pred, Then, Else>&& condition)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    using ReturnThen = std::invoke_result_t<Then>;
+    using ReturnElse = std::invoke_result_t<Else>;
+    staticError<valueError, !std::is_same_v<ReturnThen, ReturnElse>>::asserts();
+    using Return = ReturnThen;
+
+    auto branch = []<typename P, typename T, typename E>(taskCondition<P, T, E> cond, task t, executor* exe) -> task<Return> {
+        co_await t;
+        auto pred = makeTask(*exe, std::move(cond.pred_)); // NOLINT: Prevent internal error from MinGW GCC
+        if (co_await pred) {
+            co_return co_await makeTask(*exe, std::move(cond.then_));
+        }
+        co_return co_await makeTask(*exe, std::move(cond.else_));
+    };
+
+    auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto task = branch(std::forward<decltype(condition)>(condition), std::move(*this), exec);
+    task.via(*exec);
+    return task;
+}
+
+template <typename Pred, typename Then, typename Else>
+auto original::coroutine::task<void>::operator>>(taskCondition<Pred, Then, Else>&& condition)
+{
+    return std::move(*this) | std::forward<decltype(condition)>(condition);
+}
+
 template <typename ... Callback>
 auto original::coroutine::task<void>::operator|(tuple<Callback...>&& cs)
 {
@@ -1828,11 +1956,46 @@ original::coroutine::spinWhenAll(task<Args>... ts)
     };
 }
 
+template <typename Callback>
+auto original::operator|(executor& exec, Callback&& c)
+{
+    return coroutine::makeTask(exec, std::forward<Callback>(c));
+}
+
+template <typename Callback>
+auto original::operator>>(executor& exec, Callback&& c)
+{
+    return exec | std::forward<Callback>(c);
+}
+
+template <typename ... Callback>
+auto original::operator|(executor& exec, tuple<Callback...>&& cs)
+{
+    return coroutine::makeTask(exec, []{}) | std::forward<tuple<Callback...>>(cs);
+}
+
+template <typename ... Callback>
+auto original::operator>>(executor& exec, tuple<Callback...>&& cs)
+{
+    return exec | std::forward<tuple<Callback...>>(cs);
+}
+
 template <typename ... Callback>
 original::tuple<std::decay_t<Callback>...>
 original::coParallel(Callback&&... c)
 {
     return tuple<std::decay_t<Callback>...>{std::decay_t<Callback>(std::forward<Callback>(c))...};
+}
+
+template <typename Pred, typename Then, typename Else>
+auto original::coIfElse(Pred&& p, Then&& t, Else&& e)
+{
+    using ConditionType = coroutine::taskCondition<
+        std::decay_t<Pred>,
+        std::decay_t<Then>,
+        std::decay_t<Else>
+    >;
+    return ConditionType{std::forward<Pred>(p), std::forward<Then>(t), std::forward<Else>(e)};
 }
 
 #endif //ORIGINAL_COROUTINES_H
