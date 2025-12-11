@@ -265,6 +265,38 @@ namespace original {
         };
 
         template<typename TYPE>
+        class task;
+
+        template <typename T>
+        struct flattenTask { using type = T; };
+
+        template <typename T>
+        struct flattenTask<task<T>> { using type = T; };
+
+        template <typename>
+        struct isTaskLike : std::false_type {};
+
+        template <typename T>
+        struct isTaskLike<task<T>> : std::true_type {};
+
+        template<typename TYPE>
+        using flattenTaskType = flattenTask<TYPE>::type;
+
+        template<typename TYPE>
+        using isTask = isTaskLike<TYPE>::value;
+
+        template<typename Pred, typename Then, typename Else>
+        class taskCondition {
+            Pred pred_;
+            Then then_;
+            Else else_;
+
+        public:
+            friend coroutine;
+            explicit taskCondition(Pred p, Then t, Else e);
+        };
+
+        template<typename TYPE>
         class task {
         public:
             friend coroutine;
@@ -709,6 +741,10 @@ original::coroutine::generator<TYPE>::~generator()
     if (this->handle_)
         this->handle_.destroy();
 }
+
+template <typename Pred, typename Then, typename Else>
+original::coroutine::taskCondition<Pred, Then, Else>::taskCondition(Pred p, Then t, Else e)
+    : pred_(std::move(p)), then_(std::move(t)), else_(std::move(e)) {}
 
 template <typename TYPE>
 original::coroutine::task<TYPE>::awaitable::awaitable(handle h) : handle_(h) {}
