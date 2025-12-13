@@ -296,6 +296,41 @@ namespace original {
             explicit taskCondition(Pred p, Then t, Else e);
         };
 
+        template<typename... Args>
+        class taskArgs {
+            using TupleType = tuple<std::decay_t<Args>...>;
+            TupleType args_;
+            executor* executor_{};
+
+        public:
+            friend coroutine;
+            explicit taskArgs(TupleType args);
+
+            taskArgs(executor* exe, TupleType args);
+
+            taskArgs(const taskArgs&) = delete;
+            taskArgs& operator=(const taskArgs&) = delete;
+
+            taskArgs(taskArgs&& other) noexcept;
+            taskArgs& operator=(taskArgs&& other) noexcept;
+
+            taskArgs operator|(executor& executor);
+
+            taskArgs operator>>(executor& executor);
+
+            template<typename... Others>
+            taskArgs<Others...> operator|(taskArgs<Others...>&& other);
+
+            template<typename... Others>
+            taskArgs<Args..., Others...> operator>>(taskArgs<Others...>&& other);
+
+            template<typename Callback>
+            auto operator|(Callback&& c) -> task<std::invoke_result_t<Callback>>;
+
+            template<typename Callback>
+            auto operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, Args...>>;
+        };
+
         template<typename TYPE>
         class task {
         public:
@@ -592,6 +627,15 @@ namespace original {
     template<typename... Callback>
     auto operator>>(executor& exec, tuple<Callback...>&& cs);
 
+    template<typename... Args>
+    coroutine::taskArgs<Args...> coBind(Args&&... args);
+
+    template<typename... Args>
+    coroutine::taskArgs<Args...> operator|(executor& executor, coroutine::taskArgs<Args...>&& args);
+
+    template<typename... Args>
+    coroutine::taskArgs<Args...> operator>>(executor& executor, coroutine::taskArgs<Args...>&& args);
+
     template<typename... Callback>
     tuple<std::decay_t<Callback>...> coParallel(Callback&&... c);
 
@@ -778,6 +822,114 @@ original::coroutine::generator<TYPE>::~generator()
 template <typename Pred, typename Then, typename Else>
 original::coroutine::taskCondition<Pred, Then, Else>::taskCondition(Pred p, Then t, Else e)
     : pred_(std::move(p)), then_(std::move(t)), else_(std::move(e)) {}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>::taskArgs(TupleType args)
+    : args_(std::move(args)) {}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>::taskArgs(executor* exe, TupleType args)
+    : taskArgs(std::move(args)) {
+    this->executor_ = exe;
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>::taskArgs(taskArgs&& other) noexcept
+{
+    this->args_ = std::move(other.args_);
+    this->executor_ = other.executor_;
+    other.executor_ = nullptr;
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>&
+original::coroutine::taskArgs<Args...>::operator=(taskArgs&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+
+    this->args_ = std::move(other.args_);
+    this->executor_ = other.executor_;
+    other.executor_ = nullptr;
+    return *this;
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>
+original::coroutine::taskArgs<Args...>::operator|(executor& executor)
+{
+    this->executor_ = &executor;
+    return std::move(*this);
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>
+original::coroutine::taskArgs<Args...>::operator>>(executor& executor)
+{
+    return *this | executor;
+}
+
+template <typename... Args>
+template <typename... Others>
+original::coroutine::taskArgs<Others...>
+original::coroutine::taskArgs<Args...>::operator|(taskArgs<Others...>&& other)
+{
+    if (!other.executor_)
+        return other | *this->executor_;
+    return other;
+}
+
+template <typename... Args>
+template <typename... Others>
+original::coroutine::taskArgs<Args..., Others...>
+original::coroutine::taskArgs<Args...>::operator>>(taskArgs<Others...>&& other)
+{
+    auto new_args = std::move(this->args_) + std::move(other.args_);
+    executor* new_executor = this->executor_ ? this->executor_ : other.executor_;
+    return taskArgs<Args..., Others...>{new_executor, std::move(new_args)};
+}
+
+template <typename ... Args>
+template <typename Callback>
+auto original::coroutine::taskArgs<Args...>::operator|(Callback&& c) -> task<std::invoke_result_t<Callback>>
+{
+    if (!this->executor_)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto sequence = []<typename Func>(Func func, executor* exec) -> task<std::invoke_result_t<Func>> {
+        co_return co_await makeTask(*exec, std::move(func));
+    };
+
+    using Func  = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    auto task = sequence(std::move(func_copy), this->executor_);
+    task.via(*this->executor_);
+    return task;
+}
+
+template <typename ... Args>
+template <typename Callback>
+auto original::coroutine::taskArgs<Args...>::operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, Args...>>
+{
+    if (!this->executor_)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto pipeline = []<typename Func, typename... Params>(Func func, executor* exec, tuple<Params...> params)
+        -> task<std::invoke_result_t<Func, Params...>> {
+        co_return co_await apply(
+            [&](auto&&... unpacked) {
+                return makeTask(*exec, std::move(func), std::move(unpacked)...);
+            },
+            std::move(params)
+        );
+    };
+
+    using Func  = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    auto task = pipeline(std::move(func_copy), this->executor_, std::move(this->args_));
+    task.via(*this->executor_);
+    return task;
+}
 
 template <typename TYPE>
 original::coroutine::task<TYPE>::awaitable::awaitable(handle h) : handle_(h) {}
@@ -1978,6 +2130,29 @@ template <typename ... Callback>
 auto original::operator>>(executor& exec, tuple<Callback...>&& cs)
 {
     return exec | std::forward<tuple<Callback...>>(cs);
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...> original::coBind(Args&&... args)
+{
+    using TupleType = tuple<std::decay_t<Args>...>;
+    return coroutine::taskArgs<std::decay_t<Args>...>{
+        TupleType{ std::forward<Args>(args)... }
+    };
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>
+original::operator|(executor& executor, coroutine::taskArgs<Args...>&& args)
+{
+    return std::move(args) | executor;
+}
+
+template <typename ... Args>
+original::coroutine::taskArgs<Args...>
+original::operator>>(executor& executor, coroutine::taskArgs<Args...>&& args)
+{
+    return std::move(args) | executor;
 }
 
 template <typename ... Callback>
