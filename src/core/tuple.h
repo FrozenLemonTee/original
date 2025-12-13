@@ -427,6 +427,15 @@ namespace original {
      */
     template<typename F_TYPE, typename S_TYPE>
     tuple<F_TYPE, S_TYPE> makeTuple(couple<F_TYPE, S_TYPE>&& cp);
+
+    template <typename Func, typename Tuple, u_integer... I>
+    decltype(auto) applyImpl(Func&& f, Tuple&& t, indexSequence<I...>);
+
+    template <typename Func, typename... Ts>
+    decltype(auto) apply(Func&& f, const tuple<Ts...>& t);
+
+    template <typename Func, typename... Ts>
+    decltype(auto) apply(Func&& f, tuple<Ts...>&& t);
 }
 
 namespace std {
@@ -920,6 +929,36 @@ original::tuple<F_TYPE, S_TYPE> original::makeTuple(couple<F_TYPE, S_TYPE>&& cp)
         std::move(cp).template get<1>()
     };
 }
+
+template <typename Func, typename Tuple, original::u_integer... I>
+decltype(auto) original::applyImpl(Func&& f, Tuple&& t, indexSequence<I...>)
+{
+    return std::invoke(
+        std::forward<Func>(f),
+        std::get<I>(std::forward<Tuple>(t))...
+    );
+}
+
+template <typename Func, typename ... Ts>
+decltype(auto) original::apply(Func&& f, const tuple<Ts...>& t)
+{
+    return applyImpl(
+        std::forward<Func>(f),
+        std::move(t),
+        makeSequence<sizeof...(Ts)>()
+    );
+}
+
+template <typename Func, typename ... Ts>
+decltype(auto) original::apply(Func&& f, tuple<Ts...>&& t)
+{
+    return applyImpl(
+        std::forward<Func>(f),
+        std::move(t),
+        makeSequence<sizeof...(Ts)>()
+    );
+}
+
 
 template <typename... TYPES>
 void std::swap(original::tuple<TYPES...>& lhs, original::tuple<TYPES...>& rhs) noexcept // NOLINT
