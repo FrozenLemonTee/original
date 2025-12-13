@@ -51,5 +51,12 @@ int main()
            );
     auto res7 = original::coroutine::spinRun(std::move(chain_condition1));
     std::cout << original::printable::formatStrings("res7 = ", res7) << std::endl;
+
+    auto fn = [](const int a, const int b, const int c, const int d) {
+        return a + b + c + d;
+    };
+    auto chain3  = thread_pool >> (original::coBind(1) | original::coBind(2, 3)) >> original::coBind(4, 5) >> fn;
+    auto res8 = original::coroutine::spinRun(std::move(chain3));
+    std::cout << original::printable::formatStrings("res8 = ", res8) << std::endl;
     return 0;
 }
