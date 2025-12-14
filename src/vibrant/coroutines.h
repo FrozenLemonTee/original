@@ -285,6 +285,25 @@ namespace original {
         template<typename TYPE>
         using isTask = isTaskLike<TYPE>::value;
 
+        template<typename>
+        struct isTaskArgs : std::false_type {};
+
+        template<typename T>
+        struct taskArgsType {
+            using type = flattenTaskType<T>::type;
+        };
+
+        template <typename Func, typename ArgsTuple>
+        struct taskInvokeResult;
+
+        template <typename Func, typename... Args>
+        struct taskInvokeResult<Func, tuple<Args...>> {
+            using type = std::invoke_result_t<Func, Args...>;
+        };
+
+        template <typename Func, typename ArgsTuple>
+        using taskInvokeResultType = taskInvokeResult<Func, ArgsTuple>::type;
+
         template<typename Pred, typename Then, typename Else>
         class taskCondition {
             Pred pred_;
@@ -329,6 +348,14 @@ namespace original {
 
             template<typename Callback>
             auto operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, Args...>>;
+        };
+
+        template<typename... Args>
+        struct isTaskArgs<taskArgs<Args...>> : std::true_type {};
+
+        template<typename... Args>
+        struct taskArgsType<taskArgs<Args...>> {
+            using type = tuple<Args...>;
         };
 
         template<typename TYPE>
