@@ -404,6 +404,11 @@ namespace original {
         friend tuple<F_TYPE, S_TYPE> makeTuple(couple<F_TYPE, S_TYPE>&& cp);
     };
 
+    template <typename Func, typename... Args>
+    struct TupleArgs<Func, tuple<Args...>> {
+        using type = std::invoke_result_t<Func, Args...>;
+    };
+
     /**
      * @brief Creates a tuple from a couple (copy version)
      * @tparam F_TYPE First element type

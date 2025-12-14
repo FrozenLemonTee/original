@@ -620,6 +620,12 @@ namespace original {
     template<typename... Args>
     using lastArg = lastArgsType<Args...>::type;
 
+    template <typename Func, typename Tuple>
+    struct TupleArgs;
+
+    template <typename Func, typename Tuple>
+    using TupleArgsType = TupleArgs<Func, Tuple>::type;
+
     // ==================== Compile-time Index Sequences ====================
 
     /**
