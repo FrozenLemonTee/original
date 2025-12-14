@@ -322,6 +322,34 @@ namespace original {
             executor* executor_{};
 
         public:
+            template <typename TYPE, bool Prev>
+            class bridge {
+                taskArgs taskArgs_;
+                task<TYPE> task_;
+
+                bridge(taskArgs args, task<TYPE> task);
+            public:
+                friend coroutine;
+
+                bridge(const bridge&) = delete;
+                bridge& operator=(const bridge&) = delete;
+
+                bridge(bridge&&) noexcept = default;
+                bridge& operator=(bridge&&) noexcept = default;
+
+                template<typename... Others>
+                taskArgs<Others...>::template bridge<TYPE, Prev> operator|(taskArgs<Others...>&& args);
+
+                template<typename... Others>
+                taskArgs<Args..., Others...>::template bridge<TYPE, Prev> operator>>(taskArgs<Others...>&& args);
+
+                template<typename Callback>
+                auto operator|(Callback&& c);
+
+                template<typename Callback>
+                auto operator>>(Callback&& c);
+            };
+
             friend coroutine;
             explicit taskArgs(TupleType args);
 
@@ -849,6 +877,96 @@ original::coroutine::generator<TYPE>::~generator()
 template <typename Pred, typename Then, typename Else>
 original::coroutine::taskCondition<Pred, Then, Else>::taskCondition(Pred p, Then t, Else e)
     : pred_(std::move(p)), then_(std::move(t)), else_(std::move(e)) {}
+
+template <typename ... Args>
+template <typename TYPE, bool Prev>
+original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::bridge(taskArgs args, task<TYPE> task)
+    : taskArgs_(std::move(args)), task_(std::move(task)) {}
+
+template <typename ... Args>
+template <typename TYPE, bool Prev>
+template <typename ... Others>
+original::coroutine::taskArgs<Others...>::template bridge<TYPE, Prev>
+original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(taskArgs<Others...>&& args)
+{
+    auto new_args = std::move(this->taskArgs_) |  std::move(args);
+    using bridgeType = taskArgs<Others...>::template bridge<TYPE, Prev>;
+    return bridgeType{std::move(new_args), std::move(this->task_)};
+}
+
+template <typename ... Args>
+template <typename TYPE, bool Prev>
+template <typename ... Others>
+original::coroutine::taskArgs<Args..., Others...>::template bridge<TYPE, Prev>
+original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(taskArgs<Others...>&& args)
+{
+    auto new_args = std::move(this->taskArgs_) >> std::move(args);
+    using bridgeType = taskArgs<Args..., Others...>::template bridge<TYPE, Prev>;
+    return bridgeType(std::move(new_args), std::move(this->task_));
+}
+
+template <typename ... Args>
+template <typename TYPE, bool Prev>
+template <typename Callback>
+auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(Callback&& c)
+{
+    if (this->task_.empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto exec = this->taskArgs_.executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+    this->task_.via(*exec);
+
+    auto bridge = []<typename Func>(executor* exe, task<TYPE> t, Func f) mutable -> task<std::invoke_result_t<Func>> {
+        auto new_task = std::move(t) | std::forward<Func>(f);
+        new_task.via(*exe);
+        co_return co_await new_task;
+    };
+
+    using Func = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    auto task = bridge(exec, std::move(this->task_), std::move(func_copy));
+    task.via(*exec);
+    return task;
+}
+
+template <typename ... Args>
+template <typename TYPE, bool Prev>
+template <typename Callback>
+auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(Callback&& c)
+{
+    if (this->task_.empty())
+        throw valueError("Can not combine empty tasks");
+
+    auto exec = this->taskArgs_.executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+    this->task_.via(*exec);
+
+    using Func = std::decay_t<Callback>;
+    Func func_copy{std::forward<Callback>(c)};
+    if constexpr (!Prev) {
+        auto bridge = []<typename Func, typename... Params>(executor* exe, task<TYPE> t, Func f, taskArgs<Params...> args)
+            -> task<std::invoke_result_t<Func, Params...>> {
+            co_await t;
+            co_return co_await makeTask(*exe, std::move(f), std::move(args.unbind()));
+        };
+        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->taskArgs_));
+        task.via(*exec);
+        return task;
+    } else {
+        auto bridge = []<typename Func, typename... Params>(executor* exe, task<TYPE> t, Func f, taskArgs<Params...> args)
+            -> task<std::invoke_result_t<Func, TYPE, Params...>> {
+            TYPE tmp = co_await t;
+            auto new_args = tuple{std::move(tmp)} + std::move(args.unbind());
+            co_return co_await makeTask(*exe, std::move(f), std::move(new_args));
+        };
+        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->taskArgs_));
+        task.via(*exec);
+        return task;
+    }
+}
 
 template <typename ... Args>
 original::coroutine::taskArgs<Args...>::taskArgs(TupleType args)
