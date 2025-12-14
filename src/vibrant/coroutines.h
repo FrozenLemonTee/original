@@ -324,7 +324,7 @@ namespace original {
         public:
             template <typename TYPE, bool Prev>
             class bridge {
-                taskArgs taskArgs_;
+                taskArgs args_;
                 task<TYPE> task_;
 
                 bridge(taskArgs args, task<TYPE> task);
@@ -901,7 +901,7 @@ original::coroutine::taskCondition<Pred, Then, Else>::taskCondition(Pred p, Then
 template <typename ... Args>
 template <typename TYPE, bool Prev>
 original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::bridge(taskArgs args, task<TYPE> task)
-    : taskArgs_(std::move(args)), task_(std::move(task)) {}
+    : args_(std::move(args)), task_(std::move(task)) {}
 
 template <typename ... Args>
 template <typename TYPE, bool Prev>
@@ -909,7 +909,7 @@ template <typename ... Others>
 original::coroutine::taskArgs<Others...>::template bridge<TYPE, Prev>
 original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(taskArgs<Others...>&& args)
 {
-    auto new_args = std::move(this->taskArgs_) |  std::move(args);
+    auto new_args = std::move(this->args_) | std::move(args);
     using bridgeType = taskArgs<Others...>::template bridge<TYPE, Prev>;
     return bridgeType{std::move(new_args), std::move(this->task_)};
 }
@@ -920,9 +920,9 @@ template <typename ... Others>
 original::coroutine::taskArgs<Args..., Others...>::template bridge<TYPE, Prev>
 original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(taskArgs<Others...>&& args)
 {
-    auto new_args = std::move(this->taskArgs_) >> std::move(args);
+    auto new_args = std::move(this->args_) >> std::move(args);
     using bridgeType = taskArgs<Args..., Others...>::template bridge<TYPE, Prev>;
-    return bridgeType(std::move(new_args), std::move(this->task_));
+    return bridgeType{std::move(new_args), std::move(this->task_)};
 }
 
 template <typename ... Args>
@@ -933,7 +933,7 @@ auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(Callb
     if (this->task_.empty())
         throw valueError("Can not combine empty tasks");
 
-    auto exec = this->taskArgs_.executor_;
+    auto exec = this->args_.executor_;
     if (!exec)
         throw sysError("Tasks without a specified executor cannot be combined");
     this->task_.via(*exec);
@@ -959,7 +959,7 @@ auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(Call
     if (this->task_.empty())
         throw valueError("Can not combine empty tasks");
 
-    auto exec = this->taskArgs_.executor_;
+    auto exec = this->args_.executor_;
     if (!exec)
         throw sysError("Tasks without a specified executor cannot be combined");
     this->task_.via(*exec);
@@ -972,7 +972,7 @@ auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(Call
             co_await t;
             co_return co_await makeTask(*exe, std::move(f), std::move(args.unbind()));
         };
-        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->taskArgs_));
+        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->args_));
         task.via(*exec);
         return task;
     } else {
@@ -982,7 +982,7 @@ auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(Call
             auto new_args = tuple{std::move(tmp)} + std::move(args.unbind());
             co_return co_await makeTask(*exe, std::move(f), std::move(new_args));
         };
-        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->taskArgs_));
+        auto task = bridge(exec, std::move(this->task_), std::move(func_copy), std::move(this->args_));
         task.via(*exec);
         return task;
     }
