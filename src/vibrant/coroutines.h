@@ -535,6 +535,12 @@ namespace original {
         template<typename Callback, typename... Args>
         static auto makeTask(executor& executor, Callback&& c, Args&&... args) -> task<std::invoke_result_t<Callback, Args...>>;
 
+        template<typename Callback, typename... Args>
+        static auto makeTask(Callback&& c, tuple<Args...> args) -> task<std::invoke_result_t<Callback, Args...>>;
+
+        template<typename Callback, typename... Args>
+        static auto makeTask(executor& executor, Callback&& c, tuple<Args...> args) -> task<std::invoke_result_t<Callback, Args...>>;
+
         template<typename TYPE>
         static TYPE spinRun(task<TYPE> t);
 
@@ -1075,12 +1081,7 @@ auto original::coroutine::taskArgs<Args...>::operator>>(Callback&& c) -> task<st
 
     auto pipeline = []<typename Func, typename... Params>(Func func, executor* exec, tuple<Params...> params)
         -> task<std::invoke_result_t<Func, Params...>> {
-        co_return co_await apply(
-            [&](auto&&... unpacked) {
-                return makeTask(*exec, std::move(func), std::move(unpacked)...);
-            },
-            std::move(params)
-        );
+        co_return co_await makeTask(*exec, std::move(func), std::move(params));
     };
 
     using Func  = std::decay_t<Callback>;
@@ -2251,6 +2252,28 @@ auto original::coroutine::makeTask(executor& executor, Callback&& c, Args&&... a
      -> task<std::invoke_result_t<Callback, Args...>> {
     using Return = std::invoke_result_t<Callback, Args...>;
     task<Return> t = makeTask(std::forward<Callback>(c), std::forward<Args>(args)...);
+    t.via(executor);
+    return t;
+}
+
+template <typename Callback, typename ... Args>
+auto original::coroutine::makeTask(Callback&& c, tuple<Args...> args)
+    -> task<std::invoke_result_t<Callback, Args...>>
+{
+    return apply(
+               [&](auto&&... unpacked) {
+                   return makeTask(std::forward<Callback>(c), std::move(unpacked)...);
+               },
+               std::move(args)
+           );
+}
+
+template <typename Callback, typename ... Args>
+auto original::coroutine::makeTask(executor& executor, Callback&& c, tuple<Args...> args)
+    -> task<std::invoke_result_t<Callback, Args...>>
+{
+    using Return = std::invoke_result_t<Callback, Args...>;
+    task<Return> t = makeTask(std::forward<Callback>(c), std::move(args));
     t.via(executor);
     return t;
 }
