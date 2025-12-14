@@ -512,6 +512,12 @@ namespace original {
             template<typename Pred, typename Then, typename Else>
             auto operator>>(taskCondition<Pred, Then, Else>&& condition);
 
+            template<typename... Args>
+            auto operator|(taskArgs<Args...>&& args);
+
+            template<typename... Args>
+            auto operator>>(taskArgs<Args...>&& args);
+
             template<typename... Callback>
             auto operator|(tuple<Callback...>&& cs);
 
@@ -1621,6 +1627,40 @@ auto original::coroutine::task<TYPE>::operator>>(taskCondition<Pred, Then, Else>
     auto task = branch(std::forward<decltype(condition)>(condition), std::move(*this), exec);
     task.via(*exec);
     return task;
+}
+
+template <typename TYPE>
+template <typename ... Args>
+auto original::coroutine::task<TYPE>::operator|(taskArgs<Args...>&& args)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto new_args = std::move(args) | *exec;
+
+    using bridgeType = taskArgs<Args...>::template bridge<TYPE, false>;
+    return bridgeType(std::move(new_args), std::move(*this));
+}
+
+template <typename TYPE>
+template <typename ... Args>
+auto original::coroutine::task<TYPE>::operator>>(taskArgs<Args...>&& args)
+{
+    if (this->empty())
+        throw valueError("Can not combine empty tasks");
+
+    const auto exec = this->handle_.promise().executor_;
+    if (!exec)
+        throw sysError("Tasks without a specified executor cannot be combined");
+
+    auto new_args = std::move(args) >> *exec;
+
+    using bridgeType = taskArgs<Args...>::template bridge<TYPE, true>;
+    return bridgeType(std::move(new_args), std::move(*this));
 }
 
 template <typename TYPE>
