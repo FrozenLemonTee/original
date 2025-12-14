@@ -21,7 +21,7 @@ int main()
     };
     auto chain_parallel1 = original::coroutine::makeTask(thread_pool, increase, 0)
         >> original::coParallel(add_1, add_2, add_3);
-    auto [res1, res2, res3] = original::coroutine::spinRun(std::move(chain_parallel1));
+    auto [res1, res2, res3] = original::coroutine::spinRun(std::move(chain_parallel1)).unbind();
     std::cout << original::printable::formatStrings("res1 = ", res1) << std::endl;
     std::cout << original::printable::formatStrings("res2 = ", res2) << std::endl;
     std::cout << original::printable::formatStrings("res3 = ", res3) << std::endl;
@@ -37,7 +37,7 @@ int main()
     };
     auto chain_parallel2 = thread_pool
         >> original::coParallel(void_1, void_2, void_3);
-    auto [res4, res5, res6] = original::coroutine::spinRun(std::move(chain_parallel2));
+    auto [res4, res5, res6] = original::coroutine::spinRun(std::move(chain_parallel2)).unbind();
     std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
     std::cout << original::printable::formatStrings("res5 = ", res5) << std::endl;
     std::cout << original::printable::formatStrings("res6 = ", res6) << std::endl;
@@ -52,11 +52,24 @@ int main()
     auto res7 = original::coroutine::spinRun(std::move(chain_condition1));
     std::cout << original::printable::formatStrings("res7 = ", res7) << std::endl;
 
-    auto fn = [](const int a, const int b, const int c, const int d) {
+    auto sum1 = [](const int a, const int b, const int c, const int d) {
         return a + b + c + d;
     };
-    auto chain3  = thread_pool >> (original::coBind(1) | original::coBind(2, 3)) >> original::coBind(4, 5) >> fn;
+
+    auto chain3  = thread_pool >> (original::coBind(1) | original::coBind(2, 3)) >> original::coBind(4, 5) >> sum1;
     auto res8 = original::coroutine::spinRun(std::move(chain3));
     std::cout << original::printable::formatStrings("res8 = ", res8) << std::endl;
+
+    auto chain4 = thread_pool
+        >> original::coBind(10, 5)
+        >> original::coParallel(
+            [](const int x, const int y){ return x + y; },
+            [](const int x, const int y){ return x - y; },
+            [](const int x, const int y){ return x * y; },
+            [](const int x, const int y){ return x / y; }
+           )
+        >> sum1 >> original::coBind(1, 1) >> original::coBind(1) >> sum1;
+    auto res9 = original::coroutine::spinRun(std::move(chain4));
+    std::cout << original::printable::formatStrings("res9 = ", res9) << std::endl;
     return 0;
 }
