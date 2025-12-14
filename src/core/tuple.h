@@ -395,6 +395,10 @@ namespace original {
         template<typename... O_TYPES>
         tuple<TYPES..., O_TYPES...> operator+(tuple<O_TYPES...>&& other);
 
+        std::tuple<TYPES...> toStdTuple() const &;
+
+        std::tuple<TYPES...> toStdTuple() &&;
+
         ~tuple() override = default;
 
         template<typename F_TYPE, typename S_TYPE>
@@ -916,6 +920,22 @@ original::tuple<TYPES...>::operator+(tuple<O_TYPES...>&& other)
     return this->_concat(std::move(other),
                         makeSequence<sizeof...(TYPES)>(),
                         makeSequence<sizeof...(O_TYPES)>());
+}
+
+template <typename ... TYPES>
+std::tuple<TYPES...> original::tuple<TYPES...>::toStdTuple() const &
+{
+    return apply([](const auto&... args) {
+        return std::tuple<TYPES...>(args...);
+    }, *this);
+}
+
+template <typename ... TYPES>
+std::tuple<TYPES...> original::tuple<TYPES...>::toStdTuple() &&
+{
+    return apply([](auto&&... args) {
+        return std::tuple<TYPES...>(std::move(args)...);
+    }, std::move(*this));
 }
 
 template<typename F_TYPE, typename S_TYPE>
