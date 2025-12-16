@@ -565,6 +565,9 @@ namespace original {
         static auto makeTask(executor& executor, Callback&& c, tuple<Args...> args) -> task<std::invoke_result_t<Callback, Args...>>;
 
         template<typename TYPE>
+        static auto convertVoidTask(task<TYPE> t) -> task<someType<std::is_void_v<TYPE>, bool, TYPE>>;
+
+        template<typename TYPE>
         static TYPE spinRun(task<TYPE> t);
 
         template<typename TYPE>
@@ -1738,15 +1741,7 @@ auto original::coroutine::task<TYPE>::operator|(tuple<Callback...>&& cs)
         };
         auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe);
         auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultArgs> {
-            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
-                if constexpr (std::is_void_v<T>) {
-                    co_await cur;
-                    co_return true;
-                } else {
-                    co_return co_await cur;
-                }
-            };
-            co_return *exe >> coBind(co_await convert_to_bool(tp.template get<I>()).via(*exe)...);
+            co_return *exe >> coBind(co_await convertVoidTask(std::move(tp.template get<I>())).via(*exe)...);
         };
         auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
         results_tasks.via(*exe);
@@ -1786,15 +1781,7 @@ auto original::coroutine::task<TYPE>::operator>>(tuple<Callback...>&& cs)
         };
         auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe, tmp);
         auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultArgs> {
-            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
-                if constexpr (std::is_void_v<T>) {
-                    co_await cur;
-                    co_return true;
-                } else {
-                    co_return co_await cur;
-                }
-            };
-            co_return *exe >> coBind(co_await convert_to_bool(tp.template get<I>()).via(*exe)...);
+            co_return *exe >> coBind(co_await convertVoidTask(std::move(tp.template get<I>())).via(*exe)...);
         };
         auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
         results_tasks.via(*exe);
@@ -2329,6 +2316,29 @@ auto original::coroutine::makeTask(executor& executor, Callback&& c, tuple<Args.
     task<Return> t = makeTask(std::forward<Callback>(c), std::move(args));
     t.via(executor);
     return t;
+}
+
+template<typename TYPE>
+auto original::coroutine::convertVoidTask(task<TYPE> t)
+    -> task<someType<std::is_void_v<TYPE>, bool, TYPE>> {
+    if (t.empty())
+        throw valueError("Can not run an empty task");
+    if (t.started())
+        throw valueError("Can not run a task while started");
+
+    auto wrapper = []<typename T>(task<T> tmp)
+        -> task<someType<std::is_void_v<T>, bool, T>> {
+        if constexpr(std::is_void_v<T>) {
+            co_await tmp;
+            co_return true;
+        } else {
+            co_return co_await tmp;
+        }
+    };
+    auto exec = t.getExecutor();
+    auto task = wrapper(std::move(t));
+    task.via(*exec);
+    return task;
 }
 
 template <typename TYPE>
