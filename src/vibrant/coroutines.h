@@ -290,19 +290,39 @@ namespace original {
 
         template<typename T>
         struct taskArgsType {
-            using type = flattenTaskType<T>::type;
+            using type = T;
         };
 
-        template <typename Func, typename ArgsTuple>
+        template <typename Func, typename ArgsTuple, typename = void>
         struct taskInvokeResult;
+
+        template <typename Func>
+        struct taskInvokeResult<Func, void> {
+            using type = std::invoke_result_t<Func>;
+        };
 
         template <typename Func, typename... Args>
         struct taskInvokeResult<Func, tuple<Args...>> {
             using type = std::invoke_result_t<Func, Args...>;
         };
 
-        template <typename Func, typename ArgsTuple>
+        template <typename Func, typename Arg>
+        struct taskInvokeResult<Func, Arg> {
+            using type = std::invoke_result_t<Func, Arg>;
+        };
+
+        template <typename Func, typename ArgsTuple = void>
         using taskInvokeResultType = taskInvokeResult<Func, ArgsTuple>::type;
+
+        template<typename Func, typename ArgsTuple>
+        struct isTaskInvokable {
+            static constexpr bool value = std::is_invocable_v<Func, ArgsTuple>;
+        };
+
+        template<typename Func, typename... Args>
+        struct isTaskInvokable<Func, tuple<Args...>> {
+            static constexpr bool value = std::is_invocable_v<Func, Args...>;
+        };
 
         template<typename Pred, typename Then, typename Else>
         class taskCondition {
@@ -490,6 +510,7 @@ namespace original {
             auto operator|(Callback&& c);
 
             template<typename Callback>
+            requires isTaskInvokable<Callback,typename taskArgsType<TYPE>::type>::value
             auto operator>>(Callback&& c);
 
             task operator|(executor& exec);
@@ -1458,6 +1479,10 @@ auto original::coroutine::task<TYPE>::operator|(Callback&& c)
 
 template <typename TYPE>
 template <typename Callback>
+requires original::coroutine::isTaskInvokable<
+    Callback,
+    typename original::coroutine::taskArgsType<TYPE>::type
+>::value
 auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
 {
     if (this->empty())
