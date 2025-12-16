@@ -1,6 +1,16 @@
 #include "executors.h"
 #include "singleton.h"
 
+int sum_local(const int w, const int x, const int y, const int z) {
+    return w + x + y + z;
+}
+
+struct Accumulator {
+    int operator()(const int w, const int x, const int y, const int z) const {
+        return sum_local(w, x, y, z);
+    }
+};
+
 int main()
 {
     original::singleton<original::taskDelegator>::init(4u);
@@ -52,14 +62,15 @@ int main()
     auto res7 = original::coroutine::spinRun(std::move(chain_condition1));
     std::cout << original::printable::formatStrings("res7 = ", res7) << std::endl;
 
-    auto sum1 = [](const int a, const int b, const int c, const int d) {
-        return a + b + c + d;
+    auto sum_lambda = [](const int a, const int b, const int c, const int d) {
+        return sum_local(a, b, c, d);
     };
 
-    auto chain3  = thread_pool >> (original::coBind(1) | original::coBind(2, 3)) >> original::coBind(4, 5) >> sum1;
+    auto chain3  = thread_pool >> (original::coBind(1) | original::coBind(2, 3)) >> original::coBind(4, 5) >> sum_lambda;
     auto res8 = original::coroutine::spinRun(std::move(chain3));
     std::cout << original::printable::formatStrings("res8 = ", res8) << std::endl;
 
+    Accumulator acc;
     auto chain4 = thread_pool
         >> original::coBind(10, 5)
         >> original::coParallel(
@@ -68,7 +79,12 @@ int main()
             [](const int x, const int y){ return x * y; },
             [](const int x, const int y){ return x / y; }
            )
-        >> sum1 >> original::coBind(1, 1) >> original::coBind(1) >> sum1;
+        >> sum_local
+        >> original::coBind(1, 1)
+        >> original::coBind(1)
+        >> acc
+        >> original::coBind(0, 0, 0)
+        >> sum_lambda;
     auto res9 = original::coroutine::spinRun(std::move(chain4));
     std::cout << original::printable::formatStrings("res9 = ", res9) << std::endl;
     return 0;
