@@ -13,6 +13,7 @@
 #include "lockedPrique.h"
 #include "mutex.h"
 #include "semaphores.h"
+#include "sockets.h"
 #include "syncPoint.h"
 #include "tasks.h"
 #include "thread.h"
