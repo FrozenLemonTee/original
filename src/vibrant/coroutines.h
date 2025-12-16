@@ -484,6 +484,8 @@ namespace original {
 
             [[nodiscard]] bool hasExecutor() const noexcept;
 
+            [[nodiscard]] executor* getExecutor() const noexcept;
+
             task& via(executor& executor) noexcept;
 
             task(task&& other) noexcept;
@@ -645,6 +647,8 @@ namespace original {
         [[nodiscard]] bool start() const noexcept;
 
         [[nodiscard]] bool hasExecutor() const noexcept;
+
+        [[nodiscard]] executor* getExecutor() const noexcept;
 
         task& via(executor& executor) noexcept;
 
@@ -1354,6 +1358,15 @@ bool original::coroutine::task<TYPE>::hasExecutor() const noexcept
 }
 
 template<typename TYPE>
+original::executor*
+original::coroutine::task<TYPE>::getExecutor() const noexcept {
+    if (this->empty())
+        return nullptr;
+
+    return this->handle_.promise().executor_;
+}
+
+template<typename TYPE>
 original::coroutine::task<TYPE>&
 original::coroutine::task<TYPE>::via(executor& executor) noexcept {
     if (this->empty())
@@ -1938,6 +1951,14 @@ inline bool original::coroutine::task<void>::hasExecutor() const noexcept
 {
     if (this->empty())
         return false;
+
+    return this->handle_.promise().executor_;
+}
+
+inline original::executor*
+original::coroutine::task<void>::getExecutor() const noexcept {
+    if (this->empty())
+        return nullptr;
 
     return this->handle_.promise().executor_;
 }
