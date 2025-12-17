@@ -10,8 +10,12 @@ struct Accumulator {
         return sum_local(w, x, y, z);
     }
 
-    constexpr int operator()() const {
-        return 0;
+    constexpr int operator()(const int x) const {
+        return x + 4;
+    }
+
+    constexpr int increase(const int x) const { // NOLINT
+        return x + 1;
     }
 };
 
@@ -88,7 +92,9 @@ int main()
         >> original::coBind(1)
         >> acc
         >> original::coBind(0, 0, 0)
-        >> sum_lambda;
+        >> sum_lambda
+        >> acc
+        >> std::bind_front(&Accumulator::increase, &acc);
     auto res9 = original::coroutine::spinRun(std::move(chain4));
     std::cout << original::printable::formatStrings("res9 = ", res9) << std::endl;
     return 0;
