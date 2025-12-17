@@ -79,8 +79,7 @@ int main()
     };
     original::taskDelegator delegator2{2};
     original::threadPoolExecutor thread_pool_local{delegator2};
-    auto rand_task = original::coroutine::makeTask(thread_pool, rand);
-    auto chain4 = rand_task >> judge >> thread_pool_local >> str >> original::coDelay(200_ms);
+    auto chain4 = thread_pool >> rand >> judge >> thread_pool_local >> str >> original::coDelay(200_ms);
     auto res4 = original::coroutine::run(std::move(chain4));
     std::cout << original::printable::formatStrings("res4 = ", res4) << std::endl;
     std::cout << original::printable::formatStrings("complete = ", complete) << std::endl;
@@ -94,8 +93,11 @@ int main()
         std::cout << "Caught an exception: " << e.what() << std::endl;
         return 0;
     };
-    auto err_task = original::coroutine::makeTask(thread_pool, err, 0);
-    auto err_chain = err_task >> original::coCatch<original::valueError>(catch_handler);
+    auto err_chain =
+        thread_pool >>
+        original::coBind(0) >>
+        err >>
+        original::coCatch<original::valueError>(catch_handler);
     auto res5 = original::coroutine::run(std::move(err_chain));
     std::cout << original::printable::formatStrings("res5 = ", res5) << std::endl;
     auto multi_err = [](const int x){
@@ -105,7 +107,6 @@ int main()
             throw original::noElementError("Element is " + original::printable::formatString(x));
         return x;
     };
-    auto err_task2 = original::coroutine::makeTask(thread_pool_local, multi_err, 1);
     auto catch_handler2 = [](const original::valueError& e){
         std::cout << "Caught an exception: " << e.what() << std::endl;
         return 111;
@@ -114,7 +115,7 @@ int main()
         std::cout << "Caught an exception: " << e.what() << std::endl;
         return 222;
     };
-    auto err_chain2 = err_task2
+    auto err_chain2 = thread_pool_local >> original::coBind(1) >> multi_err
             | original::coCatch<original::valueError>(catch_handler2)
             | original::coCatch<original::noElementError>(catch_handler3);
     auto res6 = original::coroutine::run(std::move(err_chain2));
