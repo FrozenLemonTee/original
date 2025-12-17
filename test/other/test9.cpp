@@ -1,13 +1,17 @@
 #include "executors.h"
 #include "singleton.h"
 
-int sum_local(const int w, const int x, const int y, const int z) {
+constexpr int sum_local(const int w, const int x, const int y, const int z) {
     return w + x + y + z;
 }
 
 struct Accumulator {
-    int operator()(const int w, const int x, const int y, const int z) const {
+    constexpr int operator()(const int w, const int x, const int y, const int z) const {
         return sum_local(w, x, y, z);
+    }
+
+    constexpr int operator()() const {
+        return 0;
     }
 };
 
