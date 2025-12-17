@@ -289,39 +289,60 @@ namespace original {
         struct isTaskArgs : std::false_type {};
 
         template<typename T>
-        struct taskArgsType {
+        struct taskArgsTypes {
             using type = T;
         };
 
-        template <typename Func, typename ArgsTuple, typename = void>
+        template<typename T>
+        using taskArgsType = taskArgsTypes<T>::type;
+
+        template <typename Func, typename First, typename ArgsTuple>
         struct taskInvokeResult;
 
         template <typename Func>
-        struct taskInvokeResult<Func, void> {
+        struct taskInvokeResult<Func, void, void> {
             using type = std::invoke_result_t<Func>;
         };
 
         template <typename Func, typename... Args>
-        struct taskInvokeResult<Func, tuple<Args...>> {
+        struct taskInvokeResult<Func, tuple<Args...>, void> {
             using type = std::invoke_result_t<Func, Args...>;
         };
 
         template <typename Func, typename Arg>
-        struct taskInvokeResult<Func, Arg> {
+        struct taskInvokeResult<Func, Arg, void> {
             using type = std::invoke_result_t<Func, Arg>;
         };
 
-        template <typename Func, typename ArgsTuple = void>
-        using taskInvokeResultType = taskInvokeResult<Func, ArgsTuple>::type;
+        template<typename Func, typename First, typename... Args>
+        struct taskInvokeResult<Func, First, tuple<Args...>> {
+            using type = std::invoke_result_t<Func, First, Args...>;
+        };
 
-        template<typename Func, typename ArgsTuple>
-        struct isTaskInvokable {
-            static constexpr bool value = std::is_invocable_v<Func, ArgsTuple>;
+        template <typename Func, typename First = void, typename ArgsTuple = void>
+        using taskInvokeResultType = taskInvokeResult<Func, First, ArgsTuple>::type;
+
+        template<typename Func, typename First = void, typename ArgsTuple = void>
+        struct isTaskInvokable;
+
+        template <typename Func>
+        struct isTaskInvokable<Func> {
+            static constexpr bool value = std::is_invocable_v<Func>;
         };
 
         template<typename Func, typename... Args>
         struct isTaskInvokable<Func, tuple<Args...>> {
             static constexpr bool value = std::is_invocable_v<Func, Args...>;
+        };
+
+        template<typename Func, typename First>
+        struct isTaskInvokable<Func, First> {
+            static constexpr bool value = std::is_invocable_v<Func, First>;
+        };
+
+        template<typename Func, typename First, typename... Args>
+        struct isTaskInvokable<Func, First, tuple<Args...>> {
+            static constexpr bool value = std::is_invocable_v<Func, First, Args...>;
         };
 
         template<typename Pred, typename Then, typename Else>
@@ -364,9 +385,12 @@ namespace original {
                 taskArgs<Args..., Others...>::template bridge<TYPE, Prev> operator>>(taskArgs<Others...>&& args);
 
                 template<typename Callback>
+                requires isTaskInvokable<Callback>::value
                 auto operator|(Callback&& c);
 
                 template<typename Callback>
+                requires ((!Prev) && isTaskInvokable<Callback, tuple<Args...>>::value) ||
+                         (Prev && isTaskInvokable<Callback, TYPE, tuple<Args...>>::value)
                 auto operator>>(Callback&& c);
             };
 
@@ -392,10 +416,12 @@ namespace original {
             taskArgs<Args..., Others...> operator>>(taskArgs<Others...>&& other);
 
             template<typename Callback>
-            auto operator|(Callback&& c) -> task<std::invoke_result_t<Callback>>;
+            requires isTaskInvokable<Callback>::value
+            auto operator|(Callback&& c);
 
             template<typename Callback>
-            auto operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, Args...>>;
+            requires isTaskInvokable<Callback, taskArgsType<taskArgs>>::value
+            auto operator>>(Callback&& c);
 
             template<typename... Callback>
             auto operator|(tuple<Callback...>&& cs);
@@ -410,7 +436,7 @@ namespace original {
         struct isTaskArgs<taskArgs<Args...>> : std::true_type {};
 
         template<typename... Args>
-        struct taskArgsType<taskArgs<Args...>> {
+        struct taskArgsTypes<taskArgs<Args...>> {
             using type = tuple<Args...>;
         };
 
@@ -509,10 +535,11 @@ namespace original {
             task<U> operator>>(task<U> rhs);
 
             template<typename Callback>
+            requires isTaskInvokable<Callback>::value
             auto operator|(Callback&& c);
 
             template<typename Callback>
-            requires isTaskInvokable<Callback,typename taskArgsType<TYPE>::type>::value
+            requires isTaskInvokable<Callback, taskArgsType<TYPE>>::value
             auto operator>>(Callback&& c);
 
             task operator|(executor& exec);
@@ -678,9 +705,11 @@ namespace original {
         task<U> operator>>(task<U> rhs);
 
         template<typename Callback>
+        requires isTaskInvokable<Callback>::value
         auto operator|(Callback&& c);
 
         template<typename Callback>
+        requires isTaskInvokable<Callback>::value
         auto operator>>(Callback&& c);
 
         task operator|(executor& exec);
@@ -956,6 +985,7 @@ original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(taskArgs<
 template <typename ... Args>
 template <typename TYPE, bool Prev>
 template <typename Callback>
+requires original::coroutine::isTaskInvokable<Callback>::value
 auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(Callback&& c)
 {
     if (this->task_.empty())
@@ -982,6 +1012,17 @@ auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator|(Callb
 template <typename ... Args>
 template <typename TYPE, bool Prev>
 template <typename Callback>
+requires ((!Prev) &&
+         original::coroutine::isTaskInvokable<
+            Callback,
+            original::tuple<Args...>
+         >::value) ||
+         (Prev &&
+         original::coroutine::isTaskInvokable<
+            Callback,
+            TYPE,
+            original::tuple<Args...>
+         >::value)
 auto original::coroutine::taskArgs<Args...>::bridge<TYPE, Prev>::operator>>(Callback&& c)
 {
     if (this->task_.empty())
@@ -1084,7 +1125,8 @@ original::coroutine::taskArgs<Args...>::operator>>(taskArgs<Others...>&& other)
 
 template <typename ... Args>
 template <typename Callback>
-auto original::coroutine::taskArgs<Args...>::operator|(Callback&& c) -> task<std::invoke_result_t<Callback>>
+requires original::coroutine::isTaskInvokable<Callback>::value
+auto original::coroutine::taskArgs<Args...>::operator|(Callback&& c)
 {
     if (!this->executor_)
         throw sysError("Tasks without a specified executor cannot be combined");
@@ -1102,7 +1144,13 @@ auto original::coroutine::taskArgs<Args...>::operator|(Callback&& c) -> task<std
 
 template <typename ... Args>
 template <typename Callback>
-auto original::coroutine::taskArgs<Args...>::operator>>(Callback&& c) -> task<std::invoke_result_t<Callback, Args...>>
+requires original::coroutine::isTaskInvokable<
+    Callback,
+    original::coroutine::taskArgsType<
+        original::coroutine::taskArgs<Args...>
+    >
+>::value
+auto original::coroutine::taskArgs<Args...>::operator>>(Callback&& c)
 {
     if (!this->executor_)
         throw sysError("Tasks without a specified executor cannot be combined");
@@ -1481,6 +1529,7 @@ original::coroutine::task<TYPE>::operator>>(task<U> rhs)
 
 template <typename TYPE>
 template <typename Callback>
+requires original::coroutine::isTaskInvokable<Callback>::value
 auto original::coroutine::task<TYPE>::operator|(Callback&& c)
 {
     if (this->empty())
@@ -1497,7 +1546,7 @@ template <typename TYPE>
 template <typename Callback>
 requires original::coroutine::isTaskInvokable<
     Callback,
-    typename original::coroutine::taskArgsType<TYPE>::type
+    original::coroutine::taskArgsType<TYPE>
 >::value
 auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
 {
@@ -1505,7 +1554,7 @@ auto original::coroutine::task<TYPE>::operator>>(Callback&& c)
         throw valueError("Can not combine empty tasks");
 
     auto pipeline = []<typename LHS, typename RHS>(executor& exec, task<LHS> l, RHS r) mutable
-        -> task<taskInvokeResultType<RHS, typename taskArgsType<LHS>::type>> {
+        -> task<taskInvokeResultType<RHS, taskArgsType<LHS>>> {
         LHS tmp = co_await l;
         if constexpr (isTaskArgs<LHS>::value){
             auto unbind = tmp.unbind();
@@ -2062,6 +2111,7 @@ original::coroutine::task<void>::operator>>(task<U> rhs)
 }
 
 template <typename Callback>
+requires original::coroutine::isTaskInvokable<Callback>::value
 auto original::coroutine::task<void>::operator|(Callback&& c)
 {
     if (this->empty())
@@ -2077,6 +2127,7 @@ auto original::coroutine::task<void>::operator|(Callback&& c)
 }
 
 template <typename Callback>
+requires original::coroutine::isTaskInvokable<Callback>::value
 auto original::coroutine::task<void>::operator>>(Callback&& c)
 {
     if (this->empty())
@@ -2238,15 +2289,7 @@ auto original::coroutine::task<void>::operator|(tuple<Callback...>&& cs)
         };
         auto tasks = make_tasks(makeSequence<sizeof...(F)>(), funcs, exe);
         auto get_results = [exe]<u_integer... I>(indexSequence<I...>, TasksTuple tp) -> task<ResultArgs> {
-            auto convert_to_bool = []<typename T>(task<T>& cur) -> task<someType<std::is_void_v<T>, bool, T>> {
-                if constexpr (std::is_void_v<T>) {
-                    co_await cur;
-                    co_return true;
-                } else {
-                    co_return co_await cur;
-                }
-            };
-            co_return *exe >> coBind(co_await convert_to_bool(tp.template get<I>()).via(*exe)...);
+            co_return *exe >> coBind(co_await convertVoidTask(std::move(tp.template get<I>())).via(*exe)...);
         };
         auto results_tasks = get_results(makeSequence<sizeof...(F)>(), std::move(tasks));
         results_tasks.via(*exe);
