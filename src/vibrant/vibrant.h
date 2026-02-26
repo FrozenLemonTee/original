@@ -4,6 +4,7 @@
 #include "acceptor.h"
 #include "async.h"
 #include "atomic.h"
+#include "awaitable.h"
 #include "condition.h"
 #include "coroutines.h"
 #include "endpoint.h"
