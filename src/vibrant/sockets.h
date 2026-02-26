@@ -1,5 +1,5 @@
-#ifndef ORIGINAL_SOCKET_H
-#define ORIGINAL_SOCKET_H
+#ifndef ORIGINAL_SOCKETS_H
+#define ORIGINAL_SOCKETS_H
 
 namespace original {
     class sockets {
@@ -36,6 +36,8 @@ namespace original {
         static constexpr auto IPV4 = addressFamily::IPV4;
         static constexpr auto IPV6 = addressFamily::IPV6;
         static constexpr auto LOCAL = addressFamily::LOCAL;
+        static constexpr auto STREAM = type::STREAM;
+        static constexpr auto DATAGRAM = type::DATAGRAM;
         static constexpr auto TCP = protocol::TCP;
         static constexpr auto UDP = protocol::UDP;
         static constexpr auto DEFAULT = protocol::DEFAULT;
@@ -48,4 +50,4 @@ namespace original {
     };
 }
 
-#endif //ORIGINAL_SOCKET_H
+#endif //ORIGINAL_SOCKETS_H
