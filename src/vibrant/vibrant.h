@@ -1,6 +1,7 @@
 #ifndef VIBRANT_H
 #define VIBRANT_H
 
+#include "acceptor.h"
 #include "async.h"
 #include "atomic.h"
 #include "condition.h"
