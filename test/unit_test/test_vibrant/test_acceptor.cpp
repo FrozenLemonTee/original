@@ -5,7 +5,6 @@
 #include "executors.h"
 #include "singleton.h"
 #include <gtest/gtest.h>
-#include <thread>
 #include <chrono>
 #include <string>
 
@@ -42,7 +41,7 @@ TEST_F(AcceptorTest, EchoServerWithTask)
 
     ASSERT_TRUE(server.via(*executor).start());
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    thread::sleep(milliseconds(50));
 
     const original::socket client(sockets::IPV4, sockets::STREAM, sockets::TCP);
     client.connect(ep);
@@ -57,5 +56,5 @@ TEST_F(AcceptorTest, EchoServerWithTask)
 
     EXPECT_EQ(resp, std::string("hello-echo"));
 
-    while (!server.finished()) std::this_thread::yield();
+    while (!server.finished()) thread::yield();
 }
