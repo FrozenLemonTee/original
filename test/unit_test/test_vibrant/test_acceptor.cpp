@@ -37,9 +37,9 @@ TEST_F(AcceptorTest, EchoServerWithTask)
         static_cast<void>(sent); // avoid unused-result warning inside task
     };
 
-    auto server = *executor >> make_server;
+    const auto server = *executor >> make_server;
 
-    ASSERT_TRUE(server.via(*executor).start());
+    ASSERT_TRUE(server.start());
 
     thread::sleep(milliseconds(50));
 
