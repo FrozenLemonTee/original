@@ -10,7 +10,6 @@
     #include <ws2tcpip.h>
     using socklen_t = int;
 #else
-    #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
     #include <arpa/inet.h>
@@ -18,7 +17,6 @@
 
 #include <cstring>
 #include <string_view>
-#include <cstdint>
 #include <stdexcept>
 #include "sockets.h"
 
