@@ -224,7 +224,7 @@ inline std::size_t original::socket::recv(void* buffer, const std::size_t size) 
     return static_cast<std::size_t>(recv);
 }
 
-inline void original::socket::shutdown(const sockets::shutdownHow how) const
+inline void original::socket::shutdown(sockets::shutdownHow how) const
 {
     int native_how = 0;
 
