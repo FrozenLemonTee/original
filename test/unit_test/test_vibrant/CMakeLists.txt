@@ -15,6 +15,11 @@ target_link_libraries(vibrant_test PRIVATE GTest::gtest GTest::gmock GTest::gmoc
 
 target_link_libraries(vibrant_test PRIVATE original)
 
+if(WIN32)
+    # Link Winsock on Windows to resolve socket symbols
+    target_link_libraries(vibrant_test PRIVATE ws2_32)
+endif()
+
 add_test(
         NAME VibrantTests
         COMMAND $<TARGET_FILE:vibrant_test>
