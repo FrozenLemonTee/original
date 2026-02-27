@@ -1,6 +1,7 @@
 #ifndef ORIGINAL_SOCKET_H
 #define ORIGINAL_SOCKET_H
 
+#include "arrayView.h"
 #include "sockets.h"
 #include "endpoint.h"
 #include "net.h"
@@ -15,6 +16,8 @@ namespace original {
         #else
             using nativeSocket = int;
         #endif
+        using viewType = arrayView<byte>;
+        using constViewType = arrayView<const byte>;
 
         socket() noexcept = default;
 
@@ -32,9 +35,9 @@ namespace original {
 
         void connect(const endpoint& ep) const;
 
-        std::size_t send(const void* data, std::size_t size) const;
+        std::size_t send(constViewType buffer) const;
 
-        std::size_t recv(void* buffer, std::size_t size) const;
+        std::size_t recv(viewType buffer) const;
 
         void shutdown(sockets::shutdownHow how) const;
 
@@ -162,11 +165,11 @@ inline void original::socket::connect(const endpoint& ep) const
     }
 }
 
-inline std::size_t original::socket::send(const void* data, const std::size_t size) const
+inline std::size_t original::socket::send(constViewType buffer) const
 {
     const int sent = ::send(this->handle_,
-                      static_cast<const char*>(data),
-                      static_cast<int>(size),
+                      reinterpret_cast<const char*>(buffer.data()),
+                      static_cast<int>(buffer.count()),
                       0);
 
     if (sent < 0)
@@ -175,11 +178,11 @@ inline std::size_t original::socket::send(const void* data, const std::size_t si
     return static_cast<std::size_t>(sent);
 }
 
-inline std::size_t original::socket::recv(void* buffer, const std::size_t size) const
+inline std::size_t original::socket::recv(viewType buffer) const
 {
     const int recv = ::recv(this->handle_,
-                       static_cast<char*>(buffer),
-                       static_cast<int>(size),
+                       reinterpret_cast<char*>(buffer.data()),
+                       static_cast<int>(buffer.count()),
                        0);
 
     if (recv < 0)
