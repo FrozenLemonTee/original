@@ -4,6 +4,7 @@
 #include "coroutines.h"
 #include "executors.h"
 #include "singleton.h"
+#include "net.h"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <string>
@@ -13,6 +14,7 @@ using namespace original;
 class AcceptorTest : public testing::Test {
 protected:
     void SetUp() override {
+        net::initialize();
         singleton<taskDelegator>::reset();
         delegator = &singleton<taskDelegator>::instance();
         singleton<threadPoolExecutor>::reset(*delegator);

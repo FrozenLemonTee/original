@@ -1,10 +1,21 @@
 #include "socket.h"
 #include "sockets.h"
+#include "net.h"
 #include <gtest/gtest.h>
 #include <utility>
 
+class SocketTest : public testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        original::net::initialize();
+    }
+};
+
 TEST(SocketTest, CreateAndMove)
 {
+    original::net::initialize();
     original::socket s(original::sockets::IPV4, original::sockets::STREAM, original::sockets::TCP);
     EXPECT_TRUE(s.valid());
 
