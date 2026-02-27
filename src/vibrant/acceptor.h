@@ -32,7 +32,7 @@ inline original::acceptor::acceptor(const endpoint& ep,
     this->handle_ = ::socket(
         ep.nativeData()->sa_family,
         SOCK_STREAM,
-        IPPROTO_TCP);
+        0);
 
     if (!socket::isValid(this->handle_))
         throw std::runtime_error("acceptor socket failed");
