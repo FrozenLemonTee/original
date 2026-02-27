@@ -29,6 +29,7 @@ namespace original {
 inline original::acceptor::acceptor(const endpoint& ep,
                                     const int backlog)
 {
+    net::initialize();
     this->handle_ = ::socket(
         ep.nativeData()->sa_family,
         SOCK_STREAM,

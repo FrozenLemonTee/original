@@ -3,6 +3,7 @@
 
 #include "sockets.h"
 #include "endpoint.h"
+#include "net.h"
 #include "stdexcept"
 
 namespace original {
@@ -116,6 +117,7 @@ inline original::socket::socket(const sockets::addressFamily af,
                                 const sockets::type type,
                                 const sockets::protocol protocol)
 {
+    net::initialize();
     this->handle_ = ::socket(
         toNativeAF(af),
         toNativeType(type),
