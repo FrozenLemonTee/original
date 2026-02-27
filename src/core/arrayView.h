@@ -186,10 +186,16 @@ namespace original {
         const TYPE& get(u_integer index) const;
 
         /**
-         * @brief Returns a pointer to the underlying data
+         * @brief Returns a const pointer to the underlying data
          * @return Const pointer to the data
          */
         const TYPE* data() const;
+
+        /**
+         * @brief Returns a pointer to the underlying data
+         * @return Pointer to the data
+         */
+        TYPE* data();
 
         /**
          * @brief Returns the number of elements in the view
@@ -372,6 +378,12 @@ const TYPE& original::arrayView<TYPE>::get(u_integer index) const
 
 template <typename TYPE>
 const TYPE* original::arrayView<TYPE>::data() const
+{
+    return this->data_;
+}
+
+template <typename TYPE>
+TYPE* original::arrayView<TYPE>::data()
 {
     return this->data_;
 }
