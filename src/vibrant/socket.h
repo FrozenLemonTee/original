@@ -11,6 +11,8 @@ namespace original {
 
     class socket {
     public:
+        friend class acceptor;
+
         #if ORIGINAL_PLATFORM_WINDOWS
             using nativeSocket = SOCKET;
         #else
@@ -35,6 +37,12 @@ namespace original {
 
         void connect(const endpoint& ep) const;
 
+        void setOption(sockets::option opt, bool enable = true) const;
+
+        void bind(const endpoint& ep) const;
+
+        void listen(int backlog) const;
+
         std::size_t send(constViewType buffer) const;
 
         std::size_t recv(viewType buffer) const;
@@ -46,8 +54,12 @@ namespace original {
         static bool isValid(nativeSocket socket);
 
         static void closeSocket(nativeSocket socket);
+
+        nativeSocket nativeHandle() const noexcept;
     private:
         nativeSocket handle_ = invalidSocket();
+
+        explicit socket(nativeSocket handle) noexcept;
 
         static nativeSocket invalidSocket();
 
@@ -58,6 +70,9 @@ namespace original {
         static int toNativeProtocol(sockets::protocol p);
     };
 }
+
+inline original::socket::socket(const nativeSocket handle) noexcept
+    : handle_(handle) {}
 
 inline original::socket::nativeSocket original::socket::invalidSocket()
 {
@@ -84,6 +99,12 @@ inline void original::socket::closeSocket(nativeSocket socket)
     #else
         close(socket);
     #endif
+}
+
+inline original::socket::nativeSocket
+original::socket::nativeHandle() const noexcept
+{
+    return this->handle_;
 }
 
 inline int original::socket::toNativeAF(const sockets::addressFamily af)
@@ -162,6 +183,59 @@ inline void original::socket::connect(const endpoint& ep) const
                   ep.nativeSize()) != 0)
     {
         throw std::runtime_error("connect failed");
+    }
+}
+
+inline void original::socket::setOption(const sockets::option opt, const bool enable) const
+{
+    int level = 0;
+    int name = 0;
+
+    switch (opt)
+    {
+    case sockets::option::REUSE_ADDR:
+        level = SOL_SOCKET;
+        name = SO_REUSEADDR;
+        break;
+
+    case sockets::option::KEEP_ALIVE:
+        level = SOL_SOCKET;
+        name = SO_KEEPALIVE;
+        break;
+
+    case sockets::option::NO_DELAY:
+        level = IPPROTO_TCP;
+        name = TCP_NODELAY;
+        break;
+    }
+
+    const int val = enable ? 1 : 0;
+
+    if (setsockopt(this->handle_,
+                   level,
+                   name,
+                   reinterpret_cast<const char*>(&val),
+                   sizeof(val)) != 0)
+    {
+        throw std::runtime_error("setsockopt failed");
+    }
+}
+
+inline void original::socket::bind(const endpoint& ep) const
+{
+    if (::bind(this->handle_,
+           ep.nativeData(),
+           ep.nativeSize()) != 0)
+    {
+        throw std::runtime_error("bind failed");
+    }
+}
+
+inline void original::socket::listen(const int backlog) const
+{
+    if (::listen(this->handle_, backlog) != 0)
+    {
+        throw std::runtime_error("listen failed");
     }
 }
 
