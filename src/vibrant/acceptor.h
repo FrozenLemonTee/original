@@ -29,7 +29,7 @@ namespace original {
 inline original::acceptor::acceptor(const endpoint& ep,
                                     const int backlog)
 {
-    handle_ = ::socket(
+    this->handle_ = ::socket(
         ep.nativeData()->sa_family,
         SOCK_STREAM,
         IPPROTO_TCP);
@@ -55,14 +55,14 @@ inline original::acceptor::acceptor(const endpoint& ep,
 
 inline original::acceptor::~acceptor()
 {
-    if (socket::isValid(handle_))
-        socket::closeSocket(handle_);
+    if (socket::isValid(this->handle_))
+        socket::closeSocket(this->handle_);
 }
 
 inline original::socket original::acceptor::accept() const
 {
     const auto client =
-        ::accept(handle_, nullptr, nullptr);
+        ::accept(this->handle_, nullptr, nullptr);
 
     if (!socket::isValid(client))
         throw std::runtime_error("accept failed");

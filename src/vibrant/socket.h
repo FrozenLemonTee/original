@@ -5,10 +5,6 @@
 #include "endpoint.h"
 #include "stdexcept"
 
-#if !ORIGINAL_PLATFORM_WINDOWS
-#include <unistd.h>
-#endif
-
 namespace original {
 
     class socket {
