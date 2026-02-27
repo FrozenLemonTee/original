@@ -14,6 +14,7 @@
 #include "lockedQueue.h"
 #include "lockedPrique.h"
 #include "mutex.h"
+#include "net.h"
 #include "semaphores.h"
 #include "socket.h"
 #include "sockets.h"

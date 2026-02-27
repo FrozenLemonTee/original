@@ -45,17 +45,6 @@ namespace original {
     private:
         nativeSocket handle_ = invalidSocket();
 
-        #if ORIGINAL_PLATFORM_WINDOWS
-            struct WSAGuard
-            {
-                WSAGuard();
-
-                ~WSAGuard();
-            };
-
-            static WSAGuard& wsaGuard();
-        #endif
-
         static nativeSocket invalidSocket();
 
         static int toNativeAF(sockets::addressFamily af);
@@ -65,29 +54,6 @@ namespace original {
         static int toNativeProtocol(sockets::protocol p);
     };
 }
-
-#if ORIGINAL_PLATFORM_WINDOWS
-inline original::socket::WSAGuard::WSAGuard()
-{
-    WSADATA data{};
-    if (const int result = WSAStartup(MAKEWORD(2, 2), &data);
-        result != 0)
-    {
-        throw std::runtime_error("WSAStartup failed");
-    }
-}
-
-inline original::socket::WSAGuard::~WSAGuard()
-{
-    WSACleanup();
-}
-
-inline original::socket::WSAGuard& original::socket::wsaGuard()
-{
-    static WSAGuard guard;
-    return guard;
-}
-#endif
 
 inline original::socket::nativeSocket original::socket::invalidSocket()
 {
@@ -150,10 +116,6 @@ inline original::socket::socket(const sockets::addressFamily af,
                                 const sockets::type type,
                                 const sockets::protocol protocol)
 {
-#if ORIGINAL_PLATFORM_WINDOWS
-    wsaGuard();
-#endif
-
     this->handle_ = ::socket(
         toNativeAF(af),
         toNativeType(type),
