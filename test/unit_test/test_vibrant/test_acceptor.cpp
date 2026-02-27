@@ -31,10 +31,9 @@ TEST_F(AcceptorTest, EchoServerWithTask)
     auto make_server = [ep]() -> void {
         const acceptor a(ep);
         const auto cs = a.accept();
-        char buf[256];
-        const auto n = cs.recv(buf, sizeof(buf));
-        const auto sent = cs.send(buf, n);
-        static_cast<void>(sent); // avoid unused-result warning inside task
+        std::array<byte, 256> buf{};
+        const auto n = cs.recv(socket::viewType{buf.data(), buf.size()});
+        cs.send(socket::constViewType{buf.data(), static_cast<u_integer>(n)});
     };
 
     const auto server = *executor >> make_server;
@@ -46,15 +45,18 @@ TEST_F(AcceptorTest, EchoServerWithTask)
     const original::socket client(sockets::IPV4, sockets::STREAM, sockets::TCP);
     client.connect(ep);
 
-    constexpr char msg[] = "hello-echo";
-    const auto sentc = client.send(msg, sizeof(msg) - 1);
+    constexpr byte msg[] = "hello-echo";
+    const auto sentc = client.send(
+        socket::constViewType{msg, sizeof(msg) - 1});
+
     EXPECT_EQ(sentc, sizeof(msg) - 1);
 
-    char rbuf[64]{};
-    const auto rn = client.recv(rbuf, sizeof(rbuf));
-    const std::string resp(rbuf, rn);
+    byte rbuf[64]{};
+    const auto rn = client.recv(socket::viewType{rbuf, sizeof(rbuf)});
 
-    EXPECT_EQ(resp, std::string("hello-echo"));
+    const std::string resp(reinterpret_cast<char*>(rbuf), rn);
+
+    EXPECT_EQ(resp, "hello-echo");
 
     while (!server.finished()) thread::yield();
 }
