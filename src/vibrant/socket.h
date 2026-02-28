@@ -18,8 +18,8 @@ namespace original {
         #else
             using nativeSocket = int;
         #endif
-        using viewType = arrayView<byte>;
-        using constViewType = arrayView<const byte>;
+        using bufferType = arrayView<byte>;
+        using constBufferType = arrayView<const byte>;
 
         socket() noexcept = default;
 
@@ -43,9 +43,9 @@ namespace original {
 
         void listen(int backlog) const;
 
-        std::size_t send(constViewType buffer) const;
+        std::size_t send(constBufferType buffer) const;
 
-        std::size_t recv(viewType buffer) const;
+        std::size_t recv(bufferType buffer) const;
 
         void shutdown(sockets::shutdownHow how) const;
 
@@ -239,7 +239,7 @@ inline void original::socket::listen(const int backlog) const
     }
 }
 
-inline std::size_t original::socket::send(constViewType buffer) const
+inline std::size_t original::socket::send(constBufferType buffer) const
 {
     const int sent = ::send(this->handle_,
                       reinterpret_cast<const char*>(buffer.data()),
@@ -252,7 +252,7 @@ inline std::size_t original::socket::send(constViewType buffer) const
     return static_cast<std::size_t>(sent);
 }
 
-inline std::size_t original::socket::recv(viewType buffer) const
+inline std::size_t original::socket::recv(bufferType buffer) const
 {
     const int recv = ::recv(this->handle_,
                        reinterpret_cast<char*>(buffer.data()),
