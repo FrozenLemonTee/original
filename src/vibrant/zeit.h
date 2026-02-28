@@ -982,6 +982,10 @@ namespace original {
              */
             std::string toString(bool enter) const override;
 
+            std::string timeComponents() const;
+
+            std::string calendarComponents() const;
+
             /**
              * @brief Adds duration to UTCTime
              * @param t UTCTime
@@ -1960,14 +1964,28 @@ inline std::string original::time::UTCTime::className() const {
 inline std::string original::time::UTCTime::toString(const bool enter) const {
     std::stringstream ss;
     ss << "(" << this->className() << " "
-       << this->year_ << "-"
-       << std::setw(2) << std::setfill('0') << this->month_ << "-"
-       << std::setw(2) << std::setfill('0') << this->day_ << " "
-       << std::setw(2) << std::setfill('0') << this->hour_ << ":"
-       << std::setw(2) << std::setfill('0') << this->minute_ << ":"
-       << std::setw(2) << std::setfill('0') << this->second_ << ")";
+       << this->timeComponents() << " "
+       << this->calendarComponents() << ")";
     if (enter)
         ss << "\n";
+    return ss.str();
+}
+
+inline std::string original::time::UTCTime::timeComponents() const
+{
+    std::stringstream ss;
+    ss << this->year_ << "-"
+    << std::setw(2) << std::setfill('0') << this->month_ << "-"
+    << std::setw(2) << std::setfill('0') << this->day_;
+    return ss.str();
+}
+
+inline std::string original::time::UTCTime::calendarComponents() const
+{
+    std::stringstream ss;
+    ss << std::setw(2) << std::setfill('0') << this->hour_ << ":"
+       << std::setw(2) << std::setfill('0') << this->minute_ << ":"
+       << std::setw(2) << std::setfill('0') << this->second_ ;
     return ss.str();
 }
 
