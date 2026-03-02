@@ -43,9 +43,13 @@ namespace original {
 
         void listen(int backlog) const;
 
-        std::size_t send(constBufferType buffer) const;
+        [[nodiscard]] std::size_t send(constBufferType buffer) const;
 
-        std::size_t recv(bufferType buffer) const;
+        [[nodiscard]] std::size_t recv(bufferType buffer) const;
+
+        [[nodiscard]] std::size_t sendAll(constBufferType buffer) const;
+
+        [[nodiscard]] std::size_t recvExact(bufferType buffer) const;
 
         void shutdown(sockets::shutdownHow how) const;
 
@@ -55,7 +59,7 @@ namespace original {
 
         static void closeSocket(nativeSocket socket);
 
-        nativeSocket nativeHandle() const noexcept;
+        [[nodiscard]] nativeSocket nativeHandle() const noexcept;
     private:
         nativeSocket handle_ = invalidSocket();
 
@@ -263,6 +267,34 @@ inline std::size_t original::socket::recv(bufferType buffer) const
         throw std::runtime_error("recv failed");
 
     return static_cast<std::size_t>(recv);
+}
+
+inline std::size_t original::socket::sendAll(const constBufferType buffer) const
+{
+    std::size_t total = 0;
+    while (total < buffer.count())
+    {
+        const auto sent = this->send(
+            buffer.subview(total, buffer.count() - total));
+        if (sent == 0)
+            throw std::runtime_error("send returned 0");
+        total += sent;
+    }
+    return total;
+}
+
+inline std::size_t original::socket::recvExact(const bufferType buffer) const
+{
+    std::size_t total = 0;
+    while (total < buffer.count())
+    {
+        const auto received = this->recv(
+            buffer.subview(total, buffer.count() - total));
+        if (received == 0)
+            break;
+        total += received;
+    }
+    return total;
 }
 
 inline void original::socket::shutdown(const sockets::shutdownHow how) const
