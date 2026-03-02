@@ -49,7 +49,7 @@ namespace original {
 
         [[nodiscard]] std::size_t sendAll(constBufferType buffer) const;
 
-        [[nodiscard]] std::size_t recvExact(bufferType buffer) const;
+        [[nodiscard]] std::size_t recvFull(bufferType buffer) const;
 
         void shutdown(sockets::shutdownHow how) const;
 
@@ -283,7 +283,7 @@ inline std::size_t original::socket::sendAll(const constBufferType buffer) const
     return total;
 }
 
-inline std::size_t original::socket::recvExact(const bufferType buffer) const
+inline std::size_t original::socket::recvFull(const bufferType buffer) const
 {
     std::size_t total = 0;
     while (total < buffer.count())
