@@ -7,6 +7,7 @@
 #include "prique.h"
 #include "atomic.h"
 #include "condition.h"
+#include "meta.h"
 #include "mutex.h"
 
 namespace original {
@@ -33,7 +34,7 @@ namespace original {
         template <typename, typename> typename SERIAL = vector,
         template <typename> typename ALLOC = allocator>
     requires Compare<Callback<TYPE>, TYPE>
-    class lockedPrique {
+    class lockedPrique : public noMeta {
         prique<TYPE, Callback, SERIAL, ALLOC> prique_;  ///< Underlying priority queue
         mutable mutex mutex_{};                         ///< Mutex for thread safety
         mutable condition condition_{};                 ///< Condition variable for synchronization
@@ -44,11 +45,6 @@ namespace original {
          * @brief Constructs an empty locked priority queue
          */
         explicit lockedPrique();
-
-        lockedPrique(const lockedPrique&) = delete;               ///< Disable copy constructor
-        lockedPrique& operator=(const lockedPrique&) = delete;    ///< Disable copy assignment
-        lockedPrique(lockedPrique&&) noexcept = delete;           ///< Disable move constructor
-        lockedPrique& operator=(lockedPrique&&) noexcept = delete;///< Disable move assignment
 
         /**
          * @brief Checks if the queue is empty
