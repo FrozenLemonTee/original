@@ -21,6 +21,7 @@
 #include "syncPoint.h"
 #include "tasks.h"
 #include "thread.h"
+#include "timerQueue.h"
 #include "zeit.h"
 
 #endif //VIBRANT_H
