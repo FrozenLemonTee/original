@@ -85,6 +85,7 @@
 #include "map.h"
 #include "maps.h"
 #include "maths.h"
+#include "meta.h"
 #include "optional.h"
 #include "ownerPtr.h"
 #include "printable.h"
