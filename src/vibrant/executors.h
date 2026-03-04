@@ -4,6 +4,7 @@
 #include "lockedQueue.h"
 #include "tasks.h"
 #include "executor.h"
+#include "timerQueue.h"
 
 namespace original {
     class eventsLoopExecutor final : public executor {
@@ -11,14 +12,7 @@ namespace original {
 
         lockedQueue<Func> events_queue_{};
         atomic<bool> stopping_;
-
-        using timerTask = couple<time::point, Func>;
-        template<typename COUPLE>
-        struct timerComparator {
-            bool operator()(const COUPLE& lhs, const COUPLE& rhs) const;
-        };
-
-        lockedPrique<timerTask, timerComparator> timer_queue_{};
+        timerQueue timer_queue_{};
         thread worker_;
 
         void eventsLoop();
@@ -53,12 +47,6 @@ namespace original {
 
         void schedule(time::duration delay, Func fn) override;
     };
-}
-
-template <typename COUPLE>
-bool original::eventsLoopExecutor::timerComparator<COUPLE>::operator()(const COUPLE& lhs, const COUPLE& rhs) const
-{
-    return lhs.first() < rhs.first();
 }
 
 inline void original::eventsLoopExecutor::eventsLoop()
@@ -108,7 +96,7 @@ inline void original::eventsLoopExecutor::schedule(const time::duration delay, F
 {
     if (!this->hasStopped() && fn) {
         const auto when = time::point::now() + delay;
-        this->timer_queue_.push(std::move(timerTask{when, std::move(fn)}));
+        this->timer_queue_.push(std::move(timerQueue::taskType{when, std::move(fn)}));
     }
 }
 
