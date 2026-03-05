@@ -78,12 +78,10 @@ namespace original {
          * Wraps a callable and its arguments, and provides integration with futures.
          */
         template<typename TYPE>
-        class task final : public taskBase {
+        class task final : public taskBase, public moveOnlyMeta {
             async::promise<TYPE, std::function<TYPE()>> p;  ///< Promise for task result
 
         public:
-            task(const task&) = delete;                 ///< Disable copy constructor
-            task& operator=(const task&) = delete;      ///< Disable copy assignment
             task(task&&) = default;                     ///< Allow move constructor
             task& operator=(task&&) = default;          ///< Allow move assignment
             task() = default;

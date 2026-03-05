@@ -162,7 +162,7 @@ namespace original {
          * After consumption, the value is moved out of storage.
          */
         template<typename TYPE>
-        class future final : public futureBase {
+        class future final : public futureBase, public moveOnlyMeta {
             strongPtr<asyncWrapper<TYPE>> awr_{};  ///< Shared pointer to the async wrapper
 
             friend class async;
@@ -171,9 +171,7 @@ namespace original {
         public:
             future() = default;
 
-            // Disable copying
-            future(const future&) = delete;
-            future& operator=(const future&) = delete;
+            // Disable copying (provided by moveOnlyMeta)
 
             // Allow moving
             future(future&&) = default;
@@ -346,15 +344,13 @@ namespace original {
          * - Exception-safe: exceptions during computation are properly captured and stored
          */
         template<typename TYPE, typename Callback>
-        class promise {
+        class promise : public moveOnlyMeta {
             std::function<TYPE()> c_{};                ///< The computation to execute (one-time use)
             strongPtr<asyncWrapper<TYPE>> awr_{};      ///< Shared pointer to the async wrapper
             bool valid_{false};                         ///< Whether the promise still holds a valid task
 
         public:
-            // Disable copying to prevent multiple executions of the same computation
-            promise(const promise&) = delete;
-            promise& operator=(const promise&) = delete;
+            // Disable copying (provided by moveOnlyMeta)
 
             // Allow moving to transfer ownership of the computation
             promise(promise&& other) noexcept;
@@ -621,7 +617,7 @@ namespace original {
      * @brief Specialization of future for void results
      */
     template <>
-    class async::future<void> final : public futureBase {
+    class async::future<void> final : public futureBase, public moveOnlyMeta {
         strongPtr<asyncWrapper<void>> awr_{};  ///< Shared pointer to the async wrapper
 
         friend class async;
@@ -630,9 +626,7 @@ namespace original {
     public:
         future() = default;
 
-        // Disable copying
-        future(const future&) = delete;
-        future& operator=(const future&) = delete;
+        // Disable copying (provided by moveOnlyMeta)
 
         // Allow moving
         future(future&&) = default;
@@ -769,15 +763,13 @@ namespace original {
      * @details Same single-use semantics as the general promise template, but for void-returning computations.
      */
     template <typename Callback>
-    class async::promise<void, Callback> {
+    class async::promise<void, Callback> : public moveOnlyMeta {
         std::function<void()> c_{};                  ///< The computation to execute (one-time use)
         strongPtr<asyncWrapper<void>> awr_{};        ///< Shared pointer to the async wrapper
         bool valid_{false};                           ///< Whether the promise still holds a valid task
 
     public:
-        // Disable copying to prevent multiple executions of the same computation
-        promise(const promise&) = delete;
-        promise& operator=(const promise&) = delete;
+        // Disable copying (provided by moveOnlyMeta)
 
         // Allow moving to transfer ownership of the computation
         promise(promise&& other) noexcept;

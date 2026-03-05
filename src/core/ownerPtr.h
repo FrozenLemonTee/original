@@ -2,6 +2,7 @@
 #define OWNERPTR_H
 
 #include <utility>
+#include "meta.h"
 #include "autoPtr.h"
 #include "deleter.h"
 
@@ -34,7 +35,7 @@ namespace original {
     * @extends autoPtr
     */
     template <typename TYPE, typename DELETER = deleter<TYPE>>
-    class ownerPtr final : public autoPtr<TYPE, ownerPtr<TYPE, DELETER>, DELETER>{
+    class ownerPtr final : public autoPtr<TYPE, ownerPtr<TYPE, DELETER>, DELETER>, public moveOnlyMeta {
         template<typename, typename> friend class ownerPtr;
     public:
         /**
@@ -44,8 +45,7 @@ namespace original {
         */
         explicit ownerPtr(TYPE* p = std::nullptr_t{});
 
-        ownerPtr(const ownerPtr& other) = delete; ///< Copy construction prohibited
-        ownerPtr& operator=(const ownerPtr& other) = delete; ///< Copy assignment prohibited
+        
 
         /**
         * @brief Move constructor

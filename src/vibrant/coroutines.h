@@ -70,7 +70,7 @@ namespace original {
          * @note Iterators become invalid when the generator is destroyed or moved.
          */
         template<typename TYPE>
-        class generator {
+        class generator : public moveOnlyMeta {
         public:
             struct promise_type;
         private:
@@ -192,8 +192,7 @@ namespace original {
                 bool operator==(const iterator& other) const;
             };
 
-            generator(const generator&) = delete;            ///< Copy constructor deleted
-            generator& operator=(const generator&) = delete; ///< Copy assignment deleted
+            
 
             /**
              * @brief Move constructor transfers coroutine ownership
@@ -357,14 +356,14 @@ namespace original {
         };
 
         template<typename... Args>
-        class taskArgs {
+        class taskArgs : public moveOnlyMeta {
             using TupleType = tuple<std::decay_t<Args>...>;
             TupleType args_;
             executor* executor_{};
 
         public:
             template <typename TYPE, bool Prev>
-            class bridge {
+            class bridge : public moveOnlyMeta {
                 taskArgs args_;
                 task<TYPE> task_;
 
@@ -372,8 +371,7 @@ namespace original {
             public:
                 friend coroutine;
 
-                bridge(const bridge&) = delete;
-                bridge& operator=(const bridge&) = delete;
+                
 
                 bridge(bridge&&) noexcept = default;
                 bridge& operator=(bridge&&) noexcept = default;
@@ -399,8 +397,7 @@ namespace original {
 
             taskArgs(executor* exe, TupleType args);
 
-            taskArgs(const taskArgs&) = delete;
-            taskArgs& operator=(const taskArgs&) = delete;
+            
 
             taskArgs(taskArgs&& other) noexcept;
             taskArgs& operator=(taskArgs&& other) noexcept;
@@ -441,7 +438,7 @@ namespace original {
         };
 
         template<typename TYPE>
-        class task {
+        class task : public moveOnlyMeta {
         public:
             friend coroutine;
             struct promise_type;
@@ -497,8 +494,7 @@ namespace original {
                 void rethrow_if_exception() const;
             };
 
-            task(const task&) = delete;
-            task& operator=(const task&) = delete;
+            
 
             task() = default;
 
@@ -665,8 +661,7 @@ namespace original {
             void rethrow_if_exception() const;
         };
 
-        task(const task&) = delete;
-        task& operator=(const task&) = delete;
+        
 
         task() = default;
 

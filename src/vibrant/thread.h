@@ -15,6 +15,7 @@
 #include "functional"
 #include "hash.h"
 #include "ownerPtr.h"
+#include "core/meta.h"
 #include "zeit.h"
 
 
@@ -52,7 +53,8 @@ namespace original {
     template <typename DERIVED>
     class threadBase : public comparable<DERIVED>,
                        public hashable<DERIVED>,
-                       public printable {
+                       public printable,
+                       public moveOnlyMeta {
     protected:
         /**
          * @class threadData
@@ -111,8 +113,7 @@ namespace original {
          */
         ~threadBase() noexcept override = default;
 
-        threadBase(const threadBase&) = delete; ///< Deleted copy constructor
-        threadBase& operator=(const threadBase&) = delete; ///< Deleted copy assignment
+        
 
         threadBase(threadBase&& other) noexcept = default; ///< Default move constructor
         threadBase& operator=(threadBase&& other) noexcept = default; ///< Default move assignment
@@ -182,7 +183,7 @@ namespace original {
      * thread.join();
      * @endcode
      */
-    class pThread final : public threadBase<pThread> {
+    class pThread final : public threadBase<pThread>, public moveOnlyMeta {
         pthread_t handle; ///< Native thread handle
         bool is_joinable; ///< Flag indicating if thread can be joined
 
@@ -289,7 +290,7 @@ namespace original {
      * thread.join();
      * @endcode
      */
-    class wThread final : public threadBase<wThread> {
+    class wThread final : public threadBase<wThread>, public moveOnlyMeta {
         HANDLE handle;      ///< Windows thread handle
         bool is_joinable;   ///< Flag indicating if thread can be joined
 
@@ -430,7 +431,7 @@ namespace original {
      * @see original::wThread (MSVC)
      * @see original::threadBase
      */
-    class thread final : public threadBase<thread> {
+    class thread final : public threadBase<thread>, public moveOnlyMeta {
         #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
                 pThread thread_; ///< POSIX thread implementation (GCC/Clang)
         #elif ORIGINAL_COMPILER_MSVC
@@ -564,8 +565,7 @@ namespace original {
         explicit thread(wThread w_thread, joinPolicy policy = AUTO_JOIN);
 #endif
 
-        thread(const thread&) = delete; ///< Deleted copy constructor
-        thread& operator=(const thread&) = delete; ///< Deleted copy assignment
+        
 
         /**
          * @brief Move constructor (defaults to AUTO_JOIN)
