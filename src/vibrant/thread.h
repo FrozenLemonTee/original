@@ -183,7 +183,7 @@ namespace original {
      * thread.join();
      * @endcode
      */
-    class pThread final : public threadBase<pThread>, public moveOnlyMeta {
+    class pThread final : public threadBase<pThread> {
         pthread_t handle; ///< Native thread handle
         bool is_joinable; ///< Flag indicating if thread can be joined
 
@@ -431,7 +431,7 @@ namespace original {
      * @see original::wThread (MSVC)
      * @see original::threadBase
      */
-    class thread final : public threadBase<thread>, public moveOnlyMeta {
+    class thread final : public threadBase<thread> {
         #if ORIGINAL_COMPILER_GCC || ORIGINAL_COMPILER_CLANG
                 pThread thread_; ///< POSIX thread implementation (GCC/Clang)
         #elif ORIGINAL_COMPILER_MSVC

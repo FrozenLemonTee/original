@@ -26,6 +26,8 @@ namespace original
     public:
         noCopy(const noCopy&) noexcept = delete;
         noCopy& operator=(const noCopy&) noexcept = delete;
+        noCopy(noCopy&&) noexcept = default;
+        noCopy& operator=(noCopy&&) noexcept = default;
     };
 
     class noMove
