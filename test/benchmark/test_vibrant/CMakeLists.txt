@@ -1,6 +1,6 @@
 # test/benchmark/test_vibrant/CMakeLists.txt
 
-file(GLOB VIBRANT_BENCHMARKS CONFIGURE_DEPENDS "bench_*.cpp")
+file(GLOB_RECURSE VIBRANT_BENCHMARKS CONFIGURE_DEPENDS "bench_*.cpp")
 
 add_executable(vibrant_benchmark ${VIBRANT_BENCHMARKS})
 
