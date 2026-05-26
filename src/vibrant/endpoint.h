@@ -1,6 +1,7 @@
 #ifndef ORIGINAL_ENDPOINT_H
 #define ORIGINAL_ENDPOINT_H
 #include <config.h>
+#include <string>
 
 #if ORIGINAL_PLATFORM_WINDOWS
     #ifndef NOMINMAX
