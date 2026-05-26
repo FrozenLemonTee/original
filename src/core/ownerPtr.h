@@ -177,10 +177,11 @@ namespace original {
             return *this;
 
         this->removeStrongRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         other.ref_count = autoPtr<TYPE, ownerPtr, DELETER>::newRefCount();
         other.addStrongRef();
+        this->alias_ptr = other.alias_ptr;
+        other.alias_ptr = nullptr;
         return *this;
     }
 
