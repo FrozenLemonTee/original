@@ -383,12 +383,21 @@ namespace original {
                 taskArgs<Args..., Others...>::template bridge<TYPE, Prev> operator>>(taskArgs<Others...>&& args);
 
                 template<typename Callback>
-                requires isTaskInvokable<Callback>::value
+                requires original::coroutine::isTaskInvokable<Callback>::value
                 auto operator|(Callback&& c);
 
                 template<typename Callback>
-                requires ((!Prev) && isTaskInvokable<Callback, tuple<Args...>>::value) ||
-                         (Prev && isTaskInvokable<Callback, TYPE, tuple<Args...>>::value)
+                requires ((!Prev) &&
+                         original::coroutine::isTaskInvokable<
+                            Callback,
+                            original::tuple<Args...>
+                         >::value) ||
+                         (Prev &&
+                         original::coroutine::isTaskInvokable<
+                            Callback,
+                            TYPE,
+                            original::tuple<Args...>
+                         >::value)
                 auto operator>>(Callback&& c);
             };
 
@@ -413,11 +422,16 @@ namespace original {
             taskArgs<Args..., Others...> operator>>(taskArgs<Others...>&& other);
 
             template<typename Callback>
-            requires isTaskInvokable<Callback>::value
+            requires original::coroutine::isTaskInvokable<Callback>::value
             auto operator|(Callback&& c);
 
             template<typename Callback>
-            requires isTaskInvokable<Callback, taskArgsType<taskArgs>>::value
+            requires original::coroutine::isTaskInvokable<
+                Callback,
+                original::coroutine::taskArgsType<
+                    original::coroutine::taskArgs<Args...>
+                >
+            >::value
             auto operator>>(Callback&& c);
 
             template<typename... Callback>
@@ -531,11 +545,14 @@ namespace original {
             task<U> operator>>(task<U> rhs);
 
             template<typename Callback>
-            requires isTaskInvokable<Callback>::value
+            requires original::coroutine::isTaskInvokable<Callback>::value
             auto operator|(Callback&& c);
 
             template<typename Callback>
-            requires isTaskInvokable<Callback, taskArgsType<TYPE>>::value
+            requires original::coroutine::isTaskInvokable<
+                Callback,
+                original::coroutine::taskArgsType<TYPE>
+            >::value
             auto operator>>(Callback&& c);
 
             task operator|(executor& exec);
@@ -700,11 +717,11 @@ namespace original {
         task<U> operator>>(task<U> rhs);
 
         template<typename Callback>
-        requires isTaskInvokable<Callback>::value
+        requires original::coroutine::isTaskInvokable<Callback>::value
         auto operator|(Callback&& c);
 
         template<typename Callback>
-        requires isTaskInvokable<Callback>::value
+        requires original::coroutine::isTaskInvokable<Callback>::value
         auto operator>>(Callback&& c);
 
         task operator|(executor& exec);
