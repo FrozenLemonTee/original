@@ -5,6 +5,7 @@
 #include "executors.h"
 #include "singleton.h"
 #include <gtest/gtest.h>
+#include <array>
 #include <chrono>
 #include <string>
 
