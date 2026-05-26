@@ -32,6 +32,8 @@
 #include "refCntPtr.h"
 #include "array.h"
 
+#include <thread>
+
 namespace original
 {
     // ==================== Task Delegator (Work-Stealing Thread Pool) ====================
@@ -319,10 +321,18 @@ namespace original
 
     public:
         /**
-         * @brief Constructs a work-stealing task delegator with a given number of threads
-         * @param thread_cnt Number of threads (default: 8)
+         * @brief Returns the default worker thread count
+         * @return Hardware concurrency capped at 4, or 4 when unknown
+         * @details The cap keeps the default conservative for short-task workloads,
+         *          while callers can still pass a larger explicit thread count.
          */
-        explicit taskDelegator(u_integer thread_cnt = 8);
+        static u_integer defaultThreadCount() noexcept;
+
+        /**
+         * @brief Constructs a work-stealing task delegator with a given number of threads
+         * @param thread_cnt Number of threads
+         */
+        explicit taskDelegator(u_integer thread_cnt = defaultThreadCount());
 
         /**
          * @brief Submits a task with normal priority
@@ -647,6 +657,19 @@ inline original::u_integer original::taskDelegator::moveAllDeferred()
         activated += 1;
     }
     return activated;
+}
+
+inline original::u_integer original::taskDelegator::defaultThreadCount() noexcept
+{
+    constexpr u_integer max_default_threads = 4;
+    const auto hardware_threads = std::thread::hardware_concurrency();
+    if (hardware_threads == 0)
+    {
+        return max_default_threads;
+    }
+
+    const auto count = static_cast<u_integer>(hardware_threads);
+    return count < max_default_threads ? count : max_default_threads;
 }
 
 inline original::taskDelegator::taskDelegator(const u_integer thread_cnt)
