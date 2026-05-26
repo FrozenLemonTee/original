@@ -11,6 +11,7 @@
 #include "executor.h"
 #include "executors.h"
 #include "generators.h"
+#include "lockedDeque.h"
 #include "lockedQueue.h"
 #include "lockedPrique.h"
 #include "mutex.h"
