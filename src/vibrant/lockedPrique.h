@@ -10,8 +10,8 @@
 #include "meta.h"
 #include "mutex.h"
 
-namespace original {
-
+namespace original
+{
     /**
      * @class lockedPrique
      * @brief Thread-safe priority queue with locking mechanism
@@ -29,16 +29,17 @@ namespace original {
      * All operations are thread-safe and protected by internal mutex.
      * Size is maintained atomically for efficient empty() and size() checks.
      */
-    template<typename TYPE,
-        template <typename> typename Callback = increaseComparator,
-        template <typename, typename> typename SERIAL = vector,
-        template <typename> typename ALLOC = allocator>
-    requires Compare<Callback<TYPE>, TYPE>
-    class lockedPrique : public noMeta {
-        prique<TYPE, Callback, SERIAL, ALLOC> prique_;  ///< Underlying priority queue
-        mutable mutex mutex_{};                         ///< Mutex for thread safety
-        mutable condition condition_{};                 ///< Condition variable for synchronization
-        atomic<u_integer> size_;                        ///< Atomic size counter
+    template <typename TYPE,
+              template <typename> typename Callback = increaseComparator,
+              template <typename, typename> typename SERIAL = vector,
+              template <typename> typename ALLOC = allocator>
+        requires Compare<Callback<TYPE>, TYPE>
+    class lockedPrique : public noMeta
+    {
+        prique<TYPE, Callback, SERIAL, ALLOC> prique_; ///< Underlying priority queue
+        mutable mutex mutex_{}; ///< Mutex for thread safety
+        mutable condition condition_{}; ///< Condition variable for synchronization
+        atomic<u_integer> size_; ///< Atomic size counter
 
     public:
         /**
@@ -110,15 +111,17 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::lockedPrique()
-    : size_(makeAtomic<u_integer>(0)) {}
+    : size_(makeAtomic<u_integer>(0))
+{
+}
 
 template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 bool original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::empty() const noexcept
 {
     return *this->size_ == 0;
@@ -128,7 +131,7 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 original::u_integer original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::size() const noexcept
 {
     return *this->size_;
@@ -138,7 +141,7 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 original::alternative<TYPE> original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::top() const noexcept
 {
     uniqueLock lock{this->mutex_};
@@ -151,7 +154,7 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 void original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::push(TYPE e)
 {
     {
@@ -166,7 +169,7 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 TYPE original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::pop()
 {
     uniqueLock lock{this->mutex_};
@@ -183,11 +186,12 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 original::alternative<TYPE> original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::tryPop()
 {
     uniqueLock lock{this->mutex_};
-    if (this->empty()) {
+    if (this->empty())
+    {
         return alternative<TYPE>{};
     }
     TYPE e = std::move(this->prique_.pop());
@@ -199,15 +203,16 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 original::alternative<TYPE> original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::popFor(time::duration timeout)
 {
     uniqueLock lock{this->mutex_};
     const bool success = this->condition_.waitFor(this->mutex_, timeout, [this]
     {
-       return !this->empty();
+        return !this->empty();
     });
-    if (success) {
+    if (success)
+    {
         TYPE e = std::move(this->prique_.pop());
         this->size_ -= 1;
         return alternative<TYPE>{std::move(e)};
@@ -219,7 +224,7 @@ template <typename TYPE,
           template <typename> typename Callback,
           template <typename, typename> typename SERIAL,
           template <typename> typename ALLOC>
-requires original::Compare<Callback<TYPE>, TYPE>
+    requires original::Compare<Callback<TYPE>, TYPE>
 void original::lockedPrique<TYPE, Callback, SERIAL, ALLOC>::clear() noexcept
 {
     uniqueLock lock{this->mutex_};
