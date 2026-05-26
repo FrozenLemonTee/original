@@ -513,7 +513,6 @@ namespace original{
     strongPtr<TYPE, DELETER>::strongPtr(refCountBase* cnt, TYPE* alias) : strongPtr()
     {
         this->removeStrongRef();
-        this->clean();
         this->ref_count = cnt;
         this->alias_ptr = alias;
         this->addStrongRef();
@@ -536,7 +535,6 @@ namespace original{
             return *this;
 
         this->removeStrongRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         this->addStrongRef();
         this->alias_ptr = other.alias_ptr;
@@ -599,7 +597,6 @@ namespace original{
     template<typename TYPE, typename DELETER>
     void strongPtr<TYPE, DELETER>::reset() noexcept {
         this->removeStrongRef();
-        this->clean();
         this->ref_count = autoPtr<TYPE, strongPtr, DELETER>::newRefCount();
         this->addStrongRef();
         this->alias_ptr = nullptr;
@@ -611,11 +608,11 @@ namespace original{
             return *this;
 
         this->removeStrongRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         other.ref_count = autoPtr<TYPE, strongPtr, DELETER>::newRefCount();
         other.addStrongRef();
         this->alias_ptr = other.alias_ptr;
+        other.alias_ptr = nullptr;
         return *this;
     }
 
@@ -648,7 +645,6 @@ namespace original{
     weakPtr<TYPE, DELETER>::weakPtr(refCountBase* cnt, TYPE* alias) : weakPtr()
     {
         this->removeWeakRef();
-        this->clean();
         this->ref_count = cnt;
         this->alias_ptr = alias;
         this->addWeakRef();
@@ -672,7 +668,6 @@ namespace original{
             return *this;
 
         this->removeWeakRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         this->addWeakRef();
         this->alias_ptr = other.alias_ptr;
@@ -691,7 +686,6 @@ namespace original{
             return *this;
 
         this->removeWeakRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         this->addWeakRef();
         this->alias_ptr = other.alias_ptr;
@@ -709,11 +703,11 @@ namespace original{
             return *this;
 
         this->removeWeakRef();
-        this->clean();
         this->ref_count = *other.ref_count;
         other.ref_count = autoPtr<TYPE, weakPtr, DELETER>::newRefCount();
         other.addWeakRef();
         this->alias_ptr = other.alias_ptr;
+        other.alias_ptr = nullptr;
         return *this;
     }
 
@@ -768,11 +762,9 @@ namespace original{
     template<typename TYPE, typename DELETER>
     strongPtr<TYPE, DELETER> weakPtr<TYPE, DELETER>::lock() const {
         strongPtr<TYPE, DELETER> strong_ptr;
-        if (!this->expired()){
+        if (this->tryAddStrongRef()){
             strong_ptr.removeStrongRef();
-            strong_ptr.clean();
             strong_ptr.ref_count = *this->ref_count;
-            strong_ptr.addStrongRef();
             strong_ptr.alias_ptr = this->alias_ptr;
         }
         return strong_ptr;
