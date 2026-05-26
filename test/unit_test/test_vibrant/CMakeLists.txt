@@ -2,7 +2,7 @@
 
 enable_testing()
 
-file(GLOB VIBRANT_TESTS "test_*.cpp")
+file(GLOB VIBRANT_TESTS CONFIGURE_DEPENDS "test_*.cpp")
 
 add_executable(vibrant_test ${VIBRANT_TESTS})
 
