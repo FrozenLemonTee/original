@@ -16,3 +16,4 @@ endif()
 # test cases
 add_subdirectory(other)
 add_subdirectory(unit_test)
+add_subdirectory(benchmark)
