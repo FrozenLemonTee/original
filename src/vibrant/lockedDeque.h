@@ -140,4 +140,167 @@ namespace original
     };
 } // namespace original
 
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::lockedDeque()
+    : size_(makeAtomic<u_integer>(0))
+{
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+bool original::lockedDeque<TYPE, SERIAL, ALLOC>::empty() const noexcept
+{
+    return *this->size_ == 0;
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::u_integer
+original::lockedDeque<TYPE, SERIAL, ALLOC>::size() const noexcept
+{
+    return *this->size_;
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::head() const noexcept
+{
+    uniqueLock lock{this->mutex_};
+    if (!this->empty())
+        return alternative<TYPE>{std::move(this->deque_.head())};
+    return alternative<TYPE>{};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::tail() const noexcept
+{
+    uniqueLock lock{this->mutex_};
+    if (!this->empty())
+        return alternative<TYPE>{std::move(this->deque_.tail())};
+    return alternative<TYPE>{};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+void original::lockedDeque<TYPE, SERIAL, ALLOC>::pushBegin(TYPE e)
+{
+    {
+        uniqueLock lock{this->mutex_};
+        this->deque_.pushBegin(std::move(e));
+        this->size_ += 1;
+    }
+    this->condition_.notify();
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+void original::lockedDeque<TYPE, SERIAL, ALLOC>::pushEnd(TYPE e)
+{
+    {
+        uniqueLock lock{this->mutex_};
+        this->deque_.pushEnd(std::move(e));
+        this->size_ += 1;
+    }
+    this->condition_.notify();
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+TYPE original::lockedDeque<TYPE, SERIAL, ALLOC>::popBegin()
+{
+    uniqueLock lock{this->mutex_};
+    this->condition_.wait(this->mutex_, [this] { return !this->empty(); });
+    TYPE e = std::move(this->deque_.popBegin());
+    this->size_ -= 1;
+    return e;
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+TYPE original::lockedDeque<TYPE, SERIAL, ALLOC>::popEnd()
+{
+    uniqueLock lock{this->mutex_};
+    this->condition_.wait(this->mutex_, [this] { return !this->empty(); });
+    TYPE e = std::move(this->deque_.popEnd());
+    this->size_ -= 1;
+    return e;
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::tryPopBegin()
+{
+    uniqueLock lock{this->mutex_};
+    if (this->empty())
+    {
+        return alternative<TYPE>{};
+    }
+    TYPE e = std::move(this->deque_.popBegin());
+    this->size_ -= 1;
+    return alternative<TYPE>{std::move(e)};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::tryPopEnd()
+{
+    uniqueLock lock{this->mutex_};
+    if (this->empty())
+    {
+        return alternative<TYPE>{};
+    }
+    TYPE e = std::move(this->deque_.popEnd());
+    this->size_ -= 1;
+    return alternative<TYPE>{std::move(e)};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::popBeginFor(time::duration timeout)
+{
+    uniqueLock lock{this->mutex_};
+    const bool success = this->condition_.waitFor(
+        this->mutex_, timeout, [this] { return !this->empty(); });
+    if (success)
+    {
+        TYPE e = std::move(this->deque_.popBegin());
+        this->size_ -= 1;
+        return alternative<TYPE>{std::move(e)};
+    }
+    return alternative<TYPE>{};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+original::alternative<TYPE>
+original::lockedDeque<TYPE, SERIAL, ALLOC>::popEndFor(time::duration timeout)
+{
+    uniqueLock lock{this->mutex_};
+    const bool success = this->condition_.waitFor(
+        this->mutex_, timeout, [this] { return !this->empty(); });
+    if (success)
+    {
+        TYPE e = std::move(this->deque_.popEnd());
+        this->size_ -= 1;
+        return alternative<TYPE>{std::move(e)};
+    }
+    return alternative<TYPE>{};
+}
+
+template <typename TYPE, template <typename, typename> typename SERIAL,
+          template <typename> typename ALLOC>
+void original::lockedDeque<TYPE, SERIAL, ALLOC>::clear() noexcept
+{
+    uniqueLock lock{this->mutex_};
+    this->deque_.clear();
+    this->size_ = 0;
+}
+
 #endif // ORIGINAL_LOCKEDDEQUE_H
