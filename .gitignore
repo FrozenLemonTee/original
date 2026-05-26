@@ -1,6 +1,7 @@
 cmake-build-*/
 **/.idea/
 build/
+build-*/
 install/
 .vs/
 .vscode/
