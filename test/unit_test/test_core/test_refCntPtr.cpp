@@ -1,4 +1,6 @@
 #include <thread>
+#include <atomic>
+#include <vector>
 #include <gtest/gtest.h>
 #include "refCntPtr.h"
 
@@ -13,6 +15,16 @@ public:
     ~TrackedObject() { alive_count--; }
 };
 int TrackedObject::alive_count = 0;
+
+class ConcurrentTrackedObject {
+public:
+    static std::atomic<int> destroyed_count;
+    int value;
+
+    explicit ConcurrentTrackedObject(const int v) : value(v) {}
+    ~ConcurrentTrackedObject() { destroyed_count.fetch_add(1, std::memory_order_relaxed); }
+};
+std::atomic<int> ConcurrentTrackedObject::destroyed_count{0};
 
 // 测试强引用基础功能
 TEST(RefCntPtrTest, StrongPtrBasic) {
@@ -397,4 +409,36 @@ TEST(RefCntPtrTest, MultiThreadedMixedOperations) {
         for (auto &th : threads) th.join();
     }
     EXPECT_EQ(TrackedObject::alive_count, 0);
+}
+
+TEST(RefCntPtrTest, ConcurrentFinalStrongReleaseDestroysOnce) {
+    ConcurrentTrackedObject::destroyed_count.store(0, std::memory_order_relaxed);
+
+    constexpr int thread_count = 8;
+    constexpr int rounds = 200;
+    for (int round = 0; round < rounds; ++round) {
+        auto shared = original::makeStrongPtr<ConcurrentTrackedObject>(round);
+        std::atomic<bool> start{false};
+        std::vector<std::thread> threads;
+        threads.reserve(thread_count);
+
+        for (int i = 0; i < thread_count; ++i) {
+            auto local = shared;
+            threads.emplace_back([ptr = std::move(local), &start]() mutable {
+                while (!start.load(std::memory_order_acquire)) {
+                    std::this_thread::yield();
+                }
+                EXPECT_TRUE(ptr);
+                ptr.reset();
+            });
+        }
+
+        shared.reset();
+        start.store(true, std::memory_order_release);
+        for (auto& thread : threads) {
+            thread.join();
+        }
+    }
+
+    EXPECT_EQ(ConcurrentTrackedObject::destroyed_count.load(std::memory_order_relaxed), rounds);
 }
