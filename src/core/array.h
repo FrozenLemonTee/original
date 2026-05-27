@@ -3,7 +3,7 @@
 #pragma once
 
 #include <initializer_list>
-#include "allocator.h"
+#include "arrayStorage.h"
 #include "arrayView.h"
 #include "config.h"
 #include "baseArray.h"
@@ -37,26 +37,10 @@ namespace original {
      *
      *          This class offers both copy and move semantics, along with an iterator class that supports
      *          random access operations. Memory management is handled through the specified allocator type.
-     */
+    */
     template<typename TYPE, typename ALLOC = allocator<TYPE>>
     class array final : public iterationStream<TYPE, array<TYPE, ALLOC>>, public baseArray<TYPE, ALLOC> {
-        u_integer size_; ///< Size of the array
-        TYPE* body;    ///< Pointer to the array's data
-
-        /**
-         * @brief Initializes the array with a specified size.
-         * @param size The size of the array to allocate.
-         * @details Allocates memory for the array using the configured allocator and initializes
-         *          each element to the default value of TYPE.
-         */
-        void arrInit(u_integer size);
-
-        /**
-         * @brief Destroys the array and releases its allocated memory.
-         * @details Deallocates the memory used by the array through the configured allocator.
-         *          Destroys all elements before de-allocation.
-         */
-        void arrDestroy() noexcept;
+        arrayStorage<TYPE, ALLOC> storage_; ///< Non-iterable backing storage
 
         /**
          * @brief Retrieves an element at the specified position.
@@ -359,50 +343,16 @@ namespace std {
     void swap(original::array<TYPE, ALLOC>& lhs, original::array<TYPE, ALLOC>& rhs) noexcept; // NOLINT
 }
 
-    template<typename TYPE, typename ALLOC>
-    void original::array<TYPE, ALLOC>::arrInit(const u_integer size) {
-        this->size_ = size;
-        this->body = this->allocate(this->size_);
-        for (u_integer i = 0; i < this->size(); ++i) {
-            this->construct(&this->body[i]);
-        }
-    }
-
-    template<typename TYPE, typename ALLOC>
-    void original::array<TYPE, ALLOC>::arrDestroy() noexcept
-    {
-        if (this->body){
-            for (u_integer i = 0; i < this->size_; ++i) {
-                this->destroy(&this->body[i]);
-            }
-            this->deallocate(this->body, this->size_);
-            this->body = nullptr;
-        }
-    }
-
     template <typename TYPE, typename ALLOC>
     TYPE original::array<TYPE, ALLOC>::getElem(integer pos) const
     {
-        if constexpr (std::is_copy_constructible_v<TYPE>) {
-            return this->body[pos];
-        } else if constexpr (std::is_move_constructible_v<TYPE>) {
-            return std::move(this->body[pos]);
-        } else {
-            staticError<unSupportedMethodError, !std::is_copy_constructible_v<TYPE> && !std::is_move_constructible_v<TYPE>>::asserts();
-            return TYPE{};
-        }
+        return this->storage_.get(static_cast<u_integer>(pos));
     }
 
     template <typename TYPE, typename ALLOC>
     void original::array<TYPE, ALLOC>::setElem(integer pos, const TYPE& e)
     {
-        if constexpr (std::is_copy_assignable_v<TYPE>) {
-            this->body[pos] = e;
-        } else if constexpr (std::is_move_assignable_v<TYPE>) {
-            this->body[pos] = std::move(const_cast<TYPE&>(e));
-        } else {
-            staticError<unSupportedMethodError, !std::is_copy_constructible_v<TYPE> && !std::is_move_constructible_v<TYPE>>::asserts();
-        }
+        this->storage_.set(static_cast<u_integer>(pos), e);
     }
 
     template<typename TYPE, typename ALLOC>
@@ -450,9 +400,7 @@ namespace std {
 
     template<typename TYPE, typename ALLOC>
     original::array<TYPE, ALLOC>::array(const u_integer size, ALLOC alloc)
-        : baseArray<TYPE, ALLOC>(std::move(alloc)), size_(), body(nullptr) {
-        this->arrInit(size);
-    }
+        : baseArray<TYPE, ALLOC>(alloc), storage_(size, std::move(alloc)) {}
 
     template<typename TYPE, typename ALLOC>
     original::array<TYPE, ALLOC>::array(const std::initializer_list<TYPE>& lst)
@@ -505,10 +453,8 @@ namespace std {
         if (this == &other)
             return *this;
 
-        this->arrDestroy();
-
-        this->arrInit(other.size());
-        for (u_integer i = 0; i < this->size_; i++) {
+        this->storage_ = arrayStorage<TYPE, ALLOC>{other.size()};
+        for (u_integer i = 0; i < this->storage_.size(); i++) {
             this->setElem(i, other.getElem(i));
         }
         if constexpr (ALLOC::propagate_on_container_copy_assignment::value){
@@ -527,14 +473,10 @@ namespace std {
         if (this == &other)
             return *this;
 
-        this->arrDestroy();
-
-        this->body = other.body;
-        this->size_ = other.size_;
+        this->storage_ = std::move(other.storage_);
         if constexpr (ALLOC::propagate_on_container_move_assignment::value){
             this->allocator = std::move(other.allocator);
         }
-        other.arrInit(0);
         return *this;
     }
 
@@ -543,33 +485,30 @@ namespace std {
         if (this == &other)
             return;
 
-        std::swap(this->size_, other.size_);
-        std::swap(this->body, other.body);
+        this->storage_.swap(other.storage_);
         if constexpr (ALLOC::propagate_on_container_swap::value) {
             std::swap(this->allocator, other.allocator);
         }
     }
 
     template<typename TYPE, typename ALLOC>
-    original::array<TYPE, ALLOC>::~array() {
-        this->arrDestroy();
-    }
+    original::array<TYPE, ALLOC>::~array() = default;
 
     template<typename TYPE, typename ALLOC>
     auto original::array<TYPE, ALLOC>::size() const -> u_integer
     {
-        return this->size_;
+        return this->storage_.size();
     }
 
     template<typename TYPE, typename ALLOC>
     TYPE& original::array<TYPE, ALLOC>::data() const {
-        return this->body[0];
+        return const_cast<TYPE&>(this->storage_[0]);
     }
 
     template <typename TYPE, typename ALLOC>
     original::arrayView<TYPE> original::array<TYPE, ALLOC>::view()
     {
-        return arrayView<TYPE>{this->body, this->size_};
+        return arrayView<TYPE>{this->storage_.data(), this->storage_.size()};
     }
 
     template <typename TYPE, typename ALLOC>
@@ -584,13 +523,13 @@ namespace std {
         if (start >= end)
             return arrayView<TYPE>{};
 
-        return arrayView<TYPE>{this->body + start, end - start};
+        return arrayView<TYPE>{this->storage_.data() + start, end - start};
     }
 
     template <typename TYPE, typename ALLOC>
     original::arrayView<const TYPE> original::array<TYPE, ALLOC>::view() const
     {
-        return arrayView<const TYPE>{this->body, this->size_};
+        return arrayView<const TYPE>{this->storage_.data(), this->storage_.size()};
     }
 
     template <typename TYPE, typename ALLOC>
@@ -605,7 +544,7 @@ namespace std {
         if (start >= end)
             return arrayView<const TYPE>{};
 
-        return arrayView<const TYPE>{this->body + start, end - start};
+        return arrayView<const TYPE>{this->storage_.data() + start, end - start};
     }
 
     template<typename TYPE, typename ALLOC>
@@ -625,7 +564,7 @@ namespace std {
             throw outOfBoundError("Index " + std::to_string(this->parseNegIndex(index)) +
                                   " out of bound max index " + std::to_string(this->size() - 1) + ".");
         }
-        return this->body[this->parseNegIndex(index)];
+        return this->storage_[static_cast<u_integer>(this->parseNegIndex(index))];
     }
 
     template<typename TYPE, typename ALLOC>
@@ -658,12 +597,12 @@ namespace std {
 
     template<typename TYPE, typename ALLOC>
     auto original::array<TYPE, ALLOC>::begins() const -> Iterator* {
-        return new Iterator(&this->body[0], this, 0);
+        return new Iterator(const_cast<TYPE*>(this->storage_.data()), this, 0);
     }
 
     template<typename TYPE, typename ALLOC>
     auto original::array<TYPE, ALLOC>::ends() const -> Iterator* {
-        return new Iterator(&this->body[this->size() - 1], this, this->size() - 1);
+        return new Iterator(const_cast<TYPE*>(this->storage_.data()) + this->size() - 1, this, this->size() - 1);
     }
 
     template<typename TYPE, typename ALLOC>
