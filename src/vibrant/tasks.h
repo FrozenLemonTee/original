@@ -30,7 +30,7 @@
 #include "lockedQueue.h"
 #include "lockedDeque.h"
 #include "refCntPtr.h"
-#include "array.h"
+#include "arrayStorage.h"
 
 #include <thread>
 
@@ -248,7 +248,7 @@ namespace original
             void clear() noexcept;
         };
 
-        array<strongPtr<workerSlot>> workers_; ///< Worker slots with threads and local queues
+        arrayStorage<strongPtr<workerSlot>> workers_; ///< Worker slots with threads and local queues
         lockedQueue<taskPtr> tasks_deferred_; ///< Pool-level FIFO queue for unactivated deferred tasks
         mutable condition condition_; ///< Synchronization condition
         mutable mutex mutex_wait_; ///< Mutex for sleeping and lifecycle transitions
