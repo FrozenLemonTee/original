@@ -559,24 +559,21 @@ void original::autoPtr<TYPE, DERIVED, DELETER>::removeStrongRef() noexcept
         return;
     }
 
-    u_integer refs = *current->strong_refs;
-    while (refs != 0)
+    const u_integer refs = current->strong_refs.fetchSub(1);
+    if (refs == 0)
     {
-        if (const u_integer desired = refs - 1; current->strong_refs.exchangeCmp(refs, desired))
-        {
-            if (desired == 0)
-            {
-                current->destroyPtr();
-            }
-            this->ref_count = nullptr;
-            this->alias_ptr = nullptr;
-            releaseControlRef(current);
-            return;
-        }
+        current->strong_refs.fetchAdd(1);
+        this->ref_count = nullptr;
+        this->alias_ptr = nullptr;
+        return;
     }
-
+    if (refs == 1)
+    {
+        current->destroyPtr();
+    }
     this->ref_count = nullptr;
     this->alias_ptr = nullptr;
+    releaseControlRef(current);
 }
 
 template <typename TYPE, typename DERIVED, typename DELETER>
@@ -588,20 +585,16 @@ void original::autoPtr<TYPE, DERIVED, DELETER>::removeWeakRef() noexcept
         return;
     }
 
-    u_integer refs = *current->weak_refs;
-    while (refs != 0)
+    if (const u_integer refs = current->weak_refs.fetchSub(1); refs == 0)
     {
-        if (const u_integer desired = refs - 1; current->weak_refs.exchangeCmp(refs, desired))
-        {
-            this->ref_count = nullptr;
-            this->alias_ptr = nullptr;
-            releaseControlRef(current);
-            return;
-        }
+        current->weak_refs.fetchAdd(1);
+        this->ref_count = nullptr;
+        this->alias_ptr = nullptr;
+        return;
     }
-
     this->ref_count = nullptr;
     this->alias_ptr = nullptr;
+    releaseControlRef(current);
 }
 
 template <typename TYPE, typename DERIVED, typename DELETER>
@@ -613,16 +606,13 @@ bool original::autoPtr<TYPE, DERIVED, DELETER>::tryAddStrongRef() const noexcept
         return false;
     }
 
-    u_integer refs = *current->strong_refs;
-    while (refs != 0)
+    if (const u_integer refs = current->strong_refs.fetchAdd(1); refs == 0)
     {
-        if (const u_integer desired = refs + 1; current->strong_refs.exchangeCmp(refs, desired))
-        {
-            current->total_refs += 1;
-            return true;
-        }
+        current->strong_refs.fetchSub(1);
+        return false;
     }
-    return false;
+    current->total_refs.fetchAdd(1);
+    return true;
 }
 
 template <typename TYPE, typename DERIVED, typename DELETER>
@@ -633,17 +623,15 @@ void original::autoPtr<TYPE, DERIVED, DELETER>::releaseControlRef(const refCount
         return;
     }
 
-    u_integer refs = *current->total_refs;
-    while (refs != 0)
+    const u_integer refs = current->total_refs.fetchSub(1);
+    if (refs == 0)
     {
-        if (const u_integer desired = refs - 1; current->total_refs.exchangeCmp(refs, desired))
-        {
-            if (desired == 0)
-            {
-                delete current;
-            }
-            return;
-        }
+        current->total_refs.fetchAdd(1);
+        return;
+    }
+    if (refs == 1)
+    {
+        delete current;
     }
 }
 
