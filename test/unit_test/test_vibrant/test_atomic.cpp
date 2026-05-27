@@ -21,6 +21,20 @@ TEST(AtomicTest, StoreAndLoadInt) {
     EXPECT_EQ(a.load(), 42);
 }
 
+TEST(AtomicTest, FetchAddInt) {
+    auto a = makeAtomic(10);
+    const int old = a.fetchAdd(5);
+    EXPECT_EQ(old, 10);
+    EXPECT_EQ(a.load(), 15);
+}
+
+TEST(AtomicTest, FetchSubInt) {
+    auto a = makeAtomic(10);
+    const int old = a.fetchSub(3);
+    EXPECT_EQ(old, 10);
+    EXPECT_EQ(a.load(), 7);
+}
+
 TEST(AtomicTest, ExchangeInt) {
     auto a = makeAtomic(1);
     const int old = a.exchange(99);
