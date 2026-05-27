@@ -160,6 +160,22 @@ namespace original {
         atomicImpl& operator=(TYPE value) noexcept;
 
         /**
+         * @brief Atomically adds a value
+         * @param value Value to add
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The previous value
+         */
+        TYPE fetchAdd(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
+         * @brief Atomically subtracts a value
+         * @param value Value to subtract
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The previous value
+         */
+        TYPE fetchSub(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
          * @brief Atomic addition assignment
          * @param value Value to add
          * @return Reference to this atomic object
@@ -278,6 +294,22 @@ namespace original {
          * @param value Value to store
          */
         atomicImpl& operator=(TYPE value) noexcept;
+
+        /**
+         * @brief Atomically adds a value
+         * @param value Value to add
+         * @param order Memory ordering (ignored)
+         * @return The previous value
+         */
+        TYPE fetchAdd(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
+         * @brief Atomically subtracts a value
+         * @param value Value to subtract
+         * @param order Memory ordering (ignored)
+         * @return The previous value
+         */
+        TYPE fetchSub(TYPE value, memOrder order = SEQ_CST) noexcept;
 
         /**
          * @brief Atomic addition assignment
@@ -504,6 +536,24 @@ namespace original {
         atomicImpl& operator=(TYPE value) noexcept;
 
         /**
+         * @brief Atomically adds a value
+         * @param value Value to add
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The previous value
+         * @implementation Uses InterlockedExchangeAdd/InterlockedExchangeAdd64
+         */
+        TYPE fetchAdd(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
+         * @brief Atomically subtracts a value
+         * @param value Value to subtract
+         * @param order Memory ordering constraint (default: SEQ_CST)
+         * @return The previous value
+         * @implementation Implements as addition of negative value
+         */
+        TYPE fetchSub(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
          * @brief Atomic addition assignment
          * @param value Value to add
          * @return Reference to this atomic object
@@ -647,6 +697,24 @@ namespace original {
         atomicImpl& operator=(TYPE value) noexcept;
 
         /**
+         * @brief Atomically adds a value
+         * @param value Value to add
+         * @param order Memory ordering (ignored)
+         * @return The previous value
+         * @implementation Locks mutex, performs addition, stores result, unlocks mutex
+         */
+        TYPE fetchAdd(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
+         * @brief Atomically subtracts a value
+         * @param value Value to subtract
+         * @param order Memory ordering (ignored)
+         * @return The previous value
+         * @implementation Locks mutex, performs subtraction, stores result, unlocks mutex
+         */
+        TYPE fetchSub(TYPE value, memOrder order = SEQ_CST) noexcept;
+
+        /**
          * @brief Atomic addition assignment
          * @param value Value to add
          * @return Reference to this atomic object
@@ -761,16 +829,28 @@ original::atomicImpl<TYPE, false>& original::atomicImpl<TYPE, false>::operator=(
 }
 
 template <typename TYPE>
+TYPE original::atomicImpl<TYPE, false>::fetchAdd(TYPE value, memOrder order) noexcept
+{
+    return __atomic_fetch_add(reinterpret_cast<TYPE*>(this->data_), value, static_cast<integer>(order));
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, false>::fetchSub(TYPE value, memOrder order) noexcept
+{
+    return __atomic_fetch_sub(reinterpret_cast<TYPE*>(this->data_), value, static_cast<integer>(order));
+}
+
+template <typename TYPE>
 original::atomicImpl<TYPE, false>& original::atomicImpl<TYPE, false>::operator+=(TYPE value) noexcept
 {
-    __atomic_fetch_add(reinterpret_cast<TYPE*>(this->data_), value, static_cast<integer>(memOrder::SEQ_CST));
+    this->fetchAdd(value);
     return *this;
 }
 
 template <typename TYPE>
 original::atomicImpl<TYPE, false>& original::atomicImpl<TYPE, false>::operator-=(TYPE value) noexcept
 {
-    __atomic_fetch_sub(reinterpret_cast<TYPE*>(this->data_), value, static_cast<integer>(memOrder::SEQ_CST));
+    this->fetchSub(value);
     return *this;
 }
 
@@ -834,20 +914,34 @@ original::atomicImpl<TYPE, true>::operator=(TYPE value) noexcept
 }
 
 template <typename TYPE>
-original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator+=(TYPE value) noexcept
+TYPE original::atomicImpl<TYPE, true>::fetchAdd(TYPE value, memOrder) noexcept
 {
     uniqueLock lock{this->mutex_};
-    TYPE result = *this->data_ + value;
-    this->data_.set(result);
+    TYPE result = *this->data_;
+    this->data_.set(result + value);
+    return result;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, true>::fetchSub(TYPE value, memOrder) noexcept
+{
+    uniqueLock lock{this->mutex_};
+    TYPE result = *this->data_;
+    this->data_.set(result - value);
+    return result;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator+=(TYPE value) noexcept
+{
+    this->fetchAdd(value);
     return *this;
 }
 
 template <typename TYPE>
 original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator-=(TYPE value) noexcept
 {
-    uniqueLock lock{this->mutex_};
-    TYPE result = *this->data_ - value;
-    this->data_.set(result);
+    this->fetchSub(value);
     return *this;
 }
 
@@ -995,21 +1089,40 @@ template <typename TYPE>
 original::atomicImpl<TYPE, false>&
 original::atomicImpl<TYPE, false>::operator+=(TYPE value) noexcept
 {
-    if constexpr (sizeof(TYPE) == 4) {
-        InterlockedAdd(reinterpret_cast<volatile val_type*>(&this->data_),
-                       atomicCastTo<TYPE, val_type>(value));
-    } else {
-        InterlockedAdd64(reinterpret_cast<volatile val_type*>(&this->data_),
-                         atomicCastTo<TYPE, val_type>(value));
-    }
+    this->fetchAdd(value);
     return *this;
+}
+
+template <typename TYPE>
+TYPE
+original::atomicImpl<TYPE, false>::fetchAdd(TYPE value, memOrder) noexcept
+{
+    if constexpr (sizeof(TYPE) == 4) {
+        return atomicCastBack<TYPE, val_type>(
+            InterlockedExchangeAdd(reinterpret_cast<volatile val_type*>(&this->data_),
+                                   atomicCastTo<TYPE, val_type>(value))
+        );
+    } else {
+        return atomicCastBack<TYPE, val_type>(
+            InterlockedExchangeAdd64(reinterpret_cast<volatile val_type*>(&this->data_),
+                                     atomicCastTo<TYPE, val_type>(value))
+        );
+    }
+}
+
+template <typename TYPE>
+TYPE
+original::atomicImpl<TYPE, false>::fetchSub(TYPE value, memOrder order) noexcept
+{
+    return this->fetchAdd(-value, order);
 }
 
 template <typename TYPE>
 original::atomicImpl<TYPE, false>&
 original::atomicImpl<TYPE, false>::operator-=(TYPE value) noexcept
 {
-    return *this += -value;
+    this->fetchSub(value);
+    return *this;
 }
 
 template <typename TYPE>
@@ -1094,20 +1207,34 @@ original::atomicImpl<TYPE, true>::operator=(TYPE value) noexcept
 }
 
 template <typename TYPE>
-original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator+=(TYPE value) noexcept
+TYPE original::atomicImpl<TYPE, true>::fetchAdd(TYPE value, memOrder) noexcept
 {
     uniqueLock lock{this->mutex_};
-    TYPE result = *this->data_ + value;
-    this->data_.set(result);
+    TYPE result = *this->data_;
+    this->data_.set(result + value);
+    return result;
+}
+
+template <typename TYPE>
+TYPE original::atomicImpl<TYPE, true>::fetchSub(TYPE value, memOrder) noexcept
+{
+    uniqueLock lock{this->mutex_};
+    TYPE result = *this->data_;
+    this->data_.set(result - value);
+    return result;
+}
+
+template <typename TYPE>
+original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator+=(TYPE value) noexcept
+{
+    this->fetchAdd(value);
     return *this;
 }
 
 template <typename TYPE>
 original::atomicImpl<TYPE, true>& original::atomicImpl<TYPE, true>::operator-=(TYPE value) noexcept
 {
-    uniqueLock lock{this->mutex_};
-    TYPE result = *this->data_ - value;
-    this->data_.set(result);
+    this->fetchSub(value);
     return *this;
 }
 
