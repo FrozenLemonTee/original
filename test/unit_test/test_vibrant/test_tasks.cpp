@@ -2,6 +2,10 @@
 #include "tasks.h"
 #include "thread.h"
 
+#include <atomic>
+#include <memory>
+#include <vector>
+
 using namespace original;
 
 // 基础测试函数
@@ -663,6 +667,98 @@ TEST(TaskDelegatorTest, SubmitWithTimeoutWhenStopped) {
             return 42;
         });
     }, sysError);
+}
+
+TEST(TaskDelegatorTest, ConcurrentSubmittersCompleteAllTasks) {
+    constexpr int worker_count = 4;
+    constexpr int submitter_count = 6;
+    constexpr int tasks_per_submitter = 24;
+    constexpr int total_tasks = submitter_count * tasks_per_submitter;
+
+    taskDelegator delegator(worker_count);
+
+    std::atomic ready_submitters{0};
+    std::atomic start_submitting{false};
+    std::atomic submit_failures{0};
+    std::atomic executed_count{0};
+    std::atomic executed_sum{0};
+
+    std::vector<std::vector<async::future<int>>> futures(submitter_count);
+    for (auto& submitter_futures : futures) {
+        submitter_futures.reserve(tasks_per_submitter);
+    }
+
+    std::vector<thread> submitters;
+    submitters.reserve(submitter_count);
+
+    for (int submitter = 0; submitter < submitter_count; ++submitter) {
+        submitters.emplace_back([&, submitter] {
+            ready_submitters += 1;
+            while (!start_submitting.load()) {
+                thread::yield();
+            }
+
+            for (int task_index = 0; task_index < tasks_per_submitter; ++task_index) {
+                const int value = submitter * tasks_per_submitter + task_index + 1;
+                const auto priority = [task_index] {
+                    switch (task_index % 4) {
+                    case 0:
+                        return taskDelegator::HIGH;
+                    case 1:
+                        return taskDelegator::NORMAL;
+                    case 2:
+                        return taskDelegator::LOW;
+                    default:
+                        return taskDelegator::DEFERRED;
+                    }
+                }();
+
+                try {
+                    futures[submitter].push_back(delegator.submit(priority, [&, value] {
+                        executed_count += 1;
+                        executed_sum += value;
+                        thread::yield();
+                        return value;
+                    }));
+                } catch (...) {
+                    submit_failures += 1;
+                }
+            }
+        });
+    }
+
+    while (ready_submitters.load() != submitter_count) {
+        thread::yield();
+    }
+    start_submitting = true;
+
+    for (auto& submitter : submitters) {
+        submitter.join();
+    }
+
+    EXPECT_EQ(submit_failures.load(), 0);
+
+    int future_count = 0;
+    for (const auto& submitter_futures : futures) {
+        future_count += static_cast<int>(submitter_futures.size());
+    }
+    EXPECT_EQ(future_count, total_tasks);
+    EXPECT_EQ(delegator.deferredCnt(), submitter_count * (tasks_per_submitter / 4));
+
+    delegator.runAllDeferred();
+    EXPECT_EQ(delegator.deferredCnt(), 0);
+
+    int result_sum = 0;
+    for (auto& submitter_futures : futures) {
+        for (auto& future : submitter_futures) {
+            result_sum += future.result();
+        }
+    }
+
+    constexpr int expected_sum = total_tasks * (total_tasks + 1) / 2;
+    EXPECT_EQ(result_sum, expected_sum);
+    EXPECT_EQ(executed_count.load(), total_tasks);
+    EXPECT_EQ(executed_sum.load(), expected_sum);
 }
 
 // 高并发下的综合压力测试
